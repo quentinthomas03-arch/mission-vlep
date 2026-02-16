@@ -68,16 +68,25 @@ function renderTerrainMission(){
   h+='<button class="btn btn-orange btn-small" onclick="startFusionPrelevementsMode();">'+ICONS.merge+' Sélection manuelle</button>';
   h+='</div></div>';
   
-  // Mode co-prélèvement agents actif
+  // Modes de sélection actifs
   if(state.coPrelevementAgentsMode){
-    h+='<div class="info-box info-box-warning mb-12"><p><strong>Mode co-prélèvement agents actif</strong></p><p>Sélectionnez les agents à prélever sur le même support (même GEH, codes compatibles)</p></div>';
-    h+='<div class="row mb-12"><button class="btn btn-gray" onclick="cancelCoPrelevementAgentsMode();">Annuler</button><button class="btn btn-success" onclick="createCoPrelevementFromSelection();" '+(state.selectedForCoPrel.length<2?'disabled':'')+'>Créer co-prél. ('+state.selectedForCoPrel.length+')</button></div>';
+    h+='<div class="info-box info-box-warning mb-12">';
+    h+='<p><strong>Mode co-prélèvement agents actif</strong></p>';
+    h+='<p>Sélectionnez les agents à prélever sur le même support</p></div>';
+    h+='<div class="row mb-12">';
+    h+='<button class="btn btn-gray" onclick="cancelCoPrelevementAgentsMode();">Annuler</button>';
+    h+='<button class="btn btn-success" onclick="createCoPrelevementFromSelection();" '+(state.selectedForCoPrel.length<2?'disabled':'')+'>Créer co-prél. ('+state.selectedForCoPrel.length+')</button>';
+    h+='</div>';
   }
   
-  // Mode fusion prélèvements actif
   if(state.fusionPrelevementsMode){
-    h+='<div class="info-box info-box-warning mb-12"><p><strong>Mode fusion prélèvements actif</strong></p><p>Sélectionnez les prélèvements à fusionner (même opérateur, même GEH, même type)</p></div>';
-    h+='<div class="row mb-12"><button class="btn btn-gray" onclick="cancelFusionPrelevementsMode();">Annuler</button><button class="btn btn-success" onclick="createFusionFromSelection();" '+(state.selectedForFusion.length<2?'disabled':'')+'>Fusionner ('+state.selectedForFusion.length+')</button></div>';
+    h+='<div class="info-box info-box-warning mb-12">';
+    h+='<p><strong>Mode fusion prélèvements actif</strong></p>';
+    h+='<p>Sélectionnez les prélèvements à fusionner</p></div>';
+    h+='<div class="row mb-12">';
+    h+='<button class="btn btn-gray" onclick="cancelFusionPrelevementsMode();">Annuler</button>';
+    h+='<button class="btn btn-success" onclick="createFusionFromSelection();" '+(state.selectedForFusion.length<2?'disabled':'')+'>Fusionner ('+state.selectedForFusion.length+')</button>';
+    h+='</div>';
   }
   var byGeh={};
   m.prelevements.forEach(function(p){var k=p.gehId;if(!byGeh[k])byGeh[k]=[];byGeh[k].push(p);});
@@ -93,53 +102,20 @@ function renderTerrainMission(){
       ps.forEach(function(p){
         var allDone=p.subPrelevements.every(function(s){return s.completed;});
         var mc=p.agents&&p.agents[0]?p.agents[0].color:'#3b82f6';
-        var isSelectedCoPrel=state.selectedForCoPrel&&state.selectedForCoPrel.indexOf(p.id)!==-1;
-        var isSelectedFusion=state.selectedForFusion&&state.selectedForFusion.indexOf(p.id)!==-1;
+        var isSelected=state.selectedForFusion.indexOf(p.id)!==-1;
         var agentNames=p.agents&&p.agents.length>0?p.agents.map(function(a){return escapeHtml(a.name);}).join(' + '):'Agent inconnu';
-        
-        // Distinction co-prélèvement vs fusion
-        var isCoPrel=p.isCoPrelevement===true;
-        var isFusion=p.agents.length>1&&!isCoPrel;
-        
-        var badge='';
-        if(isCoPrel){
-          badge='<span style="background:#dbeafe;color:#1e40af;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;margin-right:3px;">📦 Même support ×'+p.agents.length+'</span>';
-        }else if(isFusion){
-          badge='<span style="background:#fef3c7;color:#92400e;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;margin-right:3px;">🔗 Fusion ×'+p.agents.length+'</span>';
-        }
-        
-        h+='<div class="prel-item '+(isSelectedCoPrel||isSelectedFusion?'selected':'')+'" style="background:'+lightenColor(mc,0.85)+';">';
-        
-        // Checkbox ou status
-        if(state.coPrelevementAgentsMode){
-          h+='<div class="prel-checkbox '+(isSelectedCoPrel?'checked':'')+'" onclick="toggleCoPrelevementAgentSelect('+p.id+');">✓</div>';
-        }else if(state.fusionPrelevementsMode){
-          h+='<div class="prel-checkbox '+(isSelectedFusion?'checked':'')+'" onclick="toggleFusionPrelevementSelect('+p.id+');">✓</div>';
+        h+='<div class="prel-item '+(isSelected?'selected':'')+'" style="background:'+lightenColor(mc,0.85)+';">';
+        if(state.fusionMode){
+          h+='<div class="prel-checkbox '+(isSelected?'checked':'')+'" onclick="toggleFusionSelect('+p.id+');">✓</div>';
         }else{
           h+='<div class="prel-status '+(allDone?'done':'pending')+'" onclick="openPrel('+p.id+');">✓</div>';
         }
-        
-        // Contenu
-        var clickAction=state.coPrelevementAgentsMode?'toggleCoPrelevementAgentSelect('+p.id+');':
-                        state.fusionPrelevementsMode?'toggleFusionPrelevementSelect('+p.id+');':
-                        'openPrel('+p.id+');';
-        
-        h+='<div class="prel-content" onclick="'+clickAction+'">';
-        h+='<div class="prel-title" style="color:'+mc+';">'+agentNames+'</div>';
-        h+='<div class="prel-subtitle">'+p.type+' • '+p.subPrelevements.length+' sous-prél. '+badge+(p.isReglementaire?'<span class="prel-reg-badge">Régl.</span>':'<span class="prel-nonreg-badge">Non-régl.</span>')+'</div>';
-        h+='</div>';
-        
-        // Boutons d'action
-        if(!state.coPrelevementAgentsMode&&!state.fusionPrelevementsMode){
-          if(isCoPrel){
-            h+='<button class="btn btn-gray btn-icon" style="width:24px;height:24px;font-size:11px;margin-right:2px;" onclick="event.stopPropagation();deCoprelevement('+p.id+');" title="Séparer les agents">📦</button>';
-          }else if(isFusion){
-            h+='<button class="btn btn-gray btn-icon" style="width:24px;height:24px;font-size:11px;margin-right:2px;" onclick="event.stopPropagation();defusionPrelevement('+p.id+');" title="Séparer les prélèvements">'+ICONS.merge+'</button>';
-          }
+        h+='<div class="prel-content" onclick="'+(state.fusionMode?'toggleFusionSelect('+p.id+');':'openPrel('+p.id+');')+'"><div class="prel-title" style="color:'+mc+';">'+agentNames+'</div><div class="prel-subtitle">'+p.type+' • '+p.subPrelevements.length+' sous-prél. '+(p.agents.length>1?'<span style="background:var(--primary-pale);color:var(--primary);padding:1px 5px;border-radius:3px;font-size:9px;font-weight:700;margin-right:3px;">Co-prél ×'+p.agents.length+'</span>':'')+(p.isReglementaire?'<span class="prel-reg-badge">Régl.</span>':'<span class="prel-nonreg-badge">Non-régl.</span>')+'</div></div>';
+        if(!state.fusionMode){
+          if(p.agents&&p.agents.length>1)h+='<button class="btn btn-gray btn-icon" style="width:24px;height:24px;font-size:11px;margin-right:2px;" onclick="event.stopPropagation();defusionPrel('+p.id+');" title="Défusionner">'+ICONS.merge+'</button>';
           h+='<button class="btn btn-danger btn-icon" style="width:24px;height:24px;font-size:11px;margin-right:2px;" onclick="event.stopPropagation();deletePrelTerrain('+p.id+');">'+ICONS.trash+'</button>';
         }
-        
-        h+='<div class="prel-arrow" onclick="'+clickAction+'">'+ICONS.arrowRight+'</div></div>';
+        h+='<div class="prel-arrow" onclick="'+(state.fusionMode?'toggleFusionSelect('+p.id+');':'openPrel('+p.id+');')+'">'+ICONS.arrowRight+'</div></div>';
       });
     }
     h+='</div></div>';
@@ -147,8 +123,6 @@ function renderTerrainMission(){
   if(state.showModal==='addGehTerrain')h+=renderAddGehTerrainModal();
   if(state.showModal==='addPrelTerrain')h+=renderAddPrelTerrainModal();
   if(state.showModal==='smartFusion')h+=renderSmartFusionModal();
-  if(state.showModal==='smartCoPrelevementAgents')h+=renderSmartCoPrelevementAgentsModal();
-  if(state.showModal==='smartFusionPrelevements')h+=renderSmartFusionPrelevementsModal();
   return h;
 }
 
@@ -915,7 +889,8 @@ function renderValidationModal(){
 }
 
 // ========================================
-// CO-PRÉLÈVEMENT D'AGENTS (MÊME SUPPORT)
+// CO-PRÉLÈVEMENT D'AGENTS (MÊME SUPPORT)  
+// AJOUTÉ PAR TERRAIN.JS V4
 // ========================================
 
 function detectCompatibleAgents(mission){
@@ -934,14 +909,28 @@ function detectCompatibleAgents(mission){
           if(!agentDB)return;
           var key=agentDB['Code support']+'|'+agentDB['Code prétraitement']+'|'+agentDB['Débit (l/min)'];
           if(!compatGroups[key]){
-            compatGroups[key]={codeSupport:agentDB['Code support'],support:agentDB['Support de prélèvement'],codePretraitement:agentDB['Code prétraitement'],pretraitement:agentDB['Prétraitement'],debit:agentDB['Débit (l/min)'],prelevements:[],agents:[]};
+            compatGroups[key]={
+              codeSupport:agentDB['Code support'],
+              support:agentDB['Support de prélèvement'],
+              codePretraitement:agentDB['Code prétraitement'],
+              pretraitement:agentDB['Prétraitement'],
+              debit:agentDB['Débit (l/min)'],
+              prelevements:[],
+              agents:[]
+            };
           }
           compatGroups[key].prelevements.push(prel);
           compatGroups[key].agents.push(agent.name);
         });
         for(var key in compatGroups){
           if(compatGroups[key].agents.length>=2){
-            groups.push({gehId:geh.id,gehName:geh.num+'. '+geh.name,type:type,isReglementaire:isReg,info:compatGroups[key]});
+            groups.push({
+              gehId:geh.id,
+              gehName:geh.num+'. '+geh.name,
+              type:type,
+              isReglementaire:isReg,
+              info:compatGroups[key]
+            });
           }
         }
       });
@@ -950,21 +939,27 @@ function detectCompatibleAgents(mission){
   return groups;
 }
 
-function showSmartCoPrelevementAgentsModal(){state.showModal='smartCoPrelevementAgents';render();}
+function showSmartCoPrelevementAgentsModal(){
+  state.showModal='smartCoPrelevementAgents';
+  render();
+}
 
 function renderSmartCoPrelevementAgentsModal(){
-  var m=getCurrentMission();if(!m)return'';
+  var m=getCurrentMission();
+  if(!m)return'';
   var groups=detectCompatibleAgents(m);
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content" style="max-height:90vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Détection auto - Co-prélèvement agents</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div>';
-  h+='<div class="info-box info-box-success"><p><strong>Co-prélèvement d\'agents</strong> : Plusieurs agents sur le MÊME support physique (même pompe, même référence).</p><p style="margin-top:6px;font-size:11px;">Critères : Code support + Code prétraitement + Débit identiques</p></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content" style="max-height:90vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Détection automatique - Co-prélèvement agents</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div>';
+  h+='<div class="info-box info-box-success"><p><strong>Co-prélèvement d\\'agents</strong> : Plusieurs agents chimiques prélevés sur le MÊME support physique (même pompe, même référence échantillon).</p><p style="margin-top:6px;font-size:11px;">Critères : Code support + Code prétraitement + Débit identiques</p></div>';
   if(groups.length===0){
-    h+='<div class="empty-state" style="padding:20px;"><p>Aucun agent compatible détecté</p><p style="font-size:12px;margin-top:6px;">Les agents doivent avoir le même code support, prétraitement et débit.</p></div>';
+    h+='<div class="empty-state" style="padding:20px;"><p>Aucun agent compatible détecté</p><p style="font-size:12px;margin-top:6px;">Les agents doivent avoir le même code support, prétraitement et débit pour être co-prélevés.</p></div>';
   }else{
-    h+='<p style="font-size:12px;font-weight:600;margin-bottom:8px;">'+groups.length+' groupe(s) détecté(s) :</p>';
+    h+='<p style="font-size:12px;font-weight:600;margin-bottom:8px;">'+groups.length+' groupe(s) d\\'agents compatibles détecté(s) :</p>';
     groups.forEach(function(grp,idx){
-      h+='<div class="card" style="padding:12px;margin-bottom:8px;border-left:4px solid #0ea5e9;"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;"><div style="flex:1;"><div style="font-weight:700;font-size:13px;">'+escapeHtml(grp.gehName)+' • '+grp.type+(grp.isReglementaire?' (Régl.)':' (Non-régl.)')+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">'+grp.info.agents.length+' agents compatibles</div></div><button class="btn btn-success btn-small" onclick="createCoPrelevementFromGroup('+idx+');">Créer</button></div>';
+      h+='<div class="card" style="padding:12px;margin-bottom:8px;border-left:4px solid #0ea5e9;"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;"><div style="flex:1;"><div style="font-weight:700;font-size:13px;color:var(--text-dark);">'+escapeHtml(grp.gehName)+' • '+grp.type+(grp.isReglementaire?' (Régl.)':' (Non-régl.)')+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">'+grp.info.agents.length+' agents compatibles</div></div><button class="btn btn-success btn-small" onclick="createCoPrelevementFromGroup('+idx+');">Créer</button></div>';
       h+='<div style="background:#f8fafc;padding:8px;border-radius:6px;margin-bottom:8px;"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;"><strong>Agents :</strong></div>';
-      grp.info.agents.forEach(function(agentName){h+='<div style="font-size:12px;padding:2px 0;">• '+escapeHtml(agentName)+'</div>';});
+      grp.info.agents.forEach(function(agentName){
+        h+='<div style="font-size:12px;padding:2px 0;">• '+escapeHtml(agentName)+'</div>';
+      });
       h+='</div><div style="background:#f8fafc;padding:8px;border-radius:6px;font-size:11px;"><div><strong>Support :</strong> '+escapeHtml(grp.info.support||'-')+'</div><div><strong>Prétraitement :</strong> '+escapeHtml(grp.info.pretraitement||'-')+'</div><div><strong>Débit :</strong> '+escapeHtml(grp.info.debit||'-')+' L/min</div></div></div>';
     });
   }
@@ -973,67 +968,126 @@ function renderSmartCoPrelevementAgentsModal(){
 }
 
 function createCoPrelevementFromGroup(groupIndex){
-  var m=getCurrentMission();if(!m)return;
+  var m=getCurrentMission();
+  if(!m)return;
   var groups=detectCompatibleAgents(m);
-  var grp=groups[groupIndex];if(!grp)return;
+  var grp=groups[groupIndex];
+  if(!grp)return;
   var prelIdsToRemove=grp.info.prelevements.map(function(p){return p.id;});
   m.prelevements=m.prelevements.filter(function(p){return prelIdsToRemove.indexOf(p.id)===-1;});
-  var newPrel={id:generateId(),gehId:grp.gehId,type:grp.type,isReglementaire:grp.isReglementaire,isCoPrelevement:true,agents:grp.info.prelevements.map(function(p){return p.agents[0];}),subPrelevements:[]};
+  var newPrel={
+    id:generateId(),
+    gehId:grp.gehId,
+    type:grp.type,
+    isReglementaire:grp.isReglementaire,
+    isCoPrelevement:true,
+    agents:grp.info.prelevements.map(function(p){return p.agents[0];}),
+    subPrelevements:[]
+  };
   var nbSubs=grp.isReglementaire?3:1;
-  for(var i=0;i<nbSubs;i++){newPrel.subPrelevements.push({dayNum:i+1,date:'',operateur:'',plages:[{debut:'',fin:''}],agentData:{},completed:false,observations:''});}
+  for(var i=0;i<nbSubs;i++){
+    newPrel.subPrelevements.push({dayNum:i+1,date:'',operateur:'',plages:[{debut:'',fin:''}],agentData:{},completed:false,observations:''});
+  }
   m.prelevements.push(newPrel);
   saveData('vlep_missions_v3',state.missions);
   state.showModal=null;
   render();
-  alert('✓ Co-prélèvement créé !\n\n'+grp.info.agents.length+' agents sur le même support.');
+  alert('✓ Co-prélèvement créé !\\n\\n'+grp.info.agents.length+' agents sur le même support.');
 }
 
-function startCoPrelevementAgentsMode(){state.coPrelevementAgentsMode=true;state.selectedForCoPrel=[];render();}
-function cancelCoPrelevementAgentsMode(){state.coPrelevementAgentsMode=false;state.selectedForCoPrel=[];render();}
-function toggleCoPrelevementAgentSelect(prelId){var idx=state.selectedForCoPrel.indexOf(prelId);if(idx===-1){state.selectedForCoPrel.push(prelId);}else{state.selectedForCoPrel.splice(idx,1);}render();}
+function startCoPrelevementAgentsMode(){
+  if(!state.coPrelevementAgentsMode)state.coPrelevementAgentsMode=false;
+  state.coPrelevementAgentsMode=true;
+  if(!state.selectedForCoPrel)state.selectedForCoPrel=[];
+  state.selectedForCoPrel=[];
+  render();
+}
+
+function cancelCoPrelevementAgentsMode(){
+  state.coPrelevementAgentsMode=false;
+  state.selectedForCoPrel=[];
+  render();
+}
+
+function toggleCoPrelevementAgentSelect(prelId){
+  if(!state.selectedForCoPrel)state.selectedForCoPrel=[];
+  var idx=state.selectedForCoPrel.indexOf(prelId);
+  if(idx===-1){
+    state.selectedForCoPrel.push(prelId);
+  }else{
+    state.selectedForCoPrel.splice(idx,1);
+  }
+  render();
+}
 
 function createCoPrelevementFromSelection(){
-  var m=getCurrentMission();if(!m)return;
-  if(state.selectedForCoPrel.length<2){alert('Sélectionnez au moins 2 prélèvements');return;}
+  var m=getCurrentMission();
+  if(!m)return;
+  if(state.selectedForCoPrel.length<2){
+    alert('Sélectionnez au moins 2 prélèvements');
+    return;
+  }
   var selectedPrels=m.prelevements.filter(function(p){return state.selectedForCoPrel.indexOf(p.id)!==-1;});
   var hasMulti=selectedPrels.some(function(p){return p.agents.length>1;});
   if(hasMulti){alert('Impossible : certains prélèvements ont déjà plusieurs agents');return;}
   var firstGehId=selectedPrels[0].gehId;
   var sameGeh=selectedPrels.every(function(p){return p.gehId===firstGehId;});
-  if(!sameGeh){alert('Impossible : même GEH requis');return;}
+  if(!sameGeh){alert('Impossible : les prélèvements doivent être du même GEH');return;}
   var firstType=selectedPrels[0].type;
   var sameType=selectedPrels.every(function(p){return p.type===firstType;});
-  if(!sameType){alert('Impossible : même type requis');return;}
+  if(!sameType){alert('Impossible : les prélèvements doivent être du même type (8h ou CT)');return;}
   var firstPrel=selectedPrels[0];
   m.prelevements=m.prelevements.filter(function(p){return state.selectedForCoPrel.indexOf(p.id)===-1;});
-  var newPrel={id:generateId(),gehId:firstPrel.gehId,type:firstPrel.type,isReglementaire:firstPrel.isReglementaire,isCoPrelevement:true,agents:selectedPrels.map(function(p){return p.agents[0];}),subPrelevements:[]};
+  var newPrel={
+    id:generateId(),
+    gehId:firstPrel.gehId,
+    type:firstPrel.type,
+    isReglementaire:firstPrel.isReglementaire,
+    isCoPrelevement:true,
+    agents:selectedPrels.map(function(p){return p.agents[0];}),
+    subPrelevements:[]
+  };
   var nbSubs=firstPrel.isReglementaire?3:1;
-  for(var i=0;i<nbSubs;i++){newPrel.subPrelevements.push({dayNum:i+1,date:'',operateur:'',plages:[{debut:'',fin:''}],agentData:{},completed:false,observations:''});}
+  for(var i=0;i<nbSubs;i++){
+    newPrel.subPrelevements.push({dayNum:i+1,date:'',operateur:'',plages:[{debut:'',fin:''}],agentData:{},completed:false,observations:''});
+  }
   m.prelevements.push(newPrel);
   saveData('vlep_missions_v3',state.missions);
   cancelCoPrelevementAgentsMode();
-  alert('✓ Co-prélèvement créé !\n\n'+selectedPrels.length+' agents sur le même support.');
+  alert('✓ Co-prélèvement créé !\\n\\n'+selectedPrels.length+' agents regroupés sur le même support.');
 }
 
 function deCoprelevement(prelId){
-  var m=getCurrentMission();if(!m)return;
+  var m=getCurrentMission();
+  if(!m)return;
   var prel=m.prelevements.find(function(p){return p.id===prelId;});
   if(!prel||!prel.isCoPrelevement)return;
   if(!confirm('Séparer ce co-prélèvement en '+prel.agents.length+' prélèvements individuels ?'))return;
   m.prelevements=m.prelevements.filter(function(p){return p.id!==prelId;});
   prel.agents.forEach(function(agent){
-    var newPrel={id:generateId(),gehId:prel.gehId,type:prel.type,isReglementaire:prel.isReglementaire,isCoPrelevement:false,agents:[agent],subPrelevements:[]};
+    var newPrel={
+      id:generateId(),
+      gehId:prel.gehId,
+      type:prel.type,
+      isReglementaire:prel.isReglementaire,
+      isCoPrelevement:false,
+      agents:[agent],
+      subPrelevements:[]
+    };
     var nbSubs=prel.isReglementaire?3:1;
-    for(var i=0;i<nbSubs;i++){newPrel.subPrelevements.push({dayNum:i+1,date:'',operateur:'',plages:[{debut:'',fin:''}],agentData:{},completed:false,observations:''});}
+    for(var i=0;i<nbSubs;i++){
+      newPrel.subPrelevements.push({dayNum:i+1,date:'',operateur:'',plages:[{debut:'',fin:''}],agentData:{},completed:false,observations:''});
+    }
     m.prelevements.push(newPrel);
   });
   saveData('vlep_missions_v3',state.missions);
   render();
-  alert('✓ Séparé en '+prel.agents.length+' prélèvements individuels');
+  alert('✓ Co-prélèvement séparé en '+prel.agents.length+' prélèvements individuels');
 }
 
 // ========================================
 // FUSION DE PRÉLÈVEMENTS (MÊME PERSONNE)
+// AJOUTÉ PAR TERRAIN.JS V4
 // ========================================
 
 function detectFusionnablePrelevements(mission){
@@ -1041,18 +1095,32 @@ function detectFusionnablePrelevements(mission){
   mission.gehs.filter(function(g){return g.name;}).forEach(function(geh){
     ['8h','CT'].forEach(function(type){
       [true,false].forEach(function(isReg){
-        var prelsCandidats=mission.prelevements.filter(function(p){return p.gehId===geh.id && p.type===type && p.isReglementaire===isReg;});
+        var prelsCandidats=mission.prelevements.filter(function(p){
+          return p.gehId===geh.id && p.type===type && p.isReglementaire===isReg;
+        });
         var byOperator={};
         prelsCandidats.forEach(function(prel){
           var operator='';
-          if(prel.subPrelevements.length>0&&prel.subPrelevements[0].operateur){operator=prel.subPrelevements[0].operateur;}
+          if(prel.subPrelevements.length>0&&prel.subPrelevements[0].operateur){
+            operator=prel.subPrelevements[0].operateur;
+          }
           if(!operator)return;
-          if(!byOperator[operator]){byOperator[operator]={operateur:operator,prelevements:[],agents:[]};}
+          if(!byOperator[operator]){
+            byOperator[operator]={operateur:operator,prelevements:[],agents:[]};
+          }
           byOperator[operator].prelevements.push(prel);
           prel.agents.forEach(function(a){byOperator[operator].agents.push(a.name);});
         });
         for(var op in byOperator){
-          if(byOperator[op].prelevements.length>=2){groups.push({gehId:geh.id,gehName:geh.num+'. '+geh.name,type:type,isReglementaire:isReg,info:byOperator[op]});}
+          if(byOperator[op].prelevements.length>=2){
+            groups.push({
+              gehId:geh.id,
+              gehName:geh.num+'. '+geh.name,
+              type:type,
+              isReglementaire:isReg,
+              info:byOperator[op]
+            });
+          }
         }
       });
     });
@@ -1060,21 +1128,27 @@ function detectFusionnablePrelevements(mission){
   return groups;
 }
 
-function showSmartFusionPrelevementsModal(){state.showModal='smartFusionPrelevements';render();}
+function showSmartFusionPrelevementsModal(){
+  state.showModal='smartFusionPrelevements';
+  render();
+}
 
 function renderSmartFusionPrelevementsModal(){
-  var m=getCurrentMission();if(!m)return'';
+  var m=getCurrentMission();
+  if(!m)return'';
   var groups=detectFusionnablePrelevements(m);
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content" style="max-height:90vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Détection auto - Fusion prélèvements</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div>';
-  h+='<div class="info-box" style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-left-color:#f59e0b;color:#92400e;"><p><strong>Fusion de prélèvements</strong> : Regrouper plusieurs prélèvements DIFFÉRENTS pour une MÊME personne.</p><p style="margin-top:6px;font-size:11px;">Critères : Même opérateur + Même GEH + Même type</p></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content" style="max-height:90vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Détection automatique - Fusion prélèvements</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div>';
+  h+='<div class="info-box" style="background:linear-gradient(135deg,#fef3c7,#fde68a);border-left-color:#f59e0b;color:#92400e;"><p><strong>Fusion de prélèvements</strong> : Regrouper plusieurs prélèvements DIFFÉRENTS pour une MÊME personne (même opérateur).</p><p style="margin-top:6px;font-size:11px;">Critères : Même opérateur + Même GEH + Même type (8h ou CT)</p></div>';
   if(groups.length===0){
-    h+='<div class="empty-state" style="padding:20px;"><p>Aucun prélèvement fusionnable détecté</p><p style="font-size:12px;margin-top:6px;">Les prélèvements doivent avoir le même opérateur, GEH et type.</p></div>';
+    h+='<div class="empty-state" style="padding:20px;"><p>Aucun prélèvement fusionnable détecté</p><p style="font-size:12px;margin-top:6px;">Les prélèvements doivent avoir le même opérateur, GEH et type pour être fusionnés.</p></div>';
   }else{
-    h+='<p style="font-size:12px;font-weight:600;margin-bottom:8px;">'+groups.length+' groupe(s) détecté(s) :</p>';
+    h+='<p style="font-size:12px;font-weight:600;margin-bottom:8px;">'+groups.length+' groupe(s) de prélèvements fusionnables détecté(s) :</p>';
     groups.forEach(function(grp,idx){
-      h+='<div class="card" style="padding:12px;margin-bottom:8px;border-left:4px solid #f59e0b;"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;"><div style="flex:1;"><div style="font-weight:700;font-size:13px;">'+escapeHtml(grp.gehName)+' • '+grp.type+(grp.isReglementaire?' (Régl.)':' (Non-régl.)')+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Opérateur : '+escapeHtml(grp.info.operateur)+'</div><div style="font-size:11px;color:var(--text-muted);">'+grp.info.prelevements.length+' prélèvements • '+grp.info.agents.length+' agents</div></div><button class="btn btn-success btn-small" onclick="createFusionFromGroup('+idx+');">Fusionner</button></div>';
-      h+='<div style="background:#f8fafc;padding:8px;border-radius:6px;font-size:11px;"><div style="margin-bottom:4px;"><strong>Agents :</strong></div>';
-      grp.info.agents.forEach(function(agentName){h+='<div style="font-size:11px;padding:2px 0;">• '+escapeHtml(agentName)+'</div>';});
+      h+='<div class="card" style="padding:12px;margin-bottom:8px;border-left:4px solid #f59e0b;"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;"><div style="flex:1;"><div style="font-weight:700;font-size:13px;color:var(--text-dark);">'+escapeHtml(grp.gehName)+' • '+grp.type+(grp.isReglementaire?' (Régl.)':' (Non-régl.)')+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">Opérateur : '+escapeHtml(grp.info.operateur)+'</div><div style="font-size:11px;color:var(--text-muted);">'+grp.info.prelevements.length+' prélèvements • '+grp.info.agents.length+' agents</div></div><button class="btn btn-success btn-small" onclick="createFusionFromGroup('+idx+');">Fusionner</button></div>';
+      h+='<div style="background:#f8fafc;padding:8px;border-radius:6px;font-size:11px;"><div style="margin-bottom:4px;"><strong>Agents concernés :</strong></div>';
+      grp.info.agents.forEach(function(agentName){
+        h+='<div style="font-size:11px;padding:2px 0;">• '+escapeHtml(agentName)+'</div>';
+      });
       h+='</div></div>';
     });
   }
@@ -1083,64 +1157,139 @@ function renderSmartFusionPrelevementsModal(){
 }
 
 function createFusionFromGroup(groupIndex){
-  var m=getCurrentMission();if(!m)return;
+  var m=getCurrentMission();
+  if(!m)return;
   var groups=detectFusionnablePrelevements(m);
-  var grp=groups[groupIndex];if(!grp)return;
+  var grp=groups[groupIndex];
+  if(!grp)return;
   var prelIdsToRemove=grp.info.prelevements.map(function(p){return p.id;});
   m.prelevements=m.prelevements.filter(function(p){return prelIdsToRemove.indexOf(p.id)===-1;});
   var allAgents=[];
   var agentNames=[];
-  grp.info.prelevements.forEach(function(p){p.agents.forEach(function(a){if(agentNames.indexOf(a.name)===-1){allAgents.push(a);agentNames.push(a.name);}});});
-  var newPrel={id:generateId(),gehId:grp.gehId,type:grp.type,isReglementaire:grp.isReglementaire,isCoPrelevement:false,agents:allAgents,subPrelevements:[]};
+  grp.info.prelevements.forEach(function(p){
+    p.agents.forEach(function(a){
+      if(agentNames.indexOf(a.name)===-1){
+        allAgents.push(a);
+        agentNames.push(a.name);
+      }
+    });
+  });
+  var newPrel={
+    id:generateId(),
+    gehId:grp.gehId,
+    type:grp.type,
+    isReglementaire:grp.isReglementaire,
+    isCoPrelevement:false,
+    agents:allAgents,
+    subPrelevements:[]
+  };
   var firstPrel=grp.info.prelevements[0];
-  firstPrel.subPrelevements.forEach(function(sub){newPrel.subPrelevements.push(JSON.parse(JSON.stringify(sub)));});
+  firstPrel.subPrelevements.forEach(function(sub){
+    newPrel.subPrelevements.push(JSON.parse(JSON.stringify(sub)));
+  });
   m.prelevements.push(newPrel);
   saveData('vlep_missions_v3',state.missions);
   state.showModal=null;
   render();
-  alert('✓ Fusion réussie !\n\n'+grp.info.prelevements.length+' prélèvements fusionnés ('+allAgents.length+' agents).');
+  alert('✓ Fusion réussie !\\n\\n'+grp.info.prelevements.length+' prélèvements fusionnés ('+allAgents.length+' agents).');
 }
 
-function startFusionPrelevementsMode(){state.fusionPrelevementsMode=true;state.selectedForFusion=[];render();}
-function cancelFusionPrelevementsMode(){state.fusionPrelevementsMode=false;state.selectedForFusion=[];render();}
-function toggleFusionPrelevementSelect(prelId){var idx=state.selectedForFusion.indexOf(prelId);if(idx===-1){state.selectedForFusion.push(prelId);}else{state.selectedForFusion.splice(idx,1);}render();}
+function startFusionPrelevementsMode(){
+  if(!state.fusionPrelevementsMode)state.fusionPrelevementsMode=false;
+  state.fusionPrelevementsMode=true;
+  if(!state.selectedForFusion)state.selectedForFusion=[];
+  state.selectedForFusion=[];
+  render();
+}
+
+function cancelFusionPrelevementsMode(){
+  state.fusionPrelevementsMode=false;
+  state.selectedForFusion=[];
+  render();
+}
+
+function toggleFusionPrelevementSelect(prelId){
+  if(!state.selectedForFusion)state.selectedForFusion=[];
+  var idx=state.selectedForFusion.indexOf(prelId);
+  if(idx===-1){
+    state.selectedForFusion.push(prelId);
+  }else{
+    state.selectedForFusion.splice(idx,1);
+  }
+  render();
+}
 
 function createFusionFromSelection(){
-  var m=getCurrentMission();if(!m)return;
-  if(state.selectedForFusion.length<2){alert('Sélectionnez au moins 2 prélèvements');return;}
+  var m=getCurrentMission();
+  if(!m)return;
+  if(state.selectedForFusion.length<2){
+    alert('Sélectionnez au moins 2 prélèvements');
+    return;
+  }
   var selectedPrels=m.prelevements.filter(function(p){return state.selectedForFusion.indexOf(p.id)!==-1;});
   var firstGehId=selectedPrels[0].gehId;
   var sameGeh=selectedPrels.every(function(p){return p.gehId===firstGehId;});
-  if(!sameGeh){alert('Impossible : même GEH requis');return;}
+  if(!sameGeh){alert('Impossible : les prélèvements doivent être du même GEH');return;}
   var firstType=selectedPrels[0].type;
   var sameType=selectedPrels.every(function(p){return p.type===firstType;});
-  if(!sameType){alert('Impossible : même type requis');return;}
+  if(!sameType){alert('Impossible : les prélèvements doivent être du même type (8h ou CT)');return;}
+  var firstIsReg=selectedPrels[0].isReglementaire;
+  var sameReg=selectedPrels.every(function(p){return p.isReglementaire===firstIsReg;});
+  if(!sameReg){alert('Impossible : les prélèvements doivent avoir le même statut réglementaire');return;}
   var firstPrel=selectedPrels[0];
   m.prelevements=m.prelevements.filter(function(p){return state.selectedForFusion.indexOf(p.id)===-1;});
   var allAgents=[];
   var agentNames=[];
-  selectedPrels.forEach(function(p){p.agents.forEach(function(a){if(agentNames.indexOf(a.name)===-1){allAgents.push(a);agentNames.push(a.name);}});});
-  var newPrel={id:generateId(),gehId:firstPrel.gehId,type:firstPrel.type,isReglementaire:firstPrel.isReglementaire,isCoPrelevement:false,agents:allAgents,subPrelevements:[]};
-  firstPrel.subPrelevements.forEach(function(sub){newPrel.subPrelevements.push(JSON.parse(JSON.stringify(sub)));});
+  selectedPrels.forEach(function(p){
+    p.agents.forEach(function(a){
+      if(agentNames.indexOf(a.name)===-1){
+        allAgents.push(a);
+        agentNames.push(a.name);
+      }
+    });
+  });
+  var newPrel={
+    id:generateId(),
+    gehId:firstPrel.gehId,
+    type:firstPrel.type,
+    isReglementaire:firstPrel.isReglementaire,
+    isCoPrelevement:false,
+    agents:allAgents,
+    subPrelevements:[]
+  };
+  firstPrel.subPrelevements.forEach(function(sub){
+    newPrel.subPrelevements.push(JSON.parse(JSON.stringify(sub)));
+  });
   m.prelevements.push(newPrel);
   saveData('vlep_missions_v3',state.missions);
   cancelFusionPrelevementsMode();
-  alert('✓ Fusion réussie !\n\n'+selectedPrels.length+' prélèvements fusionnés ('+allAgents.length+' agents).');
+  alert('✓ Fusion réussie !\\n\\n'+selectedPrels.length+' prélèvements fusionnés ('+allAgents.length+' agents).');
 }
 
 function defusionPrelevement(prelId){
-  var m=getCurrentMission();if(!m)return;
+  var m=getCurrentMission();
+  if(!m)return;
   var prel=m.prelevements.find(function(p){return p.id===prelId;});
   if(!prel||prel.agents.length<=1)return;
-  if(!confirm('Séparer cette fusion en '+prel.agents.length+' prélèvements individuels ?\n\n⚠️ Les données saisies seront perdues !'))return;
+  if(!confirm('Séparer cette fusion en '+prel.agents.length+' prélèvements individuels ?\\n\\n⚠️ Les données saisies seront perdues !'))return;
   m.prelevements=m.prelevements.filter(function(p){return p.id!==prelId;});
   prel.agents.forEach(function(agent){
-    var newPrel={id:generateId(),gehId:prel.gehId,type:prel.type,isReglementaire:prel.isReglementaire,isCoPrelevement:false,agents:[agent],subPrelevements:[]};
+    var newPrel={
+      id:generateId(),
+      gehId:prel.gehId,
+      type:prel.type,
+      isReglementaire:prel.isReglementaire,
+      isCoPrelevement:false,
+      agents:[agent],
+      subPrelevements:[]
+    };
     var nbSubs=prel.isReglementaire?3:1;
-    for(var i=0;i<nbSubs;i++){newPrel.subPrelevements.push({dayNum:i+1,date:'',operateur:'',plages:[{debut:'',fin:''}],agentData:{},completed:false,observations:''});}
+    for(var i=0;i<nbSubs;i++){
+      newPrel.subPrelevements.push({dayNum:i+1,date:'',operateur:'',plages:[{debut:'',fin:''}],agentData:{},completed:false,observations:''});
+    }
     m.prelevements.push(newPrel);
   });
   saveData('vlep_missions_v3',state.missions);
   render();
-  alert('✓ Séparé en '+prel.agents.length+' prélèvements individuels');
+  alert('✓ Fusion séparée en '+prel.agents.length+' prélèvements individuels');
 }

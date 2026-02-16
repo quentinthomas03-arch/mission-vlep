@@ -31,3 +31,8 @@ export const AGENT_COLORS = [
 ];
 
 export const DEFAULT_GEH_COUNT = 5;
+
+state.coPrelevementAgentsMode = false;
+state.selectedForCoPrel = [];
+state.fusionPrelevementsMode = false;
+state.selectedForFusion = [];
