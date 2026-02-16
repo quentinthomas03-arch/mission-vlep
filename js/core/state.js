@@ -1,54 +1,33 @@
-/*
- * VLEP Mission v3.8 - state.js
- * © 2025 Quentin THOMAS - Tous droits réservés
- * 
- * État global, constantes et variables partagées
- */
-
-// ===== CONSTANTES =====
-var AGENT_COLORS = [
-  '#00a878', '#0f4c81', '#e63946', '#7c3aed', '#f59e0b',
-  '#0891b2', '#c026d3', '#65a30d', '#0284c7', '#db2777',
-  '#4f46e5', '#059669', '#d97706', '#7c2d12', '#1d4ed8'
-];
-
-var DEFAULT_GEH_COUNT = 5;
-
-// ===== ÉTAT PRINCIPAL =====
-var state = {
-  _author: 'Quentin THOMAS',
-  _copyright: '© 2025 Quentin THOMAS',
+// state.js - État global de l'application VLEP Mission v3.8
+export const state = {
   view: 'home',
   missions: [],
-  agentsDB: [],
   currentMissionId: null,
   currentPrelId: null,
   activeSubIndex: 0,
-  showModal: null,
-  searchText: '',
   expandedGeh: {},
-  fusionMode: false,
+  showModal: null,
+  
+  // NOUVELLES VARIABLES POUR CO-PRÉLÈVEMENT ET FUSION
+  coPrelevementAgentsMode: false,
+  selectedForCoPrel: [],
+  fusionPrelevementsMode: false,
   selectedForFusion: [],
-  quickPrelType: '8h',
-  quickPrelReg: true,
-  quickAgentSearch: '',
-  quickGehId: null,
-  echantillonSort: 'date',
-  blancAgentSearch: '',
-  blancAgents: [],
-  quickMission: null,
-  newPrelData: null,
+  
+  // Autres variables existantes
+  fusionMode: false, // Ancienne variable, peut être gardée pour compatibilité
   timers: {},
+  validationResult: null,
+  dictating: false,
   showCIPSection: false
 };
 
-// ===== TIMER GLOBAL (flottant) =====
-var globalTimerState = {
-  running: false,
-  startTime: 0,
-  elapsed: 0,
-  interval: null
-};
+export const AGENT_COLORS = [
+  '#ef4444', '#f97316', '#f59e0b', '#eab308',
+  '#84cc16', '#22c55e', '#10b981', '#14b8a6',
+  '#06b6d4', '#0ea5e9', '#3b82f6', '#6366f1',
+  '#8b5cf6', '#a855f7', '#d946ef', '#ec4899',
+  '#f43f5e'
+];
 
-// ===== DICTÉE VOCALE =====
-var activeDictation = null;
+export const DEFAULT_GEH_COUNT = 5;
