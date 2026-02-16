@@ -1,35 +1,23 @@
-<!--
-╔══════════════════════════════════════════════════════════════════════════════╗
-  VLEP Mission v3.8 - Application de gestion des prélèvements VLEP
-  © 2025 Quentin THOMAS - Tous droits réservés
-╚══════════════════════════════════════════════════════════════════════════════╝
--->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="VLEP Mission">
   <meta name="theme-color" content="#2d3039">
-  <meta name="author" content="Quentin THOMAS">
-  <meta name="copyright" content="© 2025 Quentin THOMAS - Tous droits réservés">
-
+  
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icon-192.png">
-
-  <!-- CSS -->
   <link rel="stylesheet" href="css/main.css">
-
-  <!-- SheetJS pour export Excel -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-
+  
   <title>VLEP Mission v3.8 - © Quentin THOMAS</title>
 </head>
 <body>
 
-  <!-- ===== SPLASH SCREEN ===== -->
+  <!-- Splash Screen -->
   <div class="splash" id="splash">
     <svg class="splash-logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
       <defs>
@@ -51,51 +39,27 @@
     <div class="splash-copy">© 2025 Quentin THOMAS</div>
   </div>
 
-  <!-- ===== APP CONTAINER ===== -->
+  <!-- App Container -->
   <div id="app"></div>
 
-  <!-- ===== SCRIPTS (ordre de chargement important) ===== -->
-  
-  <!-- 1. CORE - Modules de base -->
-  <script src="js/core/state.js"></script>
-  <script src="js/core/icons.js"></script>
-  <script src="js/core/utils.js"></script>
-  <script src="js/core/database.js"></script>
-  
-  <!-- 2. VIEWS - Vues principales -->
-  <script src="js/views/prepa.js"></script>
-  <script src="js/views/terrain.js"></script>
-  
-  <!-- 3. FEATURES - Fonctionnalités avancées -->
-  <script src="js/features/auto-save.js"></script>
-  <script src="js/features/drag-drop.js"></script>
-  <script src="js/features/export-excel.js"></script>
-  <script src="js/features/export-activite.js"></script>
-  <script src="js/features/search-echantillons.js"></script>
-  
-  <!-- 4. APP - Initialisation & routeur principal -->
+  <!-- Scripts - Ordre important -->
+  <script src="js/state.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/utils.js"></script>
+  <script src="js/database.js"></script>
+<script src="missions.js"></script> 
+  <script src="js/terrain.js"></script>
   <script src="js/app.js"></script>
 
-  <!-- Service Worker pour mode hors-ligne -->
+  <!-- Service Worker -->
   <script>
     if('serviceWorker' in navigator){
-      window.addEventListener('load',function(){
-        navigator.serviceWorker.register('sw.js').then(function(reg){
-          console.log('✓ Service Worker enregistré',reg.scope);
-        }).catch(function(err){
-          console.log('✗ Erreur Service Worker',err);
-        });
+      window.addEventListener('load', function(){
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('✓ Service Worker OK'))
+          .catch(err => console.log('Service Worker désactivé'));
       });
     }
-  </script>
-
-  <!-- Auto-save -->
-  <script>
-    window.addEventListener('load',function(){
-      if(typeof initAutoSave === 'function'){
-        initAutoSave();
-      }
-    });
   </script>
 
 </body>

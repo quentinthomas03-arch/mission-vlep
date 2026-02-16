@@ -1,106 +1,185 @@
-/*
- * VLEP Mission v3.8 - app.js
- * © 2025 Quentin THOMAS - Tous droits réservés
- *
- * Module App (point d'entrée) :
- * - loadData() : chargement localStorage + BUILTIN_DB fallback
- * - repairMissions() : migration et réparation des données
- * - restoreTimers() : restauration des chronomètres CT
- * - Splash screen dismiss
- * - PWA Service Worker registration
- */
-
-// ===== CHARGEMENT DES DONNÉES =====
-function loadData(){
-  try{
-    var m=localStorage.getItem('vlep_missions_v3');
-    var d=localStorage.getItem('vlep_database');
-    if(m)state.missions=JSON.parse(m);
-    if(d)state.agentsDB=JSON.parse(d);
-    else state.agentsDB=JSON.parse(JSON.stringify(BUILTIN_DB));
-    repairMissions();
-  }catch(e){
-    console.error('[VLEP] Erreur chargement données:',e);
-  }
-}
-
-// ===== RÉPARATION / MIGRATION DONNÉES =====
-function repairMissions(){
-  state.missions.forEach(function(m){
-    // Initialiser les champs manquants
-    if(!m.blancs)m.blancs=[];
-    if(!m.conditionsAmbiantes)m.conditionsAmbiantes=[];
-    if(!m.cipAgents)m.cipAgents=[];
-    if(!m.agentColors)m.agentColors={};
-    if(!m.affectations)m.affectations={};
-    if(!m.prelevements)m.prelevements=[];
-    // Réparer les prélèvements
-    m.prelevements.forEach(function(p){
-      if(!p.agents)p.agents=[];
-      if(!p.subPrelevements)p.subPrelevements=[];
-      p.subPrelevements.forEach(function(sb){
-        if(!sb.agentData)sb.agentData={};
-        if(!sb.plages)sb.plages=[{debut:'',fin:''}];
-        p.agents.forEach(function(a){
-          if(!sb.agentData[a.name])sb.agentData[a.name]={refEchantillon:'',numPompe:'',debitInitial:'',debitFinal:''};
-        });
-      });
-    });
-    // Migration : déplacer isReg vers isReg8h et isRegCT
-    if(m.affectations){
-      for(var an in m.affectations){
-        var af=m.affectations[an];
-        if(af.gehs){
-          for(var gid in af.gehs){
-            var gaf=af.gehs[gid];
-            var oldIsReg=(gaf.isReg!==undefined)?gaf.isReg:((af.isReg!==undefined)?af.isReg:true);
-            if(gaf.isReg8h===undefined)gaf.isReg8h=oldIsReg;
-            if(gaf.isRegCT===undefined)gaf.isRegCT=oldIsReg;
-          }
-        }
-      }
-    }
-  });
-  saveData('vlep_missions_v3',state.missions);
-}
+// app.js - Point d'entrée de l'application
+// © 2025 Quentin THOMAS
 
 // ===== INITIALISATION =====
-loadData();
-restoreTimers();
-render();
+document.addEventListener('DOMContentLoaded', function(){
+  console.log('[VLEP] Initialisation...');
+  
+  // Cacher le splash screen
+  setTimeout(function(){
+    var splash = document.getElementById('splash');
+    if(splash){
+      splash.style.opacity = '0';
+      setTimeout(function(){
+        splash.style.display = 'none';
+      }, 300);
+    }
+  }, 1000);
+  
+  // Charger les données
+  loadData();
+  
+  // Premier rendu
+  render();
+  
+  console.log('[VLEP] ✓ Initialisé');
+});
 
-// ===== SPLASH SCREEN DISMISS =====
-setTimeout(function(){
-  var splash=document.getElementById('splash');
-  if(splash){
-    splash.classList.add('fade-out');
-    setTimeout(function(){splash.remove();},600);
+// ===== CHARGEMENT DONNÉES =====
+function loadData(){
+  try{
+    var saved = localStorage.getItem('vlep_missions_v3');
+    if(saved){
+      state.missions = JSON.parse(saved);
+      console.log('[VLEP] ✓ Données chargées:', state.missions.length, 'mission(s)');
+    }
+    
+    // Charger la DB agents si disponible
+    if(typeof BUILTIN_DB !== 'undefined'){
+      state.agentsDB = BUILTIN_DB;
+      console.log('[VLEP] ✓ Base de données:', state.agentsDB.length, 'agents');
+    }
+  }catch(e){
+    console.error('[VLEP] Erreur chargement données:', e);
   }
-},1800);
+}
 
-// ===== PWA SERVICE WORKER =====
-if('serviceWorker' in navigator){
-  window.addEventListener('load',function(){
-    navigator.serviceWorker.register('./sw.js').then(function(registration){
-      console.log('[PWA] Service Worker enregistré');
-      // Vérifier les mises à jour toutes les 30 minutes
-      setInterval(function(){
-        registration.update();
-        console.log('[PWA] Vérification mise à jour...');
-      },30*60*1000);
-      // Détecter une nouvelle version disponible
-      registration.addEventListener('updatefound',function(){
-        var newWorker=registration.installing;
-        newWorker.addEventListener('statechange',function(){
-          if(newWorker.state==='activated'){
-            if(confirm('🔄 Nouvelle version de VLEP Mission disponible !\n\nVoulez-vous recharger pour mettre à jour ?')){
-              window.location.reload();
-            }
-          }
-        });
-      });
-    }).catch(function(err){
-      console.log('[PWA] Erreur SW:',err);
+// ===== ROUTEUR PRINCIPAL =====
+function render(){
+  var html = '';
+  
+  switch(state.view){
+    case 'home':
+      html = renderHome();
+      break;
+    case 'terrain-list':
+      html = renderTerrainList();
+      break;
+    case 'terrain':
+      html = renderTerrainMission();
+      break;
+    default:
+      html = '<div class="container"><h1>Vue non trouvée: '+state.view+'</h1></div>';
+  }
+  
+  document.getElementById('app').innerHTML = html;
+  
+  // Attach event listeners après le rendu si nécessaire
+  attachEventListeners();
+}
+
+// ===== EVENT LISTENERS =====
+function attachEventListeners(){
+  // Pour les résultats de recherche agents (si modal ouverte)
+  var searchResults = document.querySelectorAll('.search-result-item');
+  searchResults.forEach(function(item){
+    item.addEventListener('click', function(){
+      var agentName = this.getAttribute('data-agent');
+      if(state.newPrelData && state.newPrelData.agents){
+        var agentDB = getAgentFromDB(agentName);
+        if(agentDB){
+          var color = AGENT_COLORS[state.newPrelData.agents.length % AGENT_COLORS.length];
+          state.newPrelData.agents.push({name:agentName, color:color});
+          state.newPrelData.agentSearch = '';
+          render();
+        }
+      }
     });
   });
 }
+
+// ===== VUE HOME =====
+function renderHome(){
+  var h = '<div class="container">';
+  h += '<div class="card">';
+  h += '<h1>'+ICONS.flask+' VLEP Mission v3.8</h1>';
+  h += '<p class="subtitle">Gestion des prélèvements professionnels</p>';
+  h += '</div>';
+  
+  h += '<div class="row">';
+  h += '<button class="btn btn-primary" onclick="state.view=\'terrain-list\';render();">'+ICONS.clipboard+' Saisie terrain</button>';
+  h += '</div>';
+  
+  // Liste des missions
+  h += '<div class="card" style="margin-top:20px;">';
+  h += '<h2>Missions ('+state.missions.length+')</h2>';
+  
+  if(state.missions.length === 0){
+    h += '<div class="empty-state">';
+    h += '<div class="empty-state-icon">'+ICONS.empty+'</div>';
+    h += '<p>Aucune mission créée</p>';
+    h += '</div>';
+  }else{
+    state.missions.forEach(function(m){
+      var statusClass = 'mission-card-'+m.status;
+      h += '<div class="mission-card '+statusClass+'" style="margin:8px 0;padding:12px;border-radius:8px;cursor:pointer;" onclick="goToMission('+m.id+');">';
+      h += '<div class="mission-title">'+escapeHtml(m.clientSite||'Sans nom')+'</div>';
+      h += '<div style="font-size:12px;color:#64748b;">'+m.gehs.length+' GEH • '+m.prelevements.length+' prél.</div>';
+      h += '</div>';
+    });
+  }
+  
+  h += '</div>';
+  
+  h += '<div class="card" style="margin-top:20px;text-align:center;color:#94a3b8;font-size:12px;">';
+  h += '<p>© 2025 Quentin THOMAS</p>';
+  h += '</div>';
+  
+  h += '</div>';
+  return h;
+}
+
+function goToMission(missionId){
+  state.currentMissionId = missionId;
+  state.view = 'terrain';
+  render();
+}
+
+// ===== UTILITAIRES DB =====
+function getAgentFromDB(name){
+  if(!state.agentsDB)return null;
+  return state.agentsDB.find(function(a){
+    return a['Agent chimique'] && a['Agent chimique'].toLowerCase().indexOf(name.toLowerCase()) !== -1;
+  });
+}
+
+function searchAgentsDB(query){
+  if(!query || query.length < 2)return [];
+  if(!state.agentsDB)return [];
+  
+  var q = query.toLowerCase();
+  return state.agentsDB
+    .filter(function(a){
+      return a['Agent chimique'] && a['Agent chimique'].toLowerCase().indexOf(q) !== -1;
+    })
+    .map(function(a){return a['Agent chimique'];})
+    .slice(0, 10);
+}
+
+function getCurrentMission(){
+  if(!state.currentMissionId)return null;
+  return state.missions.find(function(m){return m.id === state.currentMissionId;});
+}
+
+function goToTerrain(missionId){
+  state.currentMissionId = missionId;
+  state.view = 'terrain';
+  render();
+}
+
+// ===== EXPORTS JSON =====
+function exportMissionJSON(missionId){
+  var mission = state.missions.find(function(m){return m.id === missionId;});
+  if(!mission)return;
+  
+  var dataStr = JSON.stringify(mission, null, 2);
+  var dataBlob = new Blob([dataStr], {type: 'application/json'});
+  var url = URL.createObjectURL(dataBlob);
+  var link = document.createElement('a');
+  link.href = url;
+  link.download = 'mission-'+(mission.clientSite||'export')+'-'+Date.now()+'.json';
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+console.log('✓ App chargé');

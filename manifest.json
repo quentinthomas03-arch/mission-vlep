@@ -1,7 +1,7 @@
 {
   "name": "VLEP Mission v3.8",
   "short_name": "VLEP Mission",
-  "description": "Application de gestion des prélèvements VLEP en hygiène industrielle",
+  "description": "Application de gestion des prélèvements VLEP",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#2d3039",
@@ -9,18 +9,14 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/icon-512.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }
-  ],
-  "categories": ["productivity", "business", "utilities"],
-  "lang": "fr",
-  "dir": "ltr",
-  "prefer_related_applications": false
+  ]
 }

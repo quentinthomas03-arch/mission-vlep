@@ -24,7 +24,8 @@ function renderTerrainList(){
     var pct=t>0?Math.round(d/t*100):0;
     h+='<div class="mission-card mission-card-'+m.status+'" onclick="goToTerrain('+m.id+');"><div class="mission-title">'+escapeHtml(m.clientSite||'Sans nom')+'<span class="status-badge status-'+m.status+'">'+(m.status==='validee'?'Prête':(m.status==='encours'?'En cours':'Terminée'))+'</span></div><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;"></div></div><div class="progress-text">'+d+'/'+t+' prélèvements ('+pct+'%)</div></div>';
   });
-  return h;
+if(state.showModal==='quickEntry')h+=renderQuickEntryModal();  
+return h;
 }
 
 // ===== VUE MISSION =====
@@ -123,7 +124,8 @@ function renderTerrainMission(){
   if(state.showModal==='addGehTerrain')h+=renderAddGehTerrainModal();
   if(state.showModal==='addPrelTerrain')h+=renderAddPrelTerrainModal();
   if(state.showModal==='smartFusion')h+=renderSmartFusionModal();
-  return h;
+if(state.showModal==='editMission')h+=renderEditMissionModal();  
+return h;
 }
 
 function toggleGehAccordion(gid){state.expandedGeh[gid]=!state.expandedGeh[gid];render();}
@@ -949,11 +951,11 @@ function renderSmartCoPrelevementAgentsModal(){
   if(!m)return'';
   var groups=detectCompatibleAgents(m);
   var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content" style="max-height:90vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Détection automatique - Co-prélèvement agents</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div>';
-  h+='<div class="info-box info-box-success"><p><strong>Co-prélèvement d\'agents</strong> : Plusieurs agents chimiques prélevés sur le MÊME support physique (même pompe, même référence échantillon).</p><p style="margin-top:6px;font-size:11px;">Critères : Code support + Code prétraitement + Débit identiques</p></div>';
+ h+='<div class="info-box info-box-success"><p><strong>Co-prélèvement d\'agents</strong> : Plusieurs agents chimiques prélevés sur le MÊME support physique (même pompe, même référence échantillon).</p><p style="margin-top:6px;font-size:11px;">Critères : Code support + Code prétraitement + Débit identiques</p></div>';
   if(groups.length===0){
     h+='<div class="empty-state" style="padding:20px;"><p>Aucun agent compatible détecté</p><p style="font-size:12px;margin-top:6px;">Les agents doivent avoir le même code support, prétraitement et débit pour être co-prélevés.</p></div>';
   }else{
-    h+='<p style="font-size:12px;font-weight:600;margin-bottom:8px;">'+groups.length+' groupe(s) d\'agents compatibles détecté(s) :</p>';
+    h+='<p style="font-size:12px;font-weight:600;margin-bottom:8px;">'+groups.length+' groupe(s) d\\'agents compatibles détecté(s) :</p>';
     groups.forEach(function(grp,idx){
       h+='<div class="card" style="padding:12px;margin-bottom:8px;border-left:4px solid #0ea5e9;"><div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px;"><div style="flex:1;"><div style="font-weight:700;font-size:13px;color:var(--text-dark);">'+escapeHtml(grp.gehName)+' • '+grp.type+(grp.isReglementaire?' (Régl.)':' (Non-régl.)')+'</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px;">'+grp.info.agents.length+' agents compatibles</div></div><button class="btn btn-success btn-small" onclick="createCoPrelevementFromGroup('+idx+');">Créer</button></div>';
       h+='<div style="background:#f8fafc;padding:8px;border-radius:6px;margin-bottom:8px;"><div style="font-size:11px;color:var(--text-muted);margin-bottom:4px;"><strong>Agents :</strong></div>';
