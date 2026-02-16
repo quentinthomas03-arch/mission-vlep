@@ -1,0 +1,88 @@
+<!--
+╔══════════════════════════════════════════════════════════════════════════════╗
+  VLEP Mission v3.8 - Application de gestion des prélèvements VLEP
+  © 2025 Quentin THOMAS - Tous droits réservés
+  Propriété exclusive - Toute reproduction, distribution, modification
+  ou utilisation non autorisée est strictement interdite sans l'accord
+  écrit préalable de l'auteur.
+  
+  Auteur : Quentin THOMAS
+  Création : 2025
+╚══════════════════════════════════════════════════════════════════════════════╝
+-->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="VLEP Mission">
+  <meta name="theme-color" content="#2d3039">
+  <meta name="author" content="Quentin THOMAS">
+  <meta name="copyright" content="© 2025 Quentin THOMAS - Tous droits réservés">
+
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icon-192.png">
+
+  <!-- CSS -->
+  <link rel="stylesheet" href="css/main.css">
+
+  <!-- SheetJS pour export Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+  <title>VLEP Mission v3.8 - © Quentin THOMAS</title>
+</head>
+<body>
+
+  <!-- ===== SPLASH SCREEN ===== -->
+  <div class="splash" id="splash">
+    <svg class="splash-logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" style="stop-color:#d0d5dd"/>
+          <stop offset="50%" style="stop-color:#a8aeb8"/>
+          <stop offset="100%" style="stop-color:#9098a4"/>
+        </linearGradient>
+      </defs>
+      <rect x="20" y="20" width="472" height="472" rx="110" fill="url(#sg)"/>
+      <rect x="22" y="22" width="468" height="468" rx="108" fill="none" stroke="rgba(255,255,255,0.5)" stroke-width="2"/>
+      <polygon points="140,100 205,100 256,300 307,100 372,100 280,370 232,370" fill="#2d3039"/>
+      <rect x="218" y="378" width="76" height="5" rx="2.5" fill="#0066b3"/>
+      <text x="256" y="460" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="bold" fill="#2d3039">VLEP MISSION</text>
+    </svg>
+    <div class="splash-title">VLEP</div>
+    <div class="splash-bar"></div>
+    <div class="splash-subtitle">MISSION</div>
+    <div class="splash-copy">© 2025 Quentin THOMAS</div>
+  </div>
+
+  <!-- ===== APP CONTAINER ===== -->
+  <div id="app"></div>
+
+  <!-- ===== SCRIPTS (ordre de chargement important) ===== -->
+  <!-- 1. État global & constantes -->
+  <script src="js/state.js"></script>
+  <!-- 2. Icônes SVG -->
+  <script src="js/icons.js"></script>
+  <!-- 3. Fonctions utilitaires -->
+  <script src="js/utils.js"></script>
+  <!-- 4. Base de données agents chimiques -->
+  <script src="js/database.js"></script>
+  <!-- 5. Module Préparation mission -->
+  <script src="js/prepa.js"></script>
+  <!-- 6. Module Saisie terrain -->
+  <script src="js/terrain.js"></script>
+  <!-- 7. Module Saisie rapide -->
+  <script src="js/quick.js"></script>
+  <!-- 8. Module Export/Import -->
+  <script src="js/export.js"></script>
+  <!-- 9. Module Base de données (consultation) -->
+  <script src="js/db-view.js"></script>
+  <!-- 10. Routeur principal (render) -->
+  <script src="js/render.js"></script>
+  <!-- 11. Initialisation & PWA -->
+  <script src="js/app.js"></script>
+
+</body>
+</html>
