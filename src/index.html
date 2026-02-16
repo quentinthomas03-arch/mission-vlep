@@ -2,6 +2,12 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
   VLEP Mission v3.8 - Application de gestion des prélèvements VLEP
   © 2025 Quentin THOMAS - Tous droits réservés
+  Propriété exclusive - Toute reproduction, distribution, modification
+  ou utilisation non autorisée est strictement interdite sans l'accord
+  écrit préalable de l'auteur.
+  
+  Auteur : Quentin THOMAS
+  Création : 2025
 ╚══════════════════════════════════════════════════════════════════════════════╝
 -->
 <!DOCTYPE html>
@@ -55,48 +61,28 @@
   <div id="app"></div>
 
   <!-- ===== SCRIPTS (ordre de chargement important) ===== -->
-  
-  <!-- 1. CORE - Modules de base -->
-  <script src="js/core/state.js"></script>
-  <script src="js/core/icons.js"></script>
-  <script src="js/core/utils.js"></script>
-  <script src="js/core/database.js"></script>
-  
-  <!-- 2. VIEWS - Vues principales -->
-  <script src="js/views/prepa.js"></script>
-  <script src="js/views/terrain.js"></script>
-  
-  <!-- 3. FEATURES - Fonctionnalités avancées -->
-  <script src="js/features/auto-save.js"></script>
-  <script src="js/features/drag-drop.js"></script>
-  <script src="js/features/export-excel.js"></script>
-  <script src="js/features/export-activite.js"></script>
-  <script src="js/features/search-echantillons.js"></script>
-  
-  <!-- 4. APP - Initialisation & routeur principal -->
+  <!-- 1. État global & constantes -->
+  <script src="js/state.js"></script>
+  <!-- 2. Icônes SVG -->
+  <script src="js/icons.js"></script>
+  <!-- 3. Fonctions utilitaires -->
+  <script src="js/utils.js"></script>
+  <!-- 4. Base de données agents chimiques -->
+  <script src="js/database.js"></script>
+  <!-- 5. Module Préparation mission -->
+  <script src="js/prepa.js"></script>
+  <!-- 6. Module Saisie terrain -->
+  <script src="js/terrain.js"></script>
+  <!-- 7. Module Saisie rapide -->
+  <script src="js/quick.js"></script>
+  <!-- 8. Module Export/Import -->
+  <script src="js/export.js"></script>
+  <!-- 9. Module Base de données (consultation) -->
+  <script src="js/db-view.js"></script>
+  <!-- 10. Routeur principal (render) -->
+  <script src="js/render.js"></script>
+  <!-- 11. Initialisation & PWA -->
   <script src="js/app.js"></script>
-
-  <!-- Service Worker pour mode hors-ligne -->
-  <script>
-    if('serviceWorker' in navigator){
-      window.addEventListener('load',function(){
-        navigator.serviceWorker.register('sw.js').then(function(reg){
-          console.log('✓ Service Worker enregistré',reg.scope);
-        }).catch(function(err){
-          console.log('✗ Erreur Service Worker',err);
-        });
-      });
-    }
-  </script>
-
-  <!-- Auto-save -->
-  <script>
-    window.addEventListener('load',function(){
-      if(typeof initAutoSave === 'function'){
-        initAutoSave();
-      }
-    });
-  </script>
 
 </body>
 </html>
