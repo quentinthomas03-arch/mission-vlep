@@ -1,188 +1,71 @@
-// app.js - Point d'entrée de l'application
+// app.js - Point d'entrée application
 // © 2025 Quentin THOMAS
+// Render principal, navigation, initialisation, splash screen
 
-console.log('[VLEP] Chargement app.js...');
-
-// ===== VUE HOME =====
-function renderHome(){
-  var h = '<div class="container">';
-  h += '<div class="card">';
-  h += '<h1>'+ICONS.flask+' VLEP Mission v3.8</h1>';
-  h += '<p class="subtitle">Gestion des prélèvements professionnels</p>';
-  h += '</div>';
-  
-  h += '<div class="row">';
-  h += '<button class="btn btn-primary" onclick="state.view=\'terrain-list\';render();">'+ICONS.clipboard+' Saisie terrain</button>';
-  h += '</div>';
-  
-  // Liste des missions
-  h += '<div class="card" style="margin-top:20px;">';
-  h += '<h2>Missions ('+state.missions.length+')</h2>';
-  
-  if(state.missions.length === 0){
-    h += '<div class="empty-state">';
-    h += '<div class="empty-state-icon">'+ICONS.empty+'</div>';
-    h += '<p>Aucune mission créée</p>';
-    h += '</div>';
-  }else{
-    state.missions.forEach(function(m){
-      var statusClass = 'mission-card-'+m.status;
-      h += '<div class="mission-card '+statusClass+'" style="margin:8px 0;padding:12px;border-radius:8px;cursor:pointer;" onclick="goToMission('+m.id+');">';
-      h += '<div class="mission-title">'+escapeHtml(m.clientSite||'Sans nom')+'</div>';
-      h += '<div style="font-size:12px;color:#64748b;">'+m.gehs.length+' GEH • '+m.prelevements.length+' prél.</div>';
-      h += '</div>';
-    });
-  }
-  
-  h += '</div>';
-  
-  h += '<div class="card" style="margin-top:20px;text-align:center;color:#94a3b8;font-size:12px;">';
-  h += '<p>© 2025 Quentin THOMAS</p>';
-  h += '</div>';
-  
-  h += '</div>';
-  return h;
-}
-
-function goToMission(missionId){
-  state.currentMissionId = missionId;
-  state.view = 'terrain';
-  render();
-}
-
-// ===== ROUTEUR PRINCIPAL =====
 function render(){
-  console.log('[VLEP] Render view:', state.view);
-  var html = '';
-  
-  try {
-    switch(state.view){
-      case 'home':
-        html = renderHome();
-        break;
-      case 'terrain-list':
-        html = renderTerrainList();
-        break;
-      case 'terrain':
-        html = renderTerrainMission();
-        break;
-      default:
-        html = renderHome();
-    }
-    
-    document.getElementById('app').innerHTML = html;
-    attachEventListeners();
-    
-  } catch(e) {
-    console.error('[VLEP] ❌ Erreur dans render():', e);
-    document.getElementById('app').innerHTML = '<div class="container"><div class="card" style="background:#fee;border:2px solid #f00;padding:20px;"><h2 style="color:#c00;">⚠️ Erreur de rendu</h2><p><strong>' + e.message + '</strong></p><p style="font-size:12px;margin-top:10px;">Vue : ' + state.view + '</p><button class="btn btn-primary" onclick="state.view=\'home\';render();">Retour accueil</button></div></div>';
+  var h='';
+  switch(state.view){
+    case'home':h=renderHome();break;
+    case'prepa-list':h=renderPrepaList();break;
+    case'prepa-mission':h=renderPrepaMission();break;
+    case'prepa-agents':h=renderPrepaAgents();break;
+    case'prepa-affectations':h=renderPrepaAffectations();break;
+    case'prepa-geh':h=renderPrepaGeh();break;
+    case'terrain-list':h=renderTerrainList();break;
+    case'terrain-mission':h=renderTerrainMission();break;
+    case'terrain-prel':h=renderTerrainPrel();break;
+    case'conditions':h=renderConditions();break;
+    case'db-terrain':h=renderDbTerrain();break;
+    case'db-full':h=renderDbFull();break;
+    case'liste-echantillons':h=renderListeEchantillons();break;
+    case'quick-entry':h=renderQuickEntry();break;
+    default:h=renderHome();
   }
+  document.getElementById('app').innerHTML=h;
+  if(state.view==='db-terrain')setTimeout(updateDbResults,50);
+  if(state.view==='quick-entry')setTimeout(function(){var i=document.getElementById('quick-agent-search');if(i)i.focus();},50);
 }
 
-// ===== EVENT LISTENERS =====
-function attachEventListeners(){
-  // Pour les résultats de recherche agents (si modal ouverte)
-  var searchResults = document.querySelectorAll('.search-result-item');
-  searchResults.forEach(function(item){
-    item.addEventListener('click', function(){
-      var agentName = this.getAttribute('data-agent');
-      if(state.newPrelData && state.newPrelData.agents){
-        var agentDB = getAgentFromDB(agentName);
-        if(agentDB){
-          var color = AGENT_COLORS[state.newPrelData.agents.length % AGENT_COLORS.length];
-          state.newPrelData.agents.push({name:agentName, color:color});
-          state.newPrelData.agentSearch = '';
-          render();
-        }
-      }
-    });
-  });
-}
 
-// ===== CHARGEMENT DONNÉES =====
-function loadData(){
-  try{
-    var saved = localStorage.getItem('vlep_missions_v3');
-    if(saved){
-      state.missions = JSON.parse(saved);
-      console.log('[VLEP] ✓ Données chargées:', state.missions.length, 'mission(s)');
-    }
-    
-    // Charger la DB agents si disponible
-    if(typeof BUILTIN_DB !== 'undefined'){
-      state.agentsDB = BUILTIN_DB;
-      console.log('[VLEP] ✓ Base de données:', state.agentsDB.length, 'agents');
-    }
-  }catch(e){
-    console.error('[VLEP] Erreur chargement données:', e);
-  }
-}
-
-// ===== UTILITAIRES DB =====
-function getAgentFromDB(name){
-  if(!state.agentsDB)return null;
-  return state.agentsDB.find(function(a){
-    return a['Agent chimique'] && a['Agent chimique'].toLowerCase().indexOf(name.toLowerCase()) !== -1;
-  });
-}
-
-function searchAgentsDB(query){
-  if(!query || query.length < 2)return [];
-  if(!state.agentsDB)return [];
-  
-  var q = query.toLowerCase();
-  return state.agentsDB
-    .filter(function(a){
-      return a['Agent chimique'] && a['Agent chimique'].toLowerCase().indexOf(q) !== -1;
-    })
-    .map(function(a){return a['Agent chimique'];})
-    .slice(0, 10);
-}
-
-function getCurrentMission(){
-  if(!state.currentMissionId)return null;
-  return state.missions.find(function(m){return m.id === state.currentMissionId;});
-}
-
-function goToTerrain(missionId){
-  state.currentMissionId = missionId;
-  state.view = 'terrain';
-  render();
-}
-
-// ===== EXPORTS JSON =====
-function exportMissionJSON(missionId){
-  var mission = state.missions.find(function(m){return m.id === missionId;});
-  if(!mission)return;
-  
-  var dataStr = JSON.stringify(mission, null, 2);
-  var dataBlob = new Blob([dataStr], {type: 'application/json'});
-  var url = URL.createObjectURL(dataBlob);
-  var link = document.createElement('a');
-  link.href = url;
-  link.download = 'mission-'+(mission.clientSite||'export')+'-'+Date.now()+'.json';
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-// ===== INITIALISATION (SANS DOMContentLoaded) =====
-console.log('[VLEP] Initialisation...');
-
-// Charger les données
-loadData();
-
-// Premier rendu
-render();
-
-// Cacher le splash screen après succès
+// === SPLASH SCREEN DISMISS ===
 setTimeout(function(){
-  var splash = document.getElementById('splash');
+  var splash=document.getElementById('splash');
   if(splash){
     splash.classList.add('fade-out');
-    setTimeout(function(){
-      splash.remove();
-    }, 600);
+    setTimeout(function(){splash.remove();},600);
   }
-}, 1800);
+},1800);
 
-console.log('✓ App chargé et initialisé');
+// ═══════════════════════════════════════════════════════════
+// PWA - Service Worker Registration & Update Management
+// ═══════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then(registration => {
+      console.log('[PWA] Service Worker enregistré');
+      
+      // Vérifier les mises à jour toutes les 30 minutes
+      setInterval(() => {
+        registration.update();
+        console.log('[PWA] Vérification mise à jour...');
+      }, 30 * 60 * 1000);
+      
+      // Détecter une nouvelle version disponible
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+        newWorker.addEventListener('statechange', () => {
+          if (newWorker.state === 'activated') {
+            // Afficher notification de mise à jour
+            if (confirm('🔄 Nouvelle version de VLEP Mission disponible !\n\nVoulez-vous recharger pour mettre à jour ?')) {
+              window.location.reload();
+            }
+          }
+        });
+      });
+    }).catch(err => {
+      console.log('[PWA] Erreur SW:', err);
+    });
+  });
+}
+
+console.log('✓ App chargé');
