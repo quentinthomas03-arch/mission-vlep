@@ -68,4 +68,8 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// === INITIALISATION ===
+loadData();
+render();
+
 console.log('✓ App chargé');
