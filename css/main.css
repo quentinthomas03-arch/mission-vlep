@@ -1,7 +1,7 @@
 /* 
      * VLEP Mission v3.8
-     * Â© 2025 Quentin THOMAS - Tous droits rÃ©servÃ©s
-     * PropriÃ©tÃ© exclusive - Reproduction interdite
+     * Ã‚Â© 2025 Quentin THOMAS - Tous droits rÃƒÂ©servÃƒÂ©s
+     * PropriÃƒÂ©tÃƒÂ© exclusive - Reproduction interdite
      */
     /* === VLEP Mission v3.8 - Design Socotec Blue Refined === */
     :root {
@@ -164,6 +164,7 @@
     .prel-arrow svg { width: 16px; height: 16px; }
     .prel-reg-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: #d1fae5; color: #047857; }
     .prel-nonreg-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: #fef3c7; color: #b45309; }
+    .prel-coprel-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: #dbeafe; color: #1d4ed8; margin-left: 2px; }
     .prel-checkbox { width: 22px; height: 22px; border: 1.5px solid #cbd5e1; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: white; flex-shrink: 0; }
     .prel-checkbox svg { width: 13px; height: 13px; opacity: 0; }
     .prel-checkbox.checked { background: var(--warning); border-color: var(--warning); }
@@ -241,7 +242,7 @@
     .field-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
     .field-header .label { margin-bottom: 0; }
     /* SVG Icons inline helper */
-    /* RÈGLE GLOBALE POUR TOUS LES SVG - Évite les icônes disproportionnées */
+    /* RÃˆGLE GLOBALE POUR TOUS LES SVG - Ã‰vite les icÃ´nes disproportionnÃ©es */
     svg {
       width: 16px;
       height: 16px;
@@ -250,32 +251,32 @@
       flex-shrink: 0;
     }
     
-    /* Tailles spécifiques selon contexte */
+    /* Tailles spÃ©cifiques selon contexte */
     .svg-icon { display: inline-flex; align-items: center; justify-content: center; width: 14px; height: 14px; vertical-align: middle; }
     .svg-icon svg { width: 14px; height: 14px; }
     
-    /* Icônes dans les titres */
+    /* IcÃ´nes dans les titres */
     h1 svg { width: 20px; height: 20px; }
     h2 svg { width: 18px; height: 18px; }
     
-    /* Icônes dans les boutons */
+    /* IcÃ´nes dans les boutons */
     .btn svg { width: 15px; height: 15px; }
     .btn-icon svg { width: 14px; height: 14px; }
     
-    /* Icônes dans les éléments de navigation */
+    /* IcÃ´nes dans les Ã©lÃ©ments de navigation */
     .nav-icon svg { width: 18px; height: 18px; }
     .back-btn svg { width: 16px; height: 16px; }
     
-    /* Icônes dans les accordéons */
+    /* IcÃ´nes dans les accordÃ©ons */
     .accordion-icon svg { width: 16px; height: 16px; }
     
-    /* Icônes dans les labels */
+    /* IcÃ´nes dans les labels */
     .label svg { width: 14px; height: 14px; }
     
-    /* Icônes dans les états vides */
+    /* IcÃ´nes dans les Ã©tats vides */
     .empty-state-icon svg { width: 40px; height: 40px; }
     
-    /* Petites icônes */
+    /* Petites icÃ´nes */
     .copy-btn svg { width: 10px; height: 10px; }
     .agent-delete svg { width: 14px; height: 14px; }
     .prel-status svg { width: 13px; height: 13px; }

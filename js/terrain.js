@@ -1,17 +1,17 @@
 // terrain.js - Saisie terrain
-// © 2025 Quentin THOMAS
-// Liste missions, prélèvements, fusion, défusion, timers
+// Â© 2025 Quentin THOMAS
+// Liste missions, prÃ©lÃ¨vements, fusion, dÃ©fusion, timers
 
 function renderTerrainList(){
-  var h='<button class="back-btn" onclick="state.view=\'home\';render();">'+ICONS.arrowLeft+' Accueil</button><div class="card"><h1>'+ICONS.clipboard+' Saisie terrain</h1><p class="subtitle">Missions prêtes pour le terrain</p></div>';
-  h+='<button class="btn btn-success mb-12" onclick="openQuickEntry();">'+ICONS.zap+' Saisie rapide (sans prépa)</button>';
+  var h='<button class="back-btn" onclick="state.view=\'home\';render();">'+ICONS.arrowLeft+' Accueil</button><div class="card"><h1>'+ICONS.clipboard+' Saisie terrain</h1><p class="subtitle">Missions prÃªtes pour le terrain</p></div>';
+  h+='<button class="btn btn-success mb-12" onclick="openQuickEntry();">'+ICONS.zap+' Saisie rapide (sans prÃ©pa)</button>';
   var ml=state.missions.filter(function(m){return m.status==='validee'||m.status==='encours'||m.status==='terminee';});
-  if(ml.length===0)h+='<div class="empty-state"><div class="empty-state-icon">'+ICONS.list+'</div><p>Aucune mission validée</p><p style="font-size:13px;margin-top:8px;">Validez d\'abord une mission dans Préparation</p></div>';
+  if(ml.length===0)h+='<div class="empty-state"><div class="empty-state-icon">'+ICONS.list+'</div><p>Aucune mission validÃ©e</p><p style="font-size:13px;margin-top:8px;">Validez d\'abord une mission dans PrÃ©paration</p></div>';
   else ml.forEach(function(m){
     var t=0,d=0;
     m.prelevements.forEach(function(p){p.subPrelevements.forEach(function(s){t++;if(s.completed)d++;});});
     var pct=t>0?Math.round(d/t*100):0;
-    h+='<div class="mission-card mission-card-'+m.status+'" onclick="goToTerrain('+m.id+');"><div class="mission-title">'+escapeHtml(m.clientSite||'Sans nom')+'<span class="status-badge status-'+m.status+'">'+(m.status==='validee'?'Prête':(m.status==='encours'?'En cours':'Terminée'))+'</span></div><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;"></div></div><div class="progress-text">'+d+'/'+t+' prélèvements ('+pct+'%)</div></div>';
+    h+='<div class="mission-card mission-card-'+m.status+'" onclick="goToTerrain('+m.id+');"><div class="mission-title">'+escapeHtml(m.clientSite||'Sans nom')+'<span class="status-badge status-'+m.status+'">'+(m.status==='validee'?'PrÃªte':(m.status==='encours'?'En cours':'TerminÃ©e'))+'</span></div><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;"></div></div><div class="progress-text">'+d+'/'+t+' prÃ©lÃ¨vements ('+pct+'%)</div></div>';
   });
   return h;
 }
@@ -19,16 +19,16 @@ function renderTerrainList(){
 function renderTerrainMission(){
   var m=getCurrentMission();
   if(!m){state.view='terrain-list';render();return'';}
-  var h='<div class="sticky-header"><button class="back-btn" onclick="state.view=\'terrain-list\';state.currentMissionId=null;render();">'+ICONS.arrowLeft+' Liste</button><div style="display:flex;justify-content:space-between;align-items:center;"><div style="color:white;font-weight:700;font-size:14px;">'+escapeHtml(m.clientSite)+'</div><div class="row" style="gap:4px;"><button class="btn btn-gray btn-small btn-icon" onclick="unvalidateMissionFromTerrain();" title="Repasser en prépa" style="background:rgba(255,255,255,0.15);color:white;border:none;">'+ICONS.arrowLeft+'</button><button class="btn btn-danger btn-icon" onclick="deleteMissionTerrain();" style="width:24px;height:24px;">'+ICONS.trash+'</button></div></div></div>';
-  h+='<div class="card" style="margin-top:4px;"><p class="subtitle"><span class="svg-icon">'+ICONS.user+'</span> '+escapeHtml(m.preleveur||'-')+' • <span class="svg-icon">'+ICONS.tool+'</span> '+escapeHtml(m.debitmetre||'-')+'</p></div>';
-  h+='<div class="row mb-12"><button class="btn btn-gray" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+' Conditions</button><button class="btn btn-blue" onclick="state.view=\'liste-echantillons\';render();">'+ICONS.list+' Échantillons</button></div>';
+  var h='<div class="sticky-header"><button class="back-btn" onclick="state.view=\'terrain-list\';state.currentMissionId=null;render();">'+ICONS.arrowLeft+' Liste</button><div style="display:flex;justify-content:space-between;align-items:center;"><div style="color:white;font-weight:700;font-size:14px;">'+escapeHtml(m.clientSite)+'</div><div class="row" style="gap:4px;"><button class="btn btn-gray btn-small btn-icon" onclick="unvalidateMissionFromTerrain();" title="Repasser en prÃ©pa" style="background:rgba(255,255,255,0.15);color:white;border:none;">'+ICONS.arrowLeft+'</button><button class="btn btn-danger btn-icon" onclick="deleteMissionTerrain();" style="width:24px;height:24px;">'+ICONS.trash+'</button></div></div></div>';
+  h+='<div class="card" style="margin-top:4px;"><p class="subtitle"><span class="svg-icon">'+ICONS.user+'</span> '+escapeHtml(m.preleveur||'-')+' â€¢ <span class="svg-icon">'+ICONS.tool+'</span> '+escapeHtml(m.debitmetre||'-')+'</p></div>';
+  h+='<div class="row mb-12"><button class="btn btn-gray" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+' Conditions</button><button class="btn btn-blue" onclick="state.view=\'liste-echantillons\';render();">'+ICONS.list+' Ã‰chantillons</button></div>';
   h+='<div class="row mb-12"><button class="btn btn-gray" onclick="exportMissionJSON('+m.id+');">'+ICONS.download+' Export JSON</button></div>';
   
   // Boutons d'ajout
-  h+='<div class="row mb-12"><button class="btn btn-success btn-small" onclick="state.showModal=\'addGehTerrain\';render();">+ GEH</button><button class="btn btn-primary btn-small" onclick="state.showModal=\'addPrelTerrain\';render();">+ Prélèvement</button><button class="btn btn-gray btn-small" onclick="editMissionFromTerrain();">'+ICONS.edit+' Modifier</button></div>';
+  h+='<div class="row mb-12"><button class="btn btn-success btn-small" onclick="state.showModal=\'addGehTerrain\';render();">+ GEH</button><button class="btn btn-primary btn-small" onclick="state.showModal=\'addPrelTerrain\';render();">+ PrÃ©lÃ¨vement</button><button class="btn btn-gray btn-small" onclick="editMissionFromTerrain();">'+ICONS.edit+' Modifier</button></div>';
   
   if(state.fusionMode){
-    h+='<div class="info-box info-box-warning mb-12"><p><strong>Mode fusion manuelle actif</strong></p><p>Sélectionnez les prélèvements à fusionner (même GEH, même type)</p></div><div class="row mb-12"><button class="btn btn-gray" onclick="cancelFusion();">Annuler</button><button class="btn btn-success" onclick="doFusion();" '+(state.selectedForFusion.length<2?'disabled':'')+'>Fusionner ('+state.selectedForFusion.length+')</button></div>';
+    h+='<div class="info-box info-box-warning mb-12"><p><strong>Mode fusion manuelle actif</strong></p><p>SÃ©lectionnez les prÃ©lÃ¨vements Ã  fusionner (mÃªme GEH, mÃªme type)</p></div><div class="row mb-12"><button class="btn btn-gray" onclick="cancelFusion();">Annuler</button><button class="btn btn-success" onclick="doFusion();" '+(state.selectedForFusion.length<2?'disabled':'')+'>Fusionner ('+state.selectedForFusion.length+')</button></div>';
   }else{
     h+='<div class="row mb-12"><button class="btn btn-success" onclick="showSmartFusionModal();">'+ICONS.zap+' Fusionner intelligemment</button><button class="btn btn-orange" onclick="startFusionMode();">'+ICONS.merge+' Fusion manuelle</button></div>';
   }
@@ -41,7 +41,7 @@ function renderTerrainMission(){
     var isOpen=state.expandedGeh[g.id];
     h+='<div class="accordion"><div class="accordion-header '+(isOpen?'open':'')+'" onclick="toggleGehAccordion('+g.id+');"><span class="accordion-icon">'+ICONS.chevronRight+'</span><span class="accordion-title">'+g.num+'. '+escapeHtml(g.name)+'</span><span class="accordion-count">'+dc+'/'+tc+'</span><button class="btn btn-danger btn-icon" style="width:24px;height:24px;margin-left:6px;font-size:11px;" onclick="event.stopPropagation();deleteGehTerrain('+g.id+');">'+ICONS.trash+'</button></div><div class="accordion-body '+(isOpen?'open':'')+'">';
     if(ps.length===0){
-      h+='<div class="empty-state" style="padding:16px;color:#6b7280;"><p>Aucun prélèvement</p></div>';
+      h+='<div class="empty-state" style="padding:16px;color:#6b7280;"><p>Aucun prÃ©lÃ¨vement</p></div>';
     }else{
       ps.forEach(function(p){
         var anyDone=p.subPrelevements.some(function(s){return s.completed;});
@@ -51,13 +51,13 @@ function renderTerrainMission(){
         var agentNames=p.agents&&p.agents.length>0?p.agents.map(function(a){return escapeHtml(a.name);}).join(' + '):'Agent inconnu';
         h+='<div class="prel-item '+(isSelected?'selected':'')+'" style="background:'+lightenColor(mc,0.85)+';">';
         if(state.fusionMode){
-          h+='<div class="prel-checkbox '+(isSelected?'checked':'')+'" onclick="toggleFusionSelect('+p.id+');">✓</div>';
+          h+='<div class="prel-checkbox '+(isSelected?'checked':'')+'" onclick="toggleFusionSelect('+p.id+');">âœ“</div>';
         }else{
-          h+='<div class="prel-status '+(allDone?'done':'pending')+'" onclick="openPrel('+p.id+');">✓</div>';
+          h+='<div class="prel-status '+(allDone?'done':'pending')+'" onclick="openPrel('+p.id+');">âœ“</div>';
         }
-        h+='<div class="prel-content" onclick="'+(state.fusionMode?'toggleFusionSelect('+p.id+');':'openPrel('+p.id+');')+'"><div class="prel-title" style="color:'+mc+';">'+agentNames+'</div><div class="prel-subtitle">'+p.type+' • '+p.subPrelevements.length+' sous-prél. '+(p.isReglementaire?'<span class="prel-reg-badge">Régl.</span>':'<span class="prel-nonreg-badge">Non-régl.</span>')+'</div></div>';
+        h+='<div class="prel-content" onclick="'+(state.fusionMode?'toggleFusionSelect('+p.id+');':'openPrel('+p.id+');')+'"><div class="prel-title" style="color:'+mc+';">'+agentNames+'</div><div class="prel-subtitle">'+p.type+' â€¢ '+p.subPrelevements.length+' sous-prÃ©l. '+(p.isReglementaire?'<span class="prel-reg-badge">RÃ©gl.</span>':'<span class="prel-nonreg-badge">Non-rÃ©gl.</span>')+(p.isCoPrelevement?'<span class="prel-coprel-badge">Co-prÃ©l.</span>':'')+'</div></div>';
         if(!state.fusionMode){
-          if(p.agents&&p.agents.length>1)h+='<button class="btn btn-gray btn-icon" style="width:24px;height:24px;font-size:11px;margin-right:2px;" onclick="event.stopPropagation();defusionPrel('+p.id+');" title="Défusionner">'+ICONS.merge+'</button>';
+          if(p.agents&&p.agents.length>1)h+='<button class="btn btn-gray btn-icon" style="width:24px;height:24px;font-size:11px;margin-right:2px;" onclick="event.stopPropagation();defusionPrel('+p.id+');" title="DÃ©fusionner">'+ICONS.merge+'</button>';
           h+='<button class="btn btn-danger btn-icon" style="width:24px;height:24px;font-size:11px;margin-right:2px;" onclick="event.stopPropagation();deletePrelTerrain('+p.id+');">'+ICONS.trash+'</button>';
         }
         h+='<div class="prel-arrow" onclick="'+(state.fusionMode?'toggleFusionSelect('+p.id+');':'openPrel('+p.id+');')+'">'+ICONS.arrowRight+'</div></div>';
@@ -78,7 +78,7 @@ function toggleGehAccordion(gid){state.expandedGeh[gid]=!state.expandedGeh[gid];
 
 function deleteMissionTerrain(){
   var m=getCurrentMission();if(!m)return;
-  if(!confirm('Supprimer la mission "'+m.clientSite+'" ?\n\nToutes les données seront perdues !'))return;
+  if(!confirm('Supprimer la mission "'+m.clientSite+'" ?\n\nToutes les donnÃ©es seront perdues !'))return;
   state.missions=state.missions.filter(function(x){return x.id!==m.id;});
   saveData('vlep_missions_v3',state.missions);
   state.currentMissionId=null;
@@ -88,7 +88,7 @@ function deleteMissionTerrain(){
 
 // ===== AJOUT/SUPPRESSION TERRAIN =====
 function renderAddGehTerrainModal(){
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>+ Ajouter un GEH</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>+ Ajouter un GEH</h2><button class="close-btn" onclick="state.showModal=null;render();">Ã—</button></div>';
   h+='<div class="field"><label class="label">Nom du GEH *</label><input type="text" class="input" id="new-geh-name" placeholder="Ex: Atelier peinture"></div>';
   h+='<div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addGehTerrain();">Ajouter</button></div></div></div>';
   return h;
@@ -113,13 +113,13 @@ function deleteGehTerrain(gehId){
   var geh=m.gehs.find(function(g){return g.id===gehId;});
   var prelCount=m.prelevements.filter(function(p){return p.gehId===gehId;}).length;
   var msg='Supprimer le GEH "'+geh.name+'" ?';
-  if(prelCount>0)msg+='\n\n'+prelCount+' prélèvement(s) seront également supprimés !';
+  if(prelCount>0)msg+='\n\n'+prelCount+' prÃ©lÃ¨vement(s) seront Ã©galement supprimÃ©s !';
   if(!confirm(msg))return;
-  // Supprimer les prélèvements associés
+  // Supprimer les prÃ©lÃ¨vements associÃ©s
   m.prelevements=m.prelevements.filter(function(p){return p.gehId!==gehId;});
   // Supprimer le GEH
   m.gehs=m.gehs.filter(function(g){return g.id!==gehId;});
-  // Renuméroter
+  // RenumÃ©roter
   m.gehs.forEach(function(g,i){g.num=i+1;});
   saveData('vlep_missions_v3',state.missions);
   render();
@@ -130,7 +130,7 @@ function deletePrelTerrain(prelId){
   var prel=m.prelevements.find(function(p){return p.id===prelId;});
   if(!prel)return;
   var agentNames=prel.agents.map(function(a){return a.name;}).join(' + ');
-  if(!confirm('Supprimer le prélèvement "'+agentNames+'" ('+prel.type+') ?'))return;
+  if(!confirm('Supprimer le prÃ©lÃ¨vement "'+agentNames+'" ('+prel.type+') ?'))return;
   m.prelevements=m.prelevements.filter(function(p){return p.id!==prelId;});
   updateMissionStatus(m);
   saveData('vlep_missions_v3',state.missions);
@@ -139,16 +139,16 @@ function deletePrelTerrain(prelId){
 
 function renderAddPrelTerrainModal(){
   var m=getCurrentMission();
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;state.newPrelData=null;render();}"><div class="modal-content" style="max-height:90vh;"><div class="modal-header"><h2>+ Ajouter un prélèvement</h2><button class="close-btn" onclick="state.showModal=null;state.newPrelData=null;render();">×</button></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;state.newPrelData=null;render();}"><div class="modal-content" style="max-height:90vh;"><div class="modal-header"><h2>+ Ajouter un prÃ©lÃ¨vement</h2><button class="close-btn" onclick="state.showModal=null;state.newPrelData=null;render();">Ã—</button></div>';
   
   if(!state.newPrelData){
     state.newPrelData={gehId:null,agents:[],type:'8h',isReg:true,agentSearch:''};
   }
   var d=state.newPrelData;
   
-  // Sélection GEH
+  // SÃ©lection GEH
   h+='<div class="field"><label class="label">GEH *</label><select class="input" onchange="state.newPrelData.gehId=this.value;render();">';
-  h+='<option value="">-- Sélectionner --</option>';
+  h+='<option value="">-- SÃ©lectionner --</option>';
   m.gehs.filter(function(g){return g.name;}).forEach(function(g){
     h+='<option value="'+g.id+'" '+(d.gehId==g.id?'selected':'')+'>'+g.num+'. '+escapeHtml(g.name)+'</option>';
   });
@@ -160,10 +160,10 @@ function renderAddPrelTerrainModal(){
   h+='<button class="btn btn-small '+(d.type==='CT'?'btn-primary':'btn-gray')+'" onclick="state.newPrelData.type=\'CT\';render();">CT</button>';
   h+='</div></div>';
   
-  // Réglementaire
+  // RÃ©glementaire
   h+='<div class="field"><label class="label">Statut</label><div class="row">';
-  h+='<button class="btn btn-small '+(d.isReg?'btn-success':'btn-gray')+'" onclick="state.newPrelData.isReg=true;render();">Réglementaire</button>';
-  h+='<button class="btn btn-small '+(!d.isReg?'btn-orange':'btn-gray')+'" onclick="state.newPrelData.isReg=false;render();">Non-réglementaire</button>';
+  h+='<button class="btn btn-small '+(d.isReg?'btn-success':'btn-gray')+'" onclick="state.newPrelData.isReg=true;render();">RÃ©glementaire</button>';
+  h+='<button class="btn btn-small '+(!d.isReg?'btn-orange':'btn-gray')+'" onclick="state.newPrelData.isReg=false;render();">Non-rÃ©glementaire</button>';
   h+='</div></div>';
   
   // Agents
@@ -184,16 +184,30 @@ function renderAddPrelTerrainModal(){
   h+='</div>';
   
   if(d.agents.length>0){
-    h+='<div class="info-box mt-8"><strong>Agents sélectionnés :</strong><div style="margin-top:4px;">';
+    h+='<div class="info-box mt-8"><strong>Agents sÃ©lectionnÃ©s :</strong><div style="margin-top:4px;">';
     d.agents.forEach(function(a,i){
-      h+='<span style="display:inline-block;background:#e5e7eb;padding:2px 8px;border-radius:4px;margin:2px;font-size:12px;">'+escapeHtml(a.name)+' <span style="cursor:pointer;color:#ef4444;" onclick="removeNewPrelAgent('+i+');">×</span></span>';
+      h+='<span style="display:inline-block;background:#e5e7eb;padding:2px 8px;border-radius:4px;margin:2px;font-size:12px;">'+escapeHtml(a.name)+' <span style="cursor:pointer;color:#ef4444;" onclick="removeNewPrelAgent('+i+');">Ã—</span></span>';
     });
     h+='</div></div>';
   }
   
-  // Nombre de sous-prélèvements
+  // Co-prÃ©lÃ¨vement (visible seulement si plusieurs agents)
+  if(d.agents.length>1){
+    h+='<div class="field mt-8"><label class="label">Mode de prÃ©lÃ¨vement</label><div class="row">';
+    h+='<button class="btn btn-small '+(d.isCoPrelevement?'btn-blue':'btn-gray')+'" onclick="state.newPrelData.isCoPrelevement=true;render();" title="Plusieurs agents sur le mÃªme support physique">Co-prÃ©lÃ¨vement</button>';
+    h+='<button class="btn btn-small '+(!d.isCoPrelevement?'btn-orange':'btn-gray')+'" onclick="state.newPrelData.isCoPrelevement=false;render();" title="Agents sur supports distincts">Supports distincts</button>';
+    h+='</div>';
+    if(d.isCoPrelevement){
+      h+='<div class="info-box mt-4" style="font-size:12px;border-left:3px solid var(--primary);"><strong>Co-prÃ©lÃ¨vement :</strong> mÃªme pompe et mÃªme dÃ©bit pour tous les agents. Les rÃ©fÃ©rences Ã©chantillon seront saisies sÃ©parÃ©ment par agent.</div>';
+    }else{
+      h+='<div class="info-box mt-4" style="font-size:12px;border-left:3px solid var(--warning);"><strong>Supports distincts :</strong> chaque agent aura sa propre pompe, dÃ©bit et rÃ©fÃ©rence.</div>';
+    }
+    h+='</div>';
+  }
+
+  // Nombre de sous-prÃ©lÃ¨vements
   var subCount=d.isReg&&d.type==='8h'?3:1;
-  h+='<div class="info-box info-box-success mt-12"><p>'+subCount+' sous-prélèvement(s) seront créés</p></div>';
+  h+='<div class="info-box info-box-success mt-12"><p>'+subCount+' sous-prÃ©lÃ¨vement(s) seront crÃ©Ã©s</p></div>';
   
   var canAdd=d.gehId&&d.agents.length>0;
   h+='<div class="row mt-12"><button class="btn btn-gray" onclick="state.showModal=null;state.newPrelData=null;render();">Annuler</button><button class="btn btn-primary" '+(canAdd?'':'disabled')+' onclick="addPrelTerrain();">Ajouter</button></div></div></div>';
@@ -203,14 +217,14 @@ function renderAddPrelTerrainModal(){
 function renderSmartFusionModal(){
   if(!state.fusionGroups||state.fusionGroups.length===0)return'';
   
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;state.fusionGroups=null;render();}"><div class="modal-content" style="max-height:90vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Fusion intelligente</h2><button class="close-btn" onclick="state.showModal=null;state.fusionGroups=null;render();">×</button></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;state.fusionGroups=null;render();}"><div class="modal-content" style="max-height:90vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Fusion intelligente</h2><button class="close-btn" onclick="state.showModal=null;state.fusionGroups=null;render();">Ã—</button></div>';
   
   var selectedCount=state.fusionGroups.filter(function(g){return g.selected;}).length;
   
-  h+='<div class="info-box mb-12"><p><strong>'+state.fusionGroups.length+' groupe(s) fusionnable(s) détecté(s)</strong></p><p style="font-size:11px;margin-top:4px;">Décochez les groupes que vous ne souhaitez pas fusionner</p></div>';
+  h+='<div class="info-box mb-12"><p><strong>'+state.fusionGroups.length+' groupe(s) fusionnable(s) dÃ©tectÃ©(s)</strong></p><p style="font-size:11px;margin-top:4px;">DÃ©cochez les groupes que vous ne souhaitez pas fusionner</p></div>';
   
   // Boutons rapides
-  h+='<div class="row mb-12"><button class="btn btn-gray btn-small" onclick="toggleAllGroups(true);">Tout sélectionner</button><button class="btn btn-gray btn-small" onclick="toggleAllGroups(false);">Tout désélectionner</button></div>';
+  h+='<div class="row mb-12"><button class="btn btn-gray btn-small" onclick="toggleAllGroups(true);">Tout sÃ©lectionner</button><button class="btn btn-gray btn-small" onclick="toggleAllGroups(false);">Tout dÃ©sÃ©lectionner</button></div>';
   
   // Liste des groupes
   state.fusionGroups.forEach(function(group){
@@ -219,8 +233,8 @@ function renderSmartFusionModal(){
     h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
     h+='<input type="checkbox" '+(group.selected?'checked':'')+' onchange="toggleGroupSelection(\''+group.id+'\');" style="width:18px;height:18px;cursor:pointer;">';
     h+='<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:var(--text-dark);">'+group.gehNum+'. '+escapeHtml(group.gehName)+'</div>';
-    h+='<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">'+group.type+' • '+(group.isReglementaire?'Réglementaire':'Non-régl.')+'</div></div>';
-    h+='<div style="background:var(--primary-pale);color:var(--primary);padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;">'+group.prelevements.length+' prél.</div>';
+    h+='<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">'+group.type+' â€¢ '+(group.isReglementaire?'RÃ©glementaire':'Non-rÃ©gl.')+'</div></div>';
+    h+='<div style="background:var(--primary-pale);color:var(--primary);padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;">'+group.prelevements.length+' prÃ©l.</div>';
     h+='</div>';
     
     // Agents
@@ -228,7 +242,7 @@ function renderSmartFusionModal(){
     
     // Avertissements
     if(hasWarnings){
-      h+='<div style="background:#fef3c7;border-radius:6px;padding:6px 8px;font-size:11px;color:#b45309;"><strong>⚠️ Attention:</strong> '+group.warnings.join(', ')+'</div>';
+      h+='<div style="background:#fef3c7;border-radius:6px;padding:6px 8px;font-size:11px;color:#b45309;"><strong>âš ï¸ Attention:</strong> '+group.warnings.join(', ')+'</div>';
     }
     
     h+='</div>';
@@ -291,14 +305,25 @@ function addPrelTerrain(){
     agents:d.agents.slice(),
     type:d.type,
     isReglementaire:d.isReg,
+    isCoPrelevement:!!(d.isCoPrelevement&&d.agents.length>1),
     subPrelevements:[]
   };
   
   for(var i=0;i<subCount;i++){
     var sub={id:generateId(),operateur:'',date:'',plages:[{debut:'',fin:''}],observations:'',completed:false,agentData:{}};
-    d.agents.forEach(function(a){
-      sub.agentData[a.name]={refEchantillon:'',numPompe:'',debitInitial:'',debitFinal:''};
-    });
+    if(newPrel.isCoPrelevement){
+      // Co-prÃ©lÃ¨vement : champs pompe/dÃ©bit partagÃ©s sur le sub lui-mÃªme
+      sub.numPompe='';
+      sub.debitInitial='';
+      sub.debitFinal='';
+      d.agents.forEach(function(a){
+        sub.agentData[a.name]={refEchantillon:''};
+      });
+    }else{
+      d.agents.forEach(function(a){
+        sub.agentData[a.name]={refEchantillon:'',numPompe:'',debitInitial:'',debitFinal:''};
+      });
+    }
     newPrel.subPrelevements.push(sub);
   }
   
@@ -354,7 +379,7 @@ function toggleFusionSelect(pid){
     if(state.selectedForFusion.length>0){
       var fp=m.prelevements.find(function(x){return x.id===state.selectedForFusion[0];});
       if(fp.gehId!==p.gehId||fp.type!==p.type||fp.isReglementaire!==p.isReglementaire){
-        alert('Les prélèvements doivent être du même GEH, même type et même statut réglementaire');
+        alert('Les prÃ©lÃ¨vements doivent Ãªtre du mÃªme GEH, mÃªme type et mÃªme statut rÃ©glementaire');
         return;
       }
     }
@@ -372,9 +397,9 @@ function doFusion(){
   var errors=[];
   for(var j=1;j<tm.length;j++){
     var o=tm[j];
-    if(o.gehId!==first.gehId)errors.push('GEH différent');
-    if(o.type!==first.type)errors.push('Type différent (8h/CT)');
-    if(o.isReglementaire!==first.isReglementaire)errors.push('Statut réglementaire différent');
+    if(o.gehId!==first.gehId)errors.push('GEH diffÃ©rent');
+    if(o.type!==first.type)errors.push('Type diffÃ©rent (8h/CT)');
+    if(o.isReglementaire!==first.isReglementaire)errors.push('Statut rÃ©glementaire diffÃ©rent');
   }
   if(errors.length>0){alert('Fusion impossible:\n- '+errors.join('\n- '));return;}
   var mn=tm[0];
@@ -404,8 +429,8 @@ function defusionPrel(prelId){
   var m=getCurrentMission();
   if(!m)return;
   var p=m.prelevements.find(function(x){return x.id===prelId;});
-  if(!p||!p.agents||p.agents.length<2){alert('Ce prélèvement ne contient qu\'un seul agent, impossible de défusionner.');return;}
-  if(!confirm('Défusionner ce prélèvement ?\nChaque agent redeviendra un prélèvement séparé.'))return;
+  if(!p||!p.agents||p.agents.length<2){alert('Ce prÃ©lÃ¨vement ne contient qu\'un seul agent, impossible de dÃ©fusionner.');return;}
+  if(!confirm('DÃ©fusionner ce prÃ©lÃ¨vement ?\nChaque agent redeviendra un prÃ©lÃ¨vement sÃ©parÃ©.'))return;
   var newPrels=[];
   p.agents.forEach(function(agent){
     var np={id:Date.now()+Math.floor(Math.random()*1000),gehId:p.gehId,type:p.type,isReglementaire:p.isReglementaire,agents:[agent],subPrelevements:[]};
@@ -435,7 +460,7 @@ function analyzeGroupsForFusion(){
   m.prelevements.forEach(function(p){
     if(processed[p.id])return;
     
-    // Trouver tous les prélèvements compatibles
+    // Trouver tous les prÃ©lÃ¨vements compatibles
     var compatible=m.prelevements.filter(function(x){
       return x.gehId===p.gehId && x.type===p.type && x.isReglementaire===p.isReglementaire && x.id!==p.id && !processed[x.id];
     });
@@ -450,7 +475,7 @@ function analyzeGroupsForFusion(){
         });
       });
       
-      // Vérifier les différences
+      // VÃ©rifier les diffÃ©rences
       var warnings=[];
       var operators={};
       var dates={};
@@ -465,8 +490,8 @@ function analyzeGroupsForFusion(){
         pr.agents.forEach(function(a){
           var ag=getAgentFromDB(a.name);
           if(ag){
-            var sup=ag['Support de prélèvement']||'';
-            var cp=ag['Code prétraitement']||'';
+            var sup=ag['Support de prÃ©lÃ¨vement']||'';
+            var cp=ag['Code prÃ©traitement']||'';
             if(sup)supports[sup]=true;
             if(cp)codesPretrait[cp]=true;
           }
@@ -474,10 +499,10 @@ function analyzeGroupsForFusion(){
       });
       var opCount=Object.keys(operators).length;
       var dateCount=Object.keys(dates).length;
-      if(opCount>1)warnings.push('Opérateurs différents');
-      if(dateCount>1)warnings.push('Dates différentes');
-      if(Object.keys(supports).length>1)warnings.push('Supports différents: '+Object.keys(supports).join(', '));
-      if(Object.keys(codesPretrait).length>1)warnings.push('Codes prétraitement différents: '+Object.keys(codesPretrait).join(', '));
+      if(opCount>1)warnings.push('OpÃ©rateurs diffÃ©rents');
+      if(dateCount>1)warnings.push('Dates diffÃ©rentes');
+      if(Object.keys(supports).length>1)warnings.push('Supports diffÃ©rents: '+Object.keys(supports).join(', '));
+      if(Object.keys(codesPretrait).length>1)warnings.push('Codes prÃ©traitement diffÃ©rents: '+Object.keys(codesPretrait).join(', '));
       
       groups.push({
         id:'group_'+p.id,
@@ -489,7 +514,7 @@ function analyzeGroupsForFusion(){
         prelevements:allInGroup,
         agentNames:agentNames,
         warnings:warnings,
-        selected:warnings.length===0 // Auto-sélectionner seulement si pas de warnings
+        selected:warnings.length===0 // Auto-sÃ©lectionner seulement si pas de warnings
       });
       
       allInGroup.forEach(function(pr){processed[pr.id]=true;});
@@ -503,7 +528,7 @@ function analyzeGroupsForFusion(){
 function showSmartFusionModal(){
   var groups=analyzeGroupsForFusion();
   if(groups.length===0){
-    alert('Aucun prélèvement fusionnable trouvé.\n\nLes prélèvements doivent partager :\n- Même GEH\n- Même type (8h ou CT)\n- Même statut réglementaire');
+    alert('Aucun prÃ©lÃ¨vement fusionnable trouvÃ©.\n\nLes prÃ©lÃ¨vements doivent partager :\n- MÃªme GEH\n- MÃªme type (8h ou CT)\n- MÃªme statut rÃ©glementaire');
     return;
   }
   state.showModal='smartFusion';
@@ -518,7 +543,7 @@ function doSmartFusion(){
   
   var selectedGroups=state.fusionGroups.filter(function(g){return g.selected;});
   if(selectedGroups.length===0){
-    alert('Aucun groupe sélectionné');
+    alert('Aucun groupe sÃ©lectionnÃ©');
     return;
   }
   
@@ -537,7 +562,7 @@ function doSmartFusion(){
         }
       });
       
-      // Fusionner les données de sous-prélèvements
+      // Fusionner les donnÃ©es de sous-prÃ©lÃ¨vements
       for(var s=0;s<first.subPrelevements.length&&s<other.subPrelevements.length;s++){
         if(!first.subPrelevements[s].agentData)first.subPrelevements[s].agentData={};
         if(other.subPrelevements[s].agentData){
@@ -549,7 +574,7 @@ function doSmartFusion(){
         }
       }
       
-      // Supprimer l'autre prélèvement
+      // Supprimer l'autre prÃ©lÃ¨vement
       var idx=m.prelevements.findIndex(function(x){return x.id===other.id;});
       if(idx!==-1){
         m.prelevements.splice(idx,1);
@@ -563,10 +588,10 @@ function doSmartFusion(){
   state.fusionGroups=null;
   render();
   
-  alert('Fusion réussie !\n\n'+selectedGroups.length+' groupe(s) fusionné(s)\n'+totalFused+' prélèvement(s) fusionné(s)');
+  alert('Fusion rÃ©ussie !\n\n'+selectedGroups.length+' groupe(s) fusionnÃ©(s)\n'+totalFused+' prÃ©lÃ¨vement(s) fusionnÃ©(s)');
 }
 
-// Nouvelle fonction : Toggle sélection groupe
+// Nouvelle fonction : Toggle sÃ©lection groupe
 function toggleGroupSelection(groupId){
   if(!state.fusionGroups)return;
   var group=state.fusionGroups.find(function(g){return g.id===groupId;});
@@ -574,7 +599,7 @@ function toggleGroupSelection(groupId){
   render();
 }
 
-// Nouvelle fonction : Tout sélectionner/désélectionner
+// Nouvelle fonction : Tout sÃ©lectionner/dÃ©sÃ©lectionner
 function toggleAllGroups(select){
   if(!state.fusionGroups)return;
   state.fusionGroups.forEach(function(g){g.selected=select;});
@@ -604,12 +629,12 @@ function renderTerrainPrel(){
   if(!p){state.view='terrain-mission';render();return'';}
   var mc=p.agents&&p.agents[0]?p.agents[0].color:'#3b82f6';
   var agentNames=p.agents&&p.agents.length>0?p.agents.map(function(a){return escapeHtml(a.name||'???');}).join(' + '):'Agent inconnu';
-  var h='<div class="sticky-header"><button class="back-btn" onclick="state.view=\'terrain-mission\';state.currentPrelId=null;render();">'+ICONS.arrowLeft+' Liste</button><div style="color:white;font-size:12px;opacity:0.85;">'+agentNames+' - '+p.type+' | GEH '+p.gehNum+'</div></div><div class="card" style="border-left:4px solid '+mc+';"><h2 style="color:'+mc+';">'+agentNames+' - '+p.type+'</h2><p class="subtitle"><span class="svg-icon">'+ICONS.folder+'</span> GEH '+p.gehNum+' - '+escapeHtml(p.gehName)+' | '+(p.isReglementaire?'Réglementaire':'Non-régl.')+'</p></div>';
+  var h='<div class="sticky-header"><button class="back-btn" onclick="state.view=\'terrain-mission\';state.currentPrelId=null;render();">'+ICONS.arrowLeft+' Liste</button><div style="color:white;font-size:12px;opacity:0.85;">'+agentNames+' - '+p.type+' | GEH '+p.gehNum+'</div></div><div class="card" style="border-left:4px solid '+mc+';"><h2 style="color:'+mc+';">'+agentNames+' - '+p.type+'</h2><p class="subtitle"><span class="svg-icon">'+ICONS.folder+'</span> GEH '+p.gehNum+' - '+escapeHtml(p.gehName)+' | '+(p.isReglementaire?'RÃ©glementaire':'Non-rÃ©gl.')+'</p></div>';
   if(p.subPrelevements.length>1){
     h+='<div class="tabs">';
     for(var t=0;t<p.subPrelevements.length;t++){
       var sb=p.subPrelevements[t];
-      h+='<button class="tab '+(state.activeSubIndex===t?'active':'')+'" onclick="state.activeSubIndex='+t+';render();">Prél '+(t+1)+(sb.completed?' ✓':'')+'</button>';
+      h+='<button class="tab '+(state.activeSubIndex===t?'active':'')+'" onclick="state.activeSubIndex='+t+';render();">PrÃ©l '+(t+1)+(sb.completed?' âœ“':'')+'</button>';
     }
     h+='</div>';
   }
@@ -624,8 +649,8 @@ function renderSubPrelForm(p,sb,idx){
   
   var h='<div class="card">';
   
-  // Opérateur avec bouton copier J-1
-  h+='<div class="field"><div class="field-header"><label class="label">Opérateur / Point fixe</label>';
+  // OpÃ©rateur avec bouton copier J-1
+  h+='<div class="field"><div class="field-header"><label class="label">OpÃ©rateur / Point fixe</label>';
   if(canCopyFromPrevious)h+='<button class="copy-btn" onclick="copyFromPrevious('+p.id+','+idx+',\'operateur\');">'+ICONS.list+' J-1</button>';
   h+='</div><input type="text" class="input" value="'+escapeHtml(sb.operateur||'')+'" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'operateur\',this.value);"></div>';
   
@@ -635,8 +660,48 @@ function renderSubPrelForm(p,sb,idx){
   h+='<div class="field"><label class="label"><span class="svg-icon">'+ICONS.beaker+'</span> Agent(s) chimique(s)</label>';
   
   if(!p.agents||p.agents.length===0){
-    h+='<div class="info-box info-box-warning"><p>Aucun agent chimique défini pour ce prélèvement</p></div>';
+    h+='<div class="info-box info-box-warning"><p>Aucun agent chimique dÃ©fini pour ce prÃ©lÃ¨vement</p></div>';
+  }else if(p.isCoPrelevement&&p.agents.length>1){
+    // ========== MODE CO-PRÃ‰LÃˆVEMENT : champs pompe/dÃ©bit partagÃ©s ==========
+    // Initialisation des champs partagÃ©s si nÃ©cessaire
+    if(!sb.numPompe&&sb.numPompe!==0)sb.numPompe='';
+    if(!sb.debitInitial&&sb.debitInitial!==0)sb.debitInitial='';
+    if(!sb.debitFinal&&sb.debitFinal!==0)sb.debitFinal='';
+    
+    var variationCo=calcDebitVariation(sb.debitInitial,sb.debitFinal);
+    var hasWarningCo=variationCo!==null&&variationCo>5;
+    
+    h+='<div class="info-box mb-8" style="border-left:3px solid var(--primary);font-size:12px;">Co-prÃ©lÃ¨vement â€" pompe et dÃ©bit communs Ã  tous les agents</div>';
+    
+    // Champs partagÃ©s
+    h+='<div class="multi-agent-item" style="border-left:4px solid var(--primary);">';
+    h+='<div class="multi-agent-header"><div class="multi-agent-color" style="background:var(--primary);"></div><div class="multi-agent-name" style="color:var(--primary);font-weight:700;">Support commun</div></div>';
+    h+='<div class="multi-agent-fields">';
+    
+    h+='<div class="multi-agent-row"><label>NÂ° Pompe';
+    if(canCopyFromPrevious)h+='<button class="copy-btn" onclick="copyCoSharedFromPrevious('+p.id+','+idx+',\'numPompe\');">J-1</button>';
+    h+='</label><input type="text" inputmode="numeric" value="'+escapeHtml(sb.numPompe||'')+'" placeholder="Ex: 123" onchange="updateCoSharedFieldWithAutoDate('+p.id+','+idx+',\'numPompe\',this.value);"></div>';
+    
+    h+='<div class="multi-agent-row"><label>DÃ©bit initial</label><input type="text" inputmode="decimal" class="debit-input '+(hasWarningCo?'warning':'')+'" value="'+escapeHtml(sb.debitInitial||'')+'" placeholder="L/min" oninput="handleDebitInput(this);" onchange="updateCoSharedFieldWithAutoDate('+p.id+','+idx+',\'debitInitial\',this.value);renderDebitVariation('+p.id+','+idx+',\'\');"></div>';
+    h+='<div class="multi-agent-row"><label>DÃ©bit final</label><input type="text" inputmode="decimal" class="debit-input '+(hasWarningCo?'warning':'')+'" value="'+escapeHtml(sb.debitFinal||'')+'" placeholder="L/min" oninput="handleDebitInput(this);" onchange="updateCoSharedFieldWithAutoDate('+p.id+','+idx+',\'debitFinal\',this.value);renderDebitVariation('+p.id+','+idx+',\'\');">';
+    if(variationCo!==null){h+='<span class="debit-variation '+(hasWarningCo?'warning':'')+'">Î" '+variationCo.toFixed(1)+'%</span>';}
+    h+='</div>';
+    h+='</div></div>';
+    
+    // RÃ©fÃ©rences par agent
+    h+='<div class="mt-8" style="font-size:12px;font-weight:700;color:var(--text-muted);margin-bottom:4px;">RÃ©fÃ©rences Ã©chantillon par agent :</div>';
+    p.agents.forEach(function(a){
+      if(!sb.agentData)sb.agentData={};
+      var aname=a.name||'Agent inconnu';
+      if(!sb.agentData[aname])sb.agentData[aname]={refEchantillon:''};
+      var ad=sb.agentData[aname];
+      h+='<div class="multi-agent-item" style="border-left:4px solid '+(a.color||'#3b82f6')+';margin-bottom:4px;">';
+      h+='<div class="multi-agent-header"><div class="multi-agent-color" style="background:'+(a.color||'#3b82f6')+';"></div><div class="multi-agent-name">'+escapeHtml(aname)+'</div></div>';
+      h+='<div class="multi-agent-fields"><div class="multi-agent-row"><label>RÃ©f. Ã©chant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="RÃ©fÃ©rence..." onchange="updateAgentDataWithAutoDate('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'refEchantillon\',this.value);"></div></div>';
+      h+='</div>';
+    });
   }else{
+    // ========== MODE NORMAL : champs indÃ©pendants par agent ==========
     p.agents.forEach(function(a){
       if(!sb.agentData)sb.agentData={};
       var aname=a.name||'Agent inconnu';
@@ -647,17 +712,17 @@ function renderSubPrelForm(p,sb,idx){
       
       h+='<div class="multi-agent-item"><div class="multi-agent-header"><div class="multi-agent-color" style="background:'+(a.color||'#3b82f6')+';"></div><div class="multi-agent-name">'+escapeHtml(aname)+'</div></div><div class="multi-agent-fields">';
       
-      // N° Pompe avec bouton copier J-1
-      h+='<div class="multi-agent-row"><label>N° Pompe';
+      // NÂ° Pompe avec bouton copier J-1
+      h+='<div class="multi-agent-row"><label>NÂ° Pompe';
       if(canCopyFromPrevious)h+='<button class="copy-btn" onclick="copyAgentDataFromPrevious('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'numPompe\');">J-1</button>';
       h+='</label><input type="text" inputmode="numeric" value="'+escapeHtml(ad.numPompe||'')+'" placeholder="Ex: 123" onchange="updateAgentDataWithAutoDate('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'numPompe\',this.value);"></div>';
       
-      h+='<div class="multi-agent-row"><label>Débit initial</label><input type="text" inputmode="decimal" class="debit-input '+(hasWarning?'warning':'')+'" value="'+escapeHtml(ad.debitInitial||'')+'" placeholder="L/min" oninput="handleDebitInput(this);" onchange="updateAgentDataWithAutoDate('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitInitial\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');"></div>';
-      h+='<div class="multi-agent-row"><label>Débit final</label><input type="text" inputmode="decimal" class="debit-input '+(hasWarning?'warning':'')+'" value="'+escapeHtml(ad.debitFinal||'')+'" placeholder="L/min" oninput="handleDebitInput(this);" onchange="updateAgentDataWithAutoDate('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitFinal\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');">';
-      if(variation!==null){h+='<span class="debit-variation '+(hasWarning?'warning':'')+'">Δ '+variation.toFixed(1)+'%</span>';}
+      h+='<div class="multi-agent-row"><label>DÃ©bit initial</label><input type="text" inputmode="decimal" class="debit-input '+(hasWarning?'warning':'')+'" value="'+escapeHtml(ad.debitInitial||'')+'" placeholder="L/min" oninput="handleDebitInput(this);" onchange="updateAgentDataWithAutoDate('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitInitial\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');"></div>';
+      h+='<div class="multi-agent-row"><label>DÃ©bit final</label><input type="text" inputmode="decimal" class="debit-input '+(hasWarning?'warning':'')+'" value="'+escapeHtml(ad.debitFinal||'')+'" placeholder="L/min" oninput="handleDebitInput(this);" onchange="updateAgentDataWithAutoDate('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitFinal\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');">';
+      if(variation!==null){h+='<span class="debit-variation '+(hasWarning?'warning':'')+'">Î" '+variation.toFixed(1)+'%</span>';}
       h+='</div>';
       
-      h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="updateAgentDataWithAutoDate('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'refEchantillon\',this.value);"></div>';
+      h+='<div class="multi-agent-row"><label>RÃ©f. Ã©chant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="RÃ©fÃ©rence..." onchange="updateAgentDataWithAutoDate('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'refEchantillon\',this.value);"></div>';
       h+='</div></div>';
     });
   }
@@ -669,7 +734,7 @@ function renderSubPrelForm(p,sb,idx){
     if(timerRunning){
       h+=getTimerDisplay(p.id,idx);
     }else{
-      h+='<button class="btn btn-primary" style="width:100%;margin:8px 0;" onclick="startCTTimer('+p.id+','+idx+');">▶️ Démarrer chrono CT</button>';
+      h+='<button class="btn btn-primary" style="width:100%;margin:8px 0;" onclick="startCTTimer('+p.id+','+idx+');">â–¶ï¸ DÃ©marrer chrono CT</button>';
     }
   }
   
@@ -677,17 +742,17 @@ function renderSubPrelForm(p,sb,idx){
   var pl=sb.plages||[{debut:'',fin:''}];
   pl.forEach(function(x,pi){
     h+='<div class="plage-row"><div class="plage-num">'+(pi+1)+'</div><input type="time" class="plage-input" value="'+(x.debut||'')+'" onchange="updatePlageWithAutoDate('+p.id+','+idx+','+pi+',\'debut\',this.value);"><span class="plage-sep">'+ICONS.arrowRight+'</span><input type="time" class="plage-input" value="'+(x.fin||'')+'" onchange="updatePlageWithAutoDate('+p.id+','+idx+','+pi+',\'fin\',this.value);">';
-    if(pl.length>1)h+='<button class="plage-delete" onclick="removePlage('+p.id+','+idx+','+pi+');">✕</button>';
+    if(pl.length>1)h+='<button class="plage-delete" onclick="removePlage('+p.id+','+idx+','+pi+');">âœ•</button>';
     h+='</div>';
   });
   if(pl.length<10)h+='<button class="btn btn-gray btn-small" onclick="addPlage('+p.id+','+idx+');">+ Plage</button>';
   h+='</div>';
   
   var d=getDureeTotale(pl);
-  if(d)h+='<div class="duration-box"><span style="display:inline-flex;width:16px;height:16px;">'+ICONS.clock+'</span> Durée : '+d+'</div>';
+  if(d)h+='<div class="duration-box"><span style="display:inline-flex;width:16px;height:16px;">'+ICONS.clock+'</span> DurÃ©e : '+d+'</div>';
   
-  h+='<div class="field"><label class="label">Observations</label><div style="display:flex;gap:6px;align-items:flex-start;"><textarea class="input" style="flex:1;" rows="2" id="obs-'+p.id+'-'+idx+'" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'observations\',this.value);">'+escapeHtml(sb.observations||'')+'</textarea><button class="dictation-btn" id="dict-btn-'+p.id+'-'+idx+'" onclick="toggleDictation('+p.id+','+idx+');" title="Dictée vocale">'+ICONS.mic+'</button></div></div>';
-  h+='<button class="btn btn-success" onclick="toggleSubComplete('+p.id+','+idx+');">'+(sb.completed?'✓ Complété - Modifier':'✓ Valider')+'</button></div>';
+  h+='<div class="field"><label class="label">Observations</label><div style="display:flex;gap:6px;align-items:flex-start;"><textarea class="input" style="flex:1;" rows="2" id="obs-'+p.id+'-'+idx+'" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'observations\',this.value);">'+escapeHtml(sb.observations||'')+'</textarea><button class="dictation-btn" id="dict-btn-'+p.id+'-'+idx+'" onclick="toggleDictation('+p.id+','+idx+');" title="DictÃ©e vocale">'+ICONS.mic+'</button></div></div>';
+  h+='<button class="btn btn-success" onclick="toggleSubComplete('+p.id+','+idx+');">'+(sb.completed?'âœ“ ComplÃ©tÃ© - Modifier':'âœ“ Valider')+'</button></div>';
   return h;
 }
 
@@ -717,6 +782,32 @@ function copyAgentDataFromPrevious(pid,idx,agentName,field){
     if(!currentSub.agentData)currentSub.agentData={};
     if(!currentSub.agentData[agentName])currentSub.agentData[agentName]={};
     currentSub.agentData[agentName][field]=prevSub.agentData[agentName][field];
+    saveData('vlep_missions_v3',state.missions);
+    render();
+  }
+}
+
+// Co-prÃ©lÃ¨vement : mise Ã  jour des champs partagÃ©s (numPompe, debitInitial, debitFinal)
+function updateCoSharedFieldWithAutoDate(pid,idx,field,value){
+  var m=getCurrentMission();if(!m)return;
+  var p=m.prelevements.find(function(x){return x.id===pid;});
+  if(p){
+    p.subPrelevements[idx][field]=value;
+    autoFillDate(p,idx);
+    saveData('vlep_missions_v3',state.missions);
+  }
+}
+
+// Co-prÃ©lÃ¨vement : copier un champ partagÃ© depuis J-1
+function copyCoSharedFromPrevious(pid,idx,field){
+  if(idx<=0)return;
+  var m=getCurrentMission();if(!m)return;
+  var p=m.prelevements.find(function(x){return x.id===pid;});
+  if(!p)return;
+  var prevSub=p.subPrelevements[idx-1];
+  var currentSub=p.subPrelevements[idx];
+  if(prevSub&&(prevSub[field]||prevSub[field]===0)){
+    currentSub[field]=prevSub[field];
     saveData('vlep_missions_v3',state.missions);
     render();
   }
@@ -855,4 +946,4 @@ function updateMissionStatus(m){
 
 // FIX #7: Conditions ambiantes responsive mobile
 
-console.log('✓ Terrain chargé');
+console.log('âœ“ Terrain chargÃ©');
