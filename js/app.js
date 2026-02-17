@@ -44,24 +44,47 @@ if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then(registration => {
       console.log('[PWA] Service Worker enregistré');
       
-      // Vérifier les mises à jour toutes les 30 minutes
+      // Vérifier les mises à jour au démarrage
+      registration.update();
+      
+      // Vérifier les mises à jour toutes les 5 minutes (pour dev)
+      // En production, mettre 30 * 60 * 1000 (30 minutes)
       setInterval(() => {
         registration.update();
         console.log('[PWA] Vérification mise à jour...');
-      }, 30 * 60 * 1000);
+      }, 5 * 60 * 1000);
       
       // Détecter une nouvelle version disponible
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
+        console.log('[PWA] Nouvelle version détectée !');
+        
         newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'activated') {
-            // Afficher notification de mise à jour
-            if (confirm('🔄 Nouvelle version de VLEP Mission disponible !\n\nVoulez-vous recharger pour mettre à jour ?')) {
+          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            // Nouvelle version disponible et prête
+            console.log('[PWA] Nouvelle version prête, rechargement dans 2s...');
+            
+            // Notification discrète
+            var banner = document.createElement('div');
+            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#0066b3;color:white;padding:12px;text-align:center;font-size:13px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
+            banner.innerHTML = '🔄 Mise à jour disponible... Rechargement automatique dans 2s';
+            document.body.appendChild(banner);
+            
+            // Rechargement automatique après 2 secondes
+            setTimeout(() => {
               window.location.reload();
-            }
+            }, 2000);
           }
         });
       });
+      
+      // Écouter les messages du Service Worker
+      navigator.serviceWorker.addEventListener('message', event => {
+        if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
+          console.log('[PWA] Message reçu: mise à jour disponible');
+        }
+      });
+      
     }).catch(err => {
       console.log('[PWA] Erreur SW:', err);
     });

@@ -1,7 +1,8 @@
 // sw.js - Service Worker
 // © 2025 Quentin THOMAS
 
-const CACHE_NAME = 'vlep-mission-v3.8-modular';
+const CACHE_NAME = 'vlep-mission-v3.8-modular-fix1';
+const VERSION = '3.8.1'; // Incrémenter à chaque mise à jour
 const urlsToCache = [
   './',
   './index.html',
@@ -27,7 +28,7 @@ const urlsToCache = [
 
 // Installation
 self.addEventListener('install', function(event) {
-  console.log('[SW] Installation v3.8');
+  console.log('[SW] Installation v' + VERSION);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(function(cache) {
@@ -46,7 +47,7 @@ self.addEventListener('install', function(event) {
 
 // Activation
 self.addEventListener('activate', function(event) {
-  console.log('[SW] Activation v3.8');
+  console.log('[SW] Activation v' + VERSION);
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
@@ -59,7 +60,19 @@ self.addEventListener('activate', function(event) {
       );
     })
     .then(function() {
+      console.log('[SW] Prise de contrôle des clients');
       return self.clients.claim(); // Prend le contrôle immédiatement
+    })
+    .then(function() {
+      // Notifier tous les clients qu'une mise à jour est disponible
+      return self.clients.matchAll().then(function(clients) {
+        clients.forEach(function(client) {
+          client.postMessage({
+            type: 'UPDATE_AVAILABLE',
+            version: VERSION
+          });
+        });
+      });
     })
   );
 });
@@ -85,4 +98,4 @@ self.addEventListener('fetch', function(event) {
   );
 });
 
-console.log('[SW] Service Worker chargé v3.8');
+console.log('[SW] Service Worker chargé v' + VERSION);
