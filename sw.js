@@ -1,82 +1,88 @@
-/*
- * VLEP Mission v3.8 - Service Worker
- * © 2025 Quentin THOMAS - Tous droits réservés
- * Cache-first strategy pour fonctionnement offline
- */
+// sw.js - Service Worker
+// © 2025 Quentin THOMAS
 
-var CACHE_NAME = 'vlep-mission-v3.8';
-var ASSETS = [
+const CACHE_NAME = 'vlep-mission-v3.8-modular';
+const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
   './icon-192.png',
   './icon-512.png',
-  './css/main.css',
-  './js/state.js',
+  // Modules JavaScript
   './js/icons.js',
-  './js/utils.js',
   './js/database.js',
+  './js/state.js',
   './js/prepa.js',
   './js/terrain.js',
-  './js/quick.js',
-  './js/export.js',
-  './js/db-view.js',
-  './js/render.js',
+  './js/echantillons.js',
+  './js/export-excel.js',
+  './js/database-views.js',
+  './js/quick-entry.js',
+  './js/import-export.js',
+  './js/timers.js',
   './js/app.js',
+  // Bibliothèque externe
   'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
 ];
 
-// Installation : mise en cache de tous les assets
+// Installation
 self.addEventListener('install', function(event) {
   console.log('[SW] Installation v3.8');
   event.waitUntil(
-    caches.open(CACHE_NAME).then(function(cache) {
-      return cache.addAll(ASSETS);
-    }).then(function() {
-      return self.skipWaiting();
-    })
+    caches.open(CACHE_NAME)
+      .then(function(cache) {
+        console.log('[SW] Mise en cache des fichiers');
+        return cache.addAll(urlsToCache);
+      })
+      .then(function() {
+        console.log('[SW] Tous les fichiers mis en cache avec succès');
+        return self.skipWaiting(); // Active immédiatement
+      })
+      .catch(function(err){
+        console.error('[SW] Erreur mise en cache:', err);
+      })
   );
 });
 
-// Activation : nettoyage des anciens caches
+// Activation
 self.addEventListener('activate', function(event) {
   console.log('[SW] Activation v3.8');
   event.waitUntil(
     caches.keys().then(function(cacheNames) {
       return Promise.all(
-        cacheNames.filter(function(name) {
-          return name !== CACHE_NAME;
-        }).map(function(name) {
-          console.log('[SW] Suppression ancien cache:', name);
-          return caches.delete(name);
+        cacheNames.map(function(cacheName) {
+          if (cacheName !== CACHE_NAME) {
+            console.log('[SW] Suppression ancien cache:', cacheName);
+            return caches.delete(cacheName);
+          }
         })
       );
-    }).then(function() {
-      return self.clients.claim();
+    })
+    .then(function() {
+      return self.clients.claim(); // Prend le contrôle immédiatement
     })
   );
 });
 
-// Fetch : cache-first, fallback réseau
+// Fetch - Stratégie Network First pour le développement
 self.addEventListener('fetch', function(event) {
   event.respondWith(
-    caches.match(event.request).then(function(cached) {
-      if (cached) return cached;
-      return fetch(event.request).then(function(response) {
-        // Mettre en cache les nouvelles ressources
+    fetch(event.request)
+      .then(function(response) {
+        // Si la requête réseau réussit, mettre en cache
         if (response && response.status === 200) {
-          var responseClone = response.clone();
+          const responseToCache = response.clone();
           caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(event.request, responseClone);
+            cache.put(event.request, responseToCache);
           });
         }
         return response;
-      }).catch(function() {
-        // Offline fallback
-        if (event.request.destination === 'document') {
-          return caches.match('./index.html');
-        }
-      });
-    })
+      })
+      .catch(function() {
+        // Si le réseau échoue, utiliser le cache
+        return caches.match(event.request);
+      })
   );
 });
+
+console.log('[SW] Service Worker chargé v3.8');
