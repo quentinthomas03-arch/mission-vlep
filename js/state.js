@@ -174,12 +174,16 @@ function getCodeAnalytique(agent){
 
 function hasVLEP8h(n){
   var a=getAgentFromDB(n);
-  return a&&a['VLEP 8h (mg/m3)']&&a['VLEP 8h (mg/m3)'].trim()!==''&&a['VLEP 8h (mg/m3)']!=='-';
+  if(!a || !a['VLEP 8h (mg/m3)']) return false;
+  var v=String(a['VLEP 8h (mg/m3)']).trim();
+  return v!=='' && v!=='-';
 }
 
 function hasVLEPCT(n){
   var a=getAgentFromDB(n);
-  return a&&a['VLEP CT (mg/m3)']&&a['VLEP CT (mg/m3)'].trim()!==''&&a['VLEP CT (mg/m3)']!=='-';
+  if(!a || !a['VLEP CT (mg/m3)']) return false;
+  var v=String(a['VLEP CT (mg/m3)']).trim();
+  return v!=='' && v!=='-';
 }
 
 // === CRÉATION MISSION ===
