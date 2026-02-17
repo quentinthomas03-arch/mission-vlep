@@ -786,18 +786,27 @@ function createEchantillonsSheet(m, regPrels, nonRegPrels){
   var allPrels = regPrels.concat(nonRegPrels);
   var seenRefs = {};
   
+  // Fonction pour normaliser les références (trim + lowercase)
+  function normalizeRef(ref){
+    return ref ? String(ref).trim().toLowerCase() : '';
+  }
+  
   // Ajouter les échantillons (dédupliqués)
   allPrels.forEach(function(p){
     var ad = p.sub.agentData ? p.sub.agentData[p.agent] : null;
     var ref = ad && ad.refEchantillon ? ad.refEchantillon : '';
     if(!ref) return; // skip empty refs
-    if(seenRefs[ref]) return; // skip duplicates
-    seenRefs[ref] = true;
+    
+    // Normaliser pour la comparaison
+    var normalizedRef = normalizeRef(ref);
+    if(!normalizedRef) return; // skip empty after trim
+    if(seenRefs[normalizedRef]) return; // skip duplicates
+    seenRefs[normalizedRef] = true;
     
     var date = p.sub.date ? formatDateFR(p.sub.date) : '';
     
     aoa.push([
-      ref,                           // Nom de l'échantillon
+      ref,                           // Nom de l'échantillon (valeur originale)
       date,                          // Date (JJ/MM/AAAA)
       '',                            // Numéro de lot (vide)
       'Echantillon',                 // Type
@@ -810,12 +819,17 @@ function createEchantillonsSheet(m, regPrels, nonRegPrels){
   if(m.blancs && m.blancs.length > 0){
     m.blancs.forEach(function(b){
       var ref = b.ref || '';
-      if(!ref || seenRefs[ref]) return;
-      seenRefs[ref] = true;
+      if(!ref) return;
+      
+      // Normaliser pour la comparaison
+      var normalizedRef = normalizeRef(ref);
+      if(!normalizedRef || seenRefs[normalizedRef]) return;
+      seenRefs[normalizedRef] = true;
+      
       var date = b.date ? formatDateFR(b.date) : '';
       
       aoa.push([
-        ref,                           // Nom de l'échantillon (ref blanc)
+        ref,                           // Nom de l'échantillon (ref blanc, valeur originale)
         date,                          // Date (JJ/MM/AAAA)
         '',                            // Numéro de lot (vide)
         'Blanc',                       // Type
@@ -1109,6 +1123,31 @@ function getTimerDisplay(prelId, subIdx){
 function isTimerRunning(prelId, subIdx){
   var key = prelId + '_' + subIdx;
   return state.timers && state.timers[key] && state.timers[key].interval;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// Gestion des timers en arrière-plan (iOS/Android)
+// © 2025 Quentin THOMAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Quand l'app revient au premier plan, mettre à jour tous les timers actifs
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden && state.timers) {
+    // L'app revient au premier plan
+    console.log('[Timers] App revenue au premier plan, mise à jour des timers...');
+    
+    // Mettre à jour l'affichage de tous les timers actifs
+    for (var key in state.timers) {
+      if (state.timers[key] && state.timers[key].startTime) {
+        updateTimerDisplay(key);
+      }
+    }
+  }
+});
+
+// Au chargement, restaurer les timers depuis localStorage
+if (typeof restoreTimers === 'function') {
+  restoreTimers();
 }
 
 

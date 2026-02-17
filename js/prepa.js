@@ -690,7 +690,7 @@ function renderPrepaAgents(){
     if(f.length>0){
       h+='<div class="search-results">';
       f.slice(0,10).forEach(function(x,idx){
-        h+='<div class="search-result-item" onmousedown="event.preventDefault();" onclick="addAgentFromSearch(\''+escapeJs(x)+'\');">'+escapeHtml(x)+'</div>';
+        h+='<div class="search-result-item" data-agent-name="'+escapeHtml(x)+'" onmousedown="event.preventDefault();">'+escapeHtml(x)+'</div>';
       });
       h+='</div>';
     }
@@ -726,7 +726,7 @@ function updateSearchResultsOnly(){
     if(f.length>0){
       h+='<div class="search-results">';
       f.slice(0,10).forEach(function(x){
-        h+='<div class="search-result-item" onmousedown="event.preventDefault();" onclick="addAgentFromSearch(\''+escapeJs(x)+'\');">'+escapeHtml(x)+'</div>';
+        h+='<div class="search-result-item" data-agent-name="'+escapeHtml(x)+'" onmousedown="event.preventDefault();">'+escapeHtml(x)+'</div>';
       });
       h+='</div>';
     }
@@ -919,6 +919,17 @@ function toggleGehAffect(an,gid,t){
   saveData('vlep_missions_v3',state.missions);
   render();
 }
+
+// Gestionnaire d'événements global pour la sélection d'agents (fix bug PVC)
+document.addEventListener('click', function(e){
+  var target = e.target;
+  if(target.classList && target.classList.contains('search-result-item')){
+    var agentName = target.getAttribute('data-agent-name');
+    if(agentName){
+      addAgentFromSearch(agentName);
+    }
+  }
+});
 
 
 console.log('✓ Prépa chargé');

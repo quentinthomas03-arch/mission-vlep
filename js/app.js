@@ -95,4 +95,50 @@ if ('serviceWorker' in navigator) {
 loadData();
 render();
 
+// ═══════════════════════════════════════════════════════════
+// Gestion du bouton retour Android (back button)
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('popstate', function(event) {
+  // Empêcher le comportement par défaut (quitter l'app)
+  event.preventDefault();
+  
+  // Navigation dans l'app selon la vue actuelle
+  if (state.view === 'home') {
+    // Si on est déjà sur l'accueil, on ne fait rien (ou on peut quitter)
+    return;
+  } else if (state.view.startsWith('prepa-')) {
+    // Dans la préparation, retour à la liste des missions
+    if (state.view === 'prepa-list') {
+      state.view = 'home';
+    } else if (state.view === 'prepa-mission') {
+      state.view = 'prepa-list';
+    } else {
+      state.view = 'prepa-mission';
+    }
+  } else if (state.view.startsWith('terrain-')) {
+    // Sur le terrain, retour à la liste
+    if (state.view === 'terrain-list') {
+      state.view = 'home';
+    } else if (state.view === 'terrain-mission') {
+      state.view = 'terrain-list';
+    } else {
+      state.view = 'terrain-mission';
+    }
+  } else if (state.view === 'conditions' || state.view === 'liste-echantillons') {
+    // Depuis conditions ou échantillons, retour à terrain-mission
+    state.view = 'terrain-mission';
+  } else if (state.view.startsWith('db-') || state.view === 'quick-entry') {
+    // Depuis base de données ou saisie rapide, retour à l'accueil
+    state.view = 'home';
+  } else {
+    // Par défaut, retour à l'accueil
+    state.view = 'home';
+  }
+  
+  render();
+});
+
+// Ajouter un état initial dans l'historique pour capturer le bouton retour
+history.pushState({view: state.view}, '', '');
+
 console.log('✓ App chargé');
