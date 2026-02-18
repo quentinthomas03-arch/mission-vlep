@@ -696,12 +696,13 @@ function renderSubPrelForm(p,sb,idx){
       if(variation!==null){h+='<span class="debit-variation '+(hasWarning?'warning':'')+'">Δ '+variation.toFixed(1)+'%</span>';}
       h+='</div>';
       
-      // Réf. échantillon par agent (chaque agent a la sienne)
-      group.forEach(function(a){
-        var aname=a.name||'Agent inconnu';
-        var ad=sb.agentData[aname];
-        h+='<div class="multi-agent-row"><label>Réf. échant. <span style="color:'+(a.color||'#3b82f6')+';font-weight:700;">'+escapeHtml(aname)+'</span></label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="updateAgentDataWithAutoDate('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'refEchantillon\',this.value);"></div>';
-      });
+      // Réf. échantillon : partagée pour un groupe co-prélevé, individuelle sinon
+      if(isCoGroup){
+        h+='<div class="multi-agent-row"><label>Réf. échant. <span style="color:#1d4ed8;font-size:10px;">(commune)</span></label><input type="text" value="'+escapeHtml(masterAd.refEchantillon||'')+'" placeholder="Référence..." onchange="updateSharedField('+p.id+','+idx+','+coAgentsJs+',\''+escapeJs(masterName)+'\',\'refEchantillon\',this.value);"></div>';
+      }else{
+        var soloAd=sb.agentData[masterName];
+        h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(soloAd.refEchantillon||'')+'" placeholder="Référence..." onchange="updateAgentDataWithAutoDate('+p.id+','+idx+',\''+escapeJs(masterName)+'\',\'refEchantillon\',this.value);"></div>';
+      }
       
       h+='</div></div>';
     });
