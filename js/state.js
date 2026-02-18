@@ -35,9 +35,6 @@ var state={
   coPrelMode:false,
   selectedForCoPrel:[],
   coPrelGroups:null,
-  coPrelMode:false,
-  selectedForCoPrel:[],
-  coPrelGroups:null,
   
   // Saisie rapide
   quickPrelType:'8h',
@@ -55,6 +52,11 @@ var state={
   
   // PrÃ©paration
   newPrelData:null,
+  
+  // Co-prélèvement
+  coPrelTargetPid:null,
+  coPrelDetectedGroups:null,
+  coPrelEditGroups:null,
   
   // Timers
   timers:{}

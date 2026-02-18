@@ -46,8 +46,6 @@
     .btn-gray { background: rgba(0,0,0,0.04); color: var(--text-dark); border: 1px solid var(--border-subtle); backdrop-filter: blur(10px); }
     .btn-blue { background: var(--primary-pale); color: var(--primary); }
     .btn-orange { background: var(--warning); color: white; }
-    .btn-blue-outline { background: transparent; color: #1d4ed8; border: 2px solid #3b82f6; }
-    .btn-blue-outline:active { background: #dbeafe; }
     .btn-small { padding: 6px 10px; font-size: 12px; width: auto; }
     .btn-icon { width: 28px; height: 28px; padding: 0; border-radius: 7px; }
     .btn-icon svg { width: 14px; height: 14px; }
@@ -77,7 +75,6 @@
     .info-box p { margin-bottom: 3px; line-height: 1.5; }
     .info-box p:last-child { margin-bottom: 0; }
     .info-box-warning { background: linear-gradient(135deg, #fef3c7, #fde68a); border-left-color: var(--warning); color: #92400e; }
-    .info-box-blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-left-color: #3b82f6; color: #1e40af; }
     .info-box-success { background: linear-gradient(135deg, #d1fae5, #a7f3d0); border-left-color: var(--accent); color: #065f46; }
     .empty-state { text-align: center; padding: 28px 16px; color: var(--text-muted); }
     .empty-state-icon { margin-bottom: 8px; opacity: 0.4; }
@@ -168,7 +165,11 @@
     .prel-reg-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: #d1fae5; color: #047857; }
     .prel-nonreg-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: #fef3c7; color: #b45309; }
     .coprel-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: #dbeafe; color: #1d4ed8; margin-left: 4px; }
-    .fusion-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: #fed7aa; color: #c2410c; margin-left: 4px; }
+    .coprel-group { border-left: 3px solid #3b82f6 !important; }
+    .coprel-header { background: linear-gradient(90deg, #dbeafe, #eff6ff); border-radius: 6px 6px 0 0; padding: 6px 8px; }
+    .btn-blue-outline { background: transparent; color: #1d4ed8; border: 2px solid #3b82f6; }
+    .btn-blue-outline:active { background: #dbeafe; }
+    .info-box-blue { background: linear-gradient(135deg, #dbeafe, #bfdbfe); border-left-color: #3b82f6; color: #1e40af; }
     .prel-coprel-badge { font-size: 9px; font-weight: 700; padding: 2px 6px; border-radius: 8px; background: #dbeafe; color: #1d4ed8; margin-left: 2px; }
     .prel-checkbox { width: 22px; height: 22px; border: 1.5px solid #cbd5e1; border-radius: 6px; display: flex; align-items: center; justify-content: center; cursor: pointer; background: white; flex-shrink: 0; }
     .prel-checkbox svg { width: 13px; height: 13px; opacity: 0; }
