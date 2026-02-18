@@ -40,7 +40,7 @@ function renderMissionCard(m){
   var ac=m.agents.length;
   var pc=countPrelevements(m);
   var h='<div class="mission-card mission-card-'+m.status+'"><div class="mission-title">'+escapeHtml(m.clientSite||'Sans nom')+'<span class="status-badge status-'+m.status+'">'+(m.status==='prepa'?'Prépa':'Validée')+'</span></div>';
-  h+='<div class="mission-info">'+gc+' GEH • '+ac+' agents • '+pc+' prél.</div><div class="mission-actions">';
+  h+='<div class="mission-info">'+gc+' GEH â€¢ '+ac+' agents â€¢ '+pc+' prél.</div><div class="mission-actions">';
   h+='<button class="btn btn-gray btn-small" onclick="openMission('+m.id+');">'+ICONS.edit+'</button>';
   h+='<button class="btn btn-blue btn-small" onclick="copyMission('+m.id+');">'+ICONS.copy+'</button>';
   if(m.status==='prepa')h+='<button class="btn btn-success btn-small" onclick="validateMission('+m.id+');">'+ICONS.check+' Valider</button>';
@@ -94,7 +94,7 @@ function validateMission(id){
   if(!m)return;
   generatePrelevements(m);
   if(m.prelevements.length===0){
-    alert('Aucun prélèvement à générer.\n\nVérifiez :\n1. Au moins un GEH avec nom\n2. Au moins un agent avec 8h ou CT\n3. Des affectations agents â†” GEH');
+    alert('Aucun prélèvement à générer.\n\nVérifiez :\n1. Au moins un GEH avec nom\n2. Au moins un agent avec 8h ou CT\n3. Des affectations agents ââ€ â€ GEH');
     return;
   }
   m.status='validee';
@@ -160,10 +160,10 @@ function renderPrepaMission(){
   var h='<button class="back-btn" onclick="state.view=\'prepa-list\';state.currentMissionId=null;render();">'+ICONS.arrowLeft+' Liste</button>';
   h+='<div class="card"><h2>'+ICONS.clipboard+' '+escapeHtml(m.clientSite||'Nouvelle mission')+'</h2><div class="info-box mt-12"><p><span class="svg-icon">'+ICONS.user+'</span> Préleveur : <strong>'+escapeHtml(m.preleveur||'-')+'</strong></p><p><span class="svg-icon">'+ICONS.tool+'</span> Débitmètre : <strong>'+escapeHtml(m.debitmetre||'-')+'</strong></p></div><button class="btn btn-gray btn-small mt-12" onclick="state.showModal=\'editInfo\';render();">'+ICONS.edit+' Modifier infos</button></div>';
   var step1=gc>0;var step2=ac>0;var step3=pc>0;
-  h+='<div class="info-box mt-12"><p><strong>Étapes de préparation :</strong></p><p>'+(step1?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 1. Définir les GEH ('+(gc||'aucun')+')</p><p>'+(step2?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 2. Sélectionner les agents ('+(ac||'aucun')+')</p><p>'+(step3?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 3. Affecter agents / GEH ('+(pc||'aucun')+' prél.)</p></div>';
+  h+='<div class="info-box mt-12"><p><strong>Ã‰tapes de préparation :</strong></p><p>'+(step1?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 1. Définir les GEH ('+(gc||'aucun')+')</p><p>'+(step2?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 2. Sélectionner les agents ('+(ac||'aucun')+')</p><p>'+(step3?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 3. Affecter agents / GEH ('+(pc||'aucun')+' prél.)</p></div>';
   h+='<div class="nav-menu"><div class="nav-item" onclick="state.view=\'prepa-geh\';render();"><div class="nav-icon">'+ICONS.folder+'</div><div class="nav-label">1. GEH</div><div class="nav-count">'+gc+'</div></div><div class="nav-item" onclick="state.view=\'prepa-agents\';state.searchText=\'\';render();"><div class="nav-icon green">'+ICONS.beaker+'</div><div class="nav-label">2. Agents chimiques</div><div class="nav-count">'+ac+'</div></div></div>';
   if(ac>0&&gc>0)h+='<button class="btn btn-orange" onclick="state.view=\'prepa-affectations\';render();">'+ICONS.link+' 3. Affecter agents aux GEH</button>';
-  h+='<div class="info-box info-box-success mt-12"><p><strong>Récap :</strong> '+gc+' GEH • '+ac+' agents • '+pc+' prélèvements</p></div>';
+  h+='<div class="info-box info-box-success mt-12"><p><strong>Récap :</strong> '+gc+' GEH â€¢ '+ac+' agents â€¢ '+pc+' prélèvements</p></div>';
   h+='<div class="row">';
   if(m.status==='prepa'){
     if(pc>0)h+='<button class="btn btn-success" onclick="validateMission('+m.id+');">'+ICONS.check+' Valider ('+pc+')</button>';
@@ -183,7 +183,7 @@ function renderPrepaMission(){
 }
 
 function renderEditInfoModal(m){
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Infos mission</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="edit-clientsite" value="'+escapeHtml(m.clientSite)+'" placeholder="Ex: Entreprise ABC - Usine Nord"></div><div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="edit-preleveur" value="'+escapeHtml(m.preleveur)+'"></div><div class="field"><label class="label">Débitmètre</label><input type="text" inputmode="numeric" class="input" id="edit-debitmetre" value="'+escapeHtml(m.debitmetre)+'"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="saveEditInfo();">Enregistrer</button></div></div></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Infos mission</h2><button class="close-btn" onclick="state.showModal=null;render();">Ã—</button></div><div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="edit-clientsite" value="'+escapeHtml(m.clientSite)+'" placeholder="Ex: Entreprise ABC - Usine Nord"></div><div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="edit-preleveur" value="'+escapeHtml(m.preleveur)+'"></div><div class="field"><label class="label">Débitmètre</label><input type="text" inputmode="numeric" class="input" id="edit-debitmetre" value="'+escapeHtml(m.debitmetre)+'"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="saveEditInfo();">Enregistrer</button></div></div></div>';
   return h;
 }
 
@@ -200,26 +200,26 @@ function saveEditInfo(){
   render();
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// PRÉPA AUTOMATIQUE - Import depuis tableau devis
+// ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢
+// PRÃ‰PA AUTOMATIQUE - Import depuis tableau devis
 // © 2025 Quentin THOMAS
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢ââ€¢
 
 function renderPrepaAutoModal(m){
   if(!state.prepaAutoData)state.prepaAutoData={format:'1',devisText:'',gehListText:'',parsed:null,error:null};
   var d=state.prepaAutoData;
   
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;state.prepaAutoData=null;render();}"><div class="modal-content" style="max-height:92vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Prépa automatique</h2><button class="close-btn" onclick="state.showModal=null;state.prepaAutoData=null;render();">×</button></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;state.prepaAutoData=null;render();}"><div class="modal-content" style="max-height:92vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Prépa automatique</h2><button class="close-btn" onclick="state.showModal=null;state.prepaAutoData=null;render();">Ã—</button></div>';
   
   // Choix du format
   h+='<div class="field"><label class="label">Format du devis</label><div class="row">';
-  h+='<button class="btn btn-small '+(d.format==='1'?'btn-primary':'btn-gray')+'" onclick="state.prepaAutoData.format=\'1\';state.prepaAutoData.parsed=null;render();">Format 1 : NÂ° GEH</button>';
+  h+='<button class="btn btn-small '+(d.format==='1'?'btn-primary':'btn-gray')+'" onclick="state.prepaAutoData.format=\'1\';state.prepaAutoData.parsed=null;render();">Format 1 : NÃ‚° GEH</button>';
   h+='<button class="btn btn-small '+(d.format==='2'?'btn-primary':'btn-gray')+'" onclick="state.prepaAutoData.format=\'2\';state.prepaAutoData.parsed=null;render();">Format 2 : Noms GEH</button>';
   h+='</div></div>';
   
   // Instructions
   if(d.format==='1'){
-    h+='<div class="info-box"><p><strong>Format 1 :</strong> Collez le tableau du devis</p><p style="font-size:11px;margin-top:4px;">Colonnes attendues : Agent chimique | NÂ° GEH | Nb prélèvements | Type VLEP</p><p style="font-size:11px;margin-top:2px;">+ Collez la liste des GEH (NÂ° | Nom) en dessous</p></div>';
+    h+='<div class="info-box"><p><strong>Format 1 :</strong> Collez le tableau du devis</p><p style="font-size:11px;margin-top:4px;">Colonnes attendues : Agent chimique | NÃ‚° GEH | Nb prélèvements | Type VLEP</p><p style="font-size:11px;margin-top:2px;">+ Collez la liste des GEH (NÃ‚° | Nom) en dessous</p></div>';
   }else{
     h+='<div class="info-box"><p><strong>Format 2 :</strong> Collez le tableau du devis</p><p style="font-size:11px;margin-top:4px;">Colonnes attendues : Agent chimique | Noms GEH | Nb prélèvements | Type VLEP</p></div>';
   }
@@ -229,7 +229,7 @@ function renderPrepaAutoModal(m){
   
   // Zone GEH si format 1
   if(d.format==='1'){
-    h+='<div class="field"><label class="label">Liste des GEH (NÂ° + Nom)</label><textarea class="input" id="prepa-auto-gehlist" rows="4" placeholder="Ex:\n1\tDécoupe LM\n2\tDécoupe SHW\n..." style="font-size:12px;font-family:monospace;">'+escapeHtml(d.gehListText)+'</textarea></div>';
+    h+='<div class="field"><label class="label">Liste des GEH (NÃ‚° + Nom)</label><textarea class="input" id="prepa-auto-gehlist" rows="4" placeholder="Ex:\n1\tDécoupe LM\n2\tDécoupe SHW\n..." style="font-size:12px;font-family:monospace;">'+escapeHtml(d.gehListText)+'</textarea></div>';
   }
   
   // Bouton analyser
@@ -260,7 +260,7 @@ function renderPrepaAutoModal(m){
       r.agentNames.forEach(function(an){
         h+='<div style="font-size:12px;font-weight:600;">'+escapeHtml(an)+'</div>';
       });
-      h+='<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">'+r.type+regLabel+' â†’ '+r.gehNums.length+' GEH × '+(r.isReg?'3':'1')+' = '+(r.gehNums.length*(r.isReg?3:1))+' sous-prél.</div>';
+      h+='<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">'+r.type+regLabel+' ââ€ â€™ '+r.gehNums.length+' GEH Ã— '+(r.isReg?'3':'1')+' = '+(r.gehNums.length*(r.isReg?3:1))+' sous-prél.</div>';
       h+='</div>';
     });
     h+='</div>';
@@ -268,7 +268,7 @@ function renderPrepaAutoModal(m){
     // Résumé
     var totalPrel=0;
     p.rows.forEach(function(r){totalPrel+=r.gehNums.length*(r.isReg?3:1);});
-    h+='<div class="info-box info-box-success"><p><strong>Total :</strong> '+p.gehs.length+' GEH • '+p.agents.length+' agents • '+totalPrel+' sous-prélèvements</p></div>';
+    h+='<div class="info-box info-box-success"><p><strong>Total :</strong> '+p.gehs.length+' GEH â€¢ '+p.agents.length+' agents â€¢ '+totalPrel+' sous-prélèvements</p></div>';
     
     // Avertissements agents non trouvés dans la DB
     var notInDB=[];
@@ -278,7 +278,7 @@ function renderPrepaAutoModal(m){
     if(notInDB.length>0){
       h+='<div class="info-box info-box-warning mt-8"><p><strong>'+notInDB.length+' agent(s) non trouvé(s) dans la base :</strong></p>';
       notInDB.forEach(function(an){
-        h+='<p style="font-size:11px;">• '+escapeHtml(an)+'</p>';
+        h+='<p style="font-size:11px;">â€¢ '+escapeHtml(an)+'</p>';
       });
       h+='<p style="font-size:11px;margin-top:4px;">Ils seront ajoutés en mode "manuel"</p></div>';
     }
@@ -327,18 +327,18 @@ function parsePrepaAuto(){
     var gehMap={};
     if(d.format==='1'){
       if(!d.gehListText.trim()){
-        d.error='Format 1 : collez aussi la liste des GEH (NÂ° + Nom)';
+        d.error='Format 1 : collez aussi la liste des GEH (NÃ‚° + Nom)';
         render();return;
       }
       var gehLines=parseTSVLines(d.gehListText);
       // Détecter header GEH
       if(gehLines.length>0){
         var gh0=(gehLines[0][0]||'').toLowerCase();
-        if(gh0.indexOf('geh')!==-1||gh0.indexOf('nÂ°')!==-1||gh0.indexOf('désignation')!==-1){
+        if(gh0.indexOf('geh')!==-1||gh0.indexOf('nÃ‚°')!==-1||gh0.indexOf('désignation')!==-1){
           gehLines.shift();
         }
       }
-      // Parser : peut être "NÂ° \t Nom" ou "NÂ° Nom" sur chaque ligne
+      // Parser : peut être "NÃ‚° \t Nom" ou "NÃ‚° Nom" sur chaque ligne
       gehLines.forEach(function(cols){
         if(cols.length>=2&&cols[0].trim()&&cols[1].trim()){
           var num=parseInt(cols[0].trim());
@@ -355,7 +355,7 @@ function parsePrepaAuto(){
         }
       });
       
-      // Aussi tenter un format inline "NÂ° GEH \t Désignation 1 \t NomGEH1 2 \t NomGEH2..."
+      // Aussi tenter un format inline "NÃ‚° GEH \t Désignation 1 \t NomGEH1 2 \t NomGEH2..."
       if(Object.keys(gehMap).length===0){
         // Essayer de parser la liste en un seul bloc
         var allText=d.gehListText;
@@ -580,7 +580,7 @@ function applyPrepaAuto(){
   if(!m||!state.prepaAutoData||!state.prepaAutoData.parsed)return;
   var p=state.prepaAutoData.parsed;
   
-  var confirm1=confirm('Appliquer la prépa automatique ?\n\nCela va remplacer les GEH, agents et affectations actuels.\n\n'+p.gehs.length+' GEH • '+p.agents.length+' agents');
+  var confirm1=confirm('Appliquer la prépa automatique ?\n\nCela va remplacer les GEH, agents et affectations actuels.\n\n'+p.gehs.length+' GEH â€¢ '+p.agents.length+' agents');
   if(!confirm1)return;
   
   // 1. Créer les GEH
@@ -762,7 +762,7 @@ function addAgent(n){
 }
 
 function renderAddManualModal(){
-  return'<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Ajouter agent</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="field"><label class="label">Nom de l\'agent</label><input type="text" class="input" id="manual-name" placeholder="Ex: Benzène"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addManualAgent();">Ajouter</button></div></div></div>';
+  return'<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Ajouter agent</h2><button class="close-btn" onclick="state.showModal=null;render();">Ã—</button></div><div class="field"><label class="label">Nom de l\'agent</label><input type="text" class="input" id="manual-name" placeholder="Ex: Benzène"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addManualAgent();">Ajouter</button></div></div></div>';
 }
 
 function addManualAgent(){
@@ -923,4 +923,4 @@ function toggleGehAffect(an,gid,t){
 }
 
 
-console.log('âœ“ Prépa chargé');
+console.log('âÅ“â€œ Prépa chargé');
