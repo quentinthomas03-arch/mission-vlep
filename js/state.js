@@ -1,22 +1,22 @@
-// state.js - État global de l'application
-// © 2025 Quentin THOMAS
+// state.js - Ã‰tat global de l'application
+// Â© 2025 Quentin THOMAS
 
 // Couleurs pour les agents chimiques
 var AGENT_COLORS=['#00a878','#0f4c81','#e63946','#7c3aed','#f59e0b','#0891b2','#c026d3','#65a30d','#0284c7','#db2777','#4f46e5','#059669','#d97706','#7c2d12','#1d4ed8'];
 
-// Nombre de GEH par défaut lors de création mission
+// Nombre de GEH par dÃ©faut lors de crÃ©ation mission
 var DEFAULT_GEH_COUNT=5;
 
-// État global de l'application
+// Ã‰tat global de l'application
 var state={
   _author:'Quentin THOMAS',
-  _copyright:'© 2025 Quentin THOMAS',
+  _copyright:'Â© 2025 Quentin THOMAS',
   
   // Navigation
   view:'home',
   showModal:null,
   
-  // Données
+  // DonnÃ©es
   missions:[],
   agentsDB:[],
   
@@ -32,6 +32,12 @@ var state={
   // Modes
   fusionMode:false,
   selectedForFusion:[],
+  coPrelMode:false,
+  selectedForCoPrel:[],
+  coPrelGroups:null,
+  coPrelMode:false,
+  selectedForCoPrel:[],
+  coPrelGroups:null,
   
   // Saisie rapide
   quickPrelType:'8h',
@@ -40,14 +46,14 @@ var state={
   quickGehId:null,
   quickMission:null,
   
-  // Échantillons
+  // Ã‰chantillons
   echantillonSort:'date',
   
   // Blancs
   blancAgentSearch:'',
   blancAgents:[],
   
-  // Préparation
+  // PrÃ©paration
   newPrelData:null,
   
   // Timers
@@ -93,7 +99,7 @@ function lightenColor(h,p){
   return'#'+(0x1000000+r*0x10000+g*0x100+b).toString(16).slice(1);
 }
 
-// === CHARGEMENT DONNÉES ===
+// === CHARGEMENT DONNÃ‰ES ===
 
 function loadData(){
   try{
@@ -113,7 +119,7 @@ function repairMissions(){
         if(!p.agents)p.agents=[];
       });
     }
-    // Migration : déplacer isReg vers isReg8h et isRegCT
+    // Migration : dÃ©placer isReg vers isReg8h et isRegCT
     if(m.affectations){
       for(var an in m.affectations){
         var af=m.affectations[an];
@@ -186,7 +192,7 @@ function hasVLEPCT(n){
   return v!=='' && v!=='-';
 }
 
-// === CRÉATION MISSION ===
+// === CRÃ‰ATION MISSION ===
 
 function createEmptyMission(){
   var g=[];
@@ -207,4 +213,4 @@ function createEmptyMission(){
   };
 }
 
-console.log('✓ State chargé');
+console.log('âœ“ State chargÃ©');
