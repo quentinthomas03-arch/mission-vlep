@@ -396,7 +396,7 @@ function parsePrepaAuto(){
       // Format: texte continu avec pattern "N NomGEH"
       if(Object.keys(gehMap).length===0){
         var fullText=d.gehListText.replace(/\t/g,' ');
-        var re=/(\d+)\s+([A-ZÃ€-Ãš][^\d]*?)(?=\s+\d+\s|$)/gi;
+        var re=/(\d+)\s+([A-Z\u00C0-\u00DA][^\d]*?)(?=\s+\d+\s|$)/gi;
         var m2;
         while((m2=re.exec(fullText))!==null){
           var nn=parseInt(m2[1]);
