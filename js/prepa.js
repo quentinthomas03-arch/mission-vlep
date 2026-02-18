@@ -1,5 +1,5 @@
 // prepa.js - Préparation des missions
-// © 2025 Quentin THOMAS
+// Â© 2025 Quentin THOMAS
 // Création, édition, gestion agents, GEH, affectations, validation
 
 function renderHome(){
@@ -17,7 +17,7 @@ function renderHome(){
   h+='<div class="nav-item" onclick="state.view=\'db-terrain\';render();"><div class="nav-icon orange">'+ICONS.search+'</div><div class="nav-label">Base de données</div><div class="nav-count">'+state.agentsDB.length+'</div></div></div>';
   h+='<input type="file" id="import-mission-input" accept=".json" style="display:none;" onchange="handleImportMission(event);">';
   if(state.showModal==='importChoice'){state.showModal=null;triggerImportMission();}
-  h+='<div class="version-info">Version 3.6 © 2025 Quentin THOMAS</div>';
+  h+='<div class="version-info">Version 3.6 Â© 2025 Quentin THOMAS</div>';
   return h;
 }
 
@@ -94,7 +94,7 @@ function validateMission(id){
   if(!m)return;
   generatePrelevements(m);
   if(m.prelevements.length===0){
-    alert('Aucun prélèvement Î  générer.\n\nVérifiez :\n1. Au moins un GEH avec nom\n2. Au moins un agent avec 8h ou CT\n3. Des affectations agents ââ€ â€ GEH');
+    alert('Aucun prélèvement à générer.\n\nVérifiez :\n1. Au moins un GEH avec nom\n2. Au moins un agent avec 8h ou CT\n3. Des affectations agents ââ€ â€ GEH');
     return;
   }
   m.status='validee';
@@ -202,7 +202,7 @@ function saveEditInfo(){
 
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PRÉPA AUTOMATIQUE - Import depuis tableau devis
-// © 2025 Quentin THOMAS
+// Â© 2025 Quentin THOMAS
 // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 function renderPrepaAutoModal(m){
@@ -213,13 +213,13 @@ function renderPrepaAutoModal(m){
   
   // Choix du format
   h+='<div class="field"><label class="label">Format du devis</label><div class="row">';
-  h+='<button class="btn btn-small '+(d.format==='1'?'btn-primary':'btn-gray')+'" onclick="state.prepaAutoData.format=\'1\';state.prepaAutoData.parsed=null;render();">Format 1 : N° GEH</button>';
+  h+='<button class="btn btn-small '+(d.format==='1'?'btn-primary':'btn-gray')+'" onclick="state.prepaAutoData.format=\'1\';state.prepaAutoData.parsed=null;render();">Format 1 : NÂÂ° GEH</button>';
   h+='<button class="btn btn-small '+(d.format==='2'?'btn-primary':'btn-gray')+'" onclick="state.prepaAutoData.format=\'2\';state.prepaAutoData.parsed=null;render();">Format 2 : Noms GEH</button>';
   h+='</div></div>';
   
   // Instructions
   if(d.format==='1'){
-    h+='<div class="info-box"><p><strong>Format 1 :</strong> Collez le tableau du devis</p><p style="font-size:11px;margin-top:4px;">Colonnes attendues : Agent chimique | NÂ° GEH | Nb prélèvements | Type VLEP</p><p style="font-size:11px;margin-top:2px;">+ Collez la liste des GEH (NÂ° | Nom) en dessous</p></div>';
+    h+='<div class="info-box"><p><strong>Format 1 :</strong> Collez le tableau du devis</p><p style="font-size:11px;margin-top:4px;">Colonnes attendues : Agent chimique | NÂÂ° GEH | Nb prélèvements | Type VLEP</p><p style="font-size:11px;margin-top:2px;">+ Collez la liste des GEH (NÂÂ° | Nom) en dessous</p></div>';
   }else{
     h+='<div class="info-box"><p><strong>Format 2 :</strong> Collez le tableau du devis</p><p style="font-size:11px;margin-top:4px;">Colonnes attendues : Agent chimique | Noms GEH | Nb prélèvements | Type VLEP</p></div>';
   }
@@ -229,7 +229,7 @@ function renderPrepaAutoModal(m){
   
   // Zone GEH si format 1
   if(d.format==='1'){
-    h+='<div class="field"><label class="label">Liste des GEH (N° + Nom)</label><textarea class="input" id="prepa-auto-gehlist" rows="4" placeholder="Ex:\n1\tDécoupe LM\n2\tDécoupe SHW\n..." style="font-size:12px;font-family:monospace;">'+escapeHtml(d.gehListText)+'</textarea></div>';
+    h+='<div class="field"><label class="label">Liste des GEH (NÂÂ° + Nom)</label><textarea class="input" id="prepa-auto-gehlist" rows="4" placeholder="Ex:\n1\tDécoupe LM\n2\tDécoupe SHW\n..." style="font-size:12px;font-family:monospace;">'+escapeHtml(d.gehListText)+'</textarea></div>';
   }
   
   // Bouton analyser
@@ -260,7 +260,7 @@ function renderPrepaAutoModal(m){
       r.agentNames.forEach(function(an){
         h+='<div style="font-size:12px;font-weight:600;">'+escapeHtml(an)+'</div>';
       });
-      h+='<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">'+r.type+regLabel+' â†’ '+r.gehNums.length+' GEH × '+(r.isReg?'3':'1')+' = '+(r.gehNums.length*(r.isReg?3:1))+' sous-prél.</div>';
+      h+='<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">'+r.type+regLabel+' → '+r.gehNums.length+' GEH × '+(r.isReg?'3':'1')+' = '+(r.gehNums.length*(r.isReg?3:1))+' sous-prél.</div>';
       h+='</div>';
     });
     h+='</div>';
@@ -327,18 +327,18 @@ function parsePrepaAuto(){
     var gehMap={};
     if(d.format==='1'){
       if(!d.gehListText.trim()){
-        d.error='Format 1 : collez aussi la liste des GEH (NÂ° + Nom)';
+        d.error='Format 1 : collez aussi la liste des GEH (NÂÂ° + Nom)';
         render();return;
       }
       var gehLines=parseTSVLines(d.gehListText);
       // Détecter header GEH
       if(gehLines.length>0){
         var gh0=(gehLines[0][0]||'').toLowerCase();
-        if(gh0.indexOf('geh')!==-1||gh0.indexOf('nÂ°')!==-1||gh0.indexOf('désignation')!==-1){
+        if(gh0.indexOf('geh')!==-1||gh0.indexOf('nÂÂ°')!==-1||gh0.indexOf('désignation')!==-1){
           gehLines.shift();
         }
       }
-      // Parser : peut être "N° \t Nom" ou "N° Nom" sur chaque ligne
+      // Parser : peut être "NÂÂ° \t Nom" ou "NÂÂ° Nom" sur chaque ligne
       gehLines.forEach(function(cols){
         if(cols.length>=2&&cols[0].trim()&&cols[1].trim()){
           var num=parseInt(cols[0].trim());
@@ -355,7 +355,7 @@ function parsePrepaAuto(){
         }
       });
       
-      // Aussi tenter un format inline "NÂ° GEH \t Désignation 1 \t NomGEH1 2 \t NomGEH2..."
+      // Aussi tenter un format inline "NÂÂ° GEH \t Désignation 1 \t NomGEH1 2 \t NomGEH2..."
       if(Object.keys(gehMap).length===0){
         // Essayer de parser la liste en un seul bloc
         var allText=d.gehListText;
@@ -923,4 +923,4 @@ function toggleGehAffect(an,gid,t){
 }
 
 
-console.log('âœ“ Prépa chargé');
+console.log('âÅ“â€œ Prépa chargé');
