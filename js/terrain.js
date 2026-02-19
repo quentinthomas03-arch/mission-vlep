@@ -948,6 +948,7 @@ function updateSharedField(pid,idx,coAgents,masterName,field,value){
   // Auto-date
   autoFillDate(p,idx);
   saveData('vlep_missions_v3',state.missions);
+  render();
 }
 
 // Retourne clé de compatibilité co-prél d'un agent
