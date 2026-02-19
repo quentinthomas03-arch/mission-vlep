@@ -1,6 +1,6 @@
 // quick-entry.js - Saisie rapide
-// Â© 2025 Quentin THOMAS
-// CrÃ©ation mission minimaliste sans prÃ©paration
+// © 2025 Quentin THOMAS
+// Création mission minimaliste sans préparation
 
 // ===== SAISIE RAPIDE =====
 function openQuickEntry(){
@@ -20,13 +20,13 @@ function openQuickEntry(){
 function renderQuickEntry(){
   var q=state.quickMission;
   var h='<button class="back-btn" onclick="state.view=\'terrain-list\';render();">'+ICONS.arrowLeft+' Retour</button>';
-  h+='<div class="card"><h1>'+ICONS.zap+' Saisie rapide</h1><p class="subtitle">CrÃ©ez une mission directement sur le terrain</p></div>';
+  h+='<div class="card"><h1>'+ICONS.zap+' Saisie rapide</h1><p class="subtitle">Créez une mission directement sur le terrain</p></div>';
   
-  // Infos gÃ©nÃ©rales
+  // Infos générales
   h+='<div class="card"><h2>'+ICONS.list+' Informations</h2>';
   h+='<div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="quick-client" value="'+escapeHtml(q.clientSite)+'" placeholder="Ex: Entreprise ABC" onchange="state.quickMission.clientSite=this.value;"></div>';
-  h+='<div class="field"><label class="label">PrÃ©leveur</label><input type="text" class="input" id="quick-preleveur" value="'+escapeHtml(q.preleveur)+'" placeholder="Votre nom" onchange="state.quickMission.preleveur=this.value;"></div>';
-  h+='<div class="field"><label class="label">DÃ©bitmÃ¨tre</label><input type="text" class="input" id="quick-debitmetre" value="'+escapeHtml(q.debitmetre)+'" placeholder="NÂ° dÃ©bitmÃ¨tre" onchange="state.quickMission.debitmetre=this.value;"></div>';
+  h+='<div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="quick-preleveur" value="'+escapeHtml(q.preleveur)+'" placeholder="Votre nom" onchange="state.quickMission.preleveur=this.value;"></div>';
+  h+='<div class="field"><label class="label">Débitmètre</label><input type="text" class="input" id="quick-debitmetre" value="'+escapeHtml(q.debitmetre)+'" placeholder="N° débitmètre" onchange="state.quickMission.debitmetre=this.value;"></div>';
   h+='</div>';
   
   // GEH
@@ -59,7 +59,7 @@ function renderQuickEntry(){
   h+='<button class="btn btn-gray btn-small mt-8" onclick="state.showModal=\'quickAddManual\';render();">+ Agent manuel</button>';
   
   if(q.agents.length>0){
-    h+='<div class="section-title" style="color:#374151;margin-top:16px;">Agents sÃ©lectionnÃ©s ('+q.agents.length+')</div>';
+    h+='<div class="section-title" style="color:#374151;margin-top:16px;">Agents sélectionnés ('+q.agents.length+')</div>';
     q.agents.forEach(function(a,i){
       h+='<div class="agent-item"><div class="agent-color" style="background:'+AGENT_COLORS[i%AGENT_COLORS.length]+';"></div><div class="agent-name">'+escapeHtml(a.name)+'</div>';
       h+='<div class="agent-badges"><span class="agent-badge agent-badge-8h '+(a.is8h?'active':'')+'" onclick="toggleQuickAgent8h('+i+');">8h</span><span class="agent-badge agent-badge-ct '+(a.isCT?'active':'')+'" onclick="toggleQuickAgentCT('+i+');">CT</span></div>';
@@ -68,14 +68,14 @@ function renderQuickEntry(){
   }
   h+='</div>';
   
-  // PrÃ©lÃ¨vements configurÃ©s
+  // Prélèvements configurés
   if(q.agents.length>0&&q.gehs.some(function(g){return g.name;})){
-    h+='<div class="card"><h2>'+ICONS.link+' PrÃ©lÃ¨vements Ã  crÃ©er</h2>';
-    h+='<p class="subtitle mb-12">SÃ©lectionnez les combinaisons agent/GEH</p>';
+    h+='<div class="card"><h2>'+ICONS.link+' Prélèvements à créer</h2>';
+    h+='<p class="subtitle mb-12">Sélectionnez les combinaisons agent/GEH</p>';
     
     var validGehs=q.gehs.filter(function(g){return g.name;});
     q.agents.forEach(function(ag,ai){
-      h+='<div class="affect-card" style="border-left:4px solid '+AGENT_COLORS[ai%AGENT_COLORS.length]+';"><div class="affect-header"><div class="affect-agent">'+escapeHtml(ag.name)+'</div><button class="affect-reg-toggle '+(ag.isReg?'':'nonreg')+'" onclick="toggleQuickAgentReg('+ai+');">'+(ag.isReg!==false?'RÃ©glementaire':'Non-rÃ©gl.')+'</button></div>';
+      h+='<div class="affect-card" style="border-left:4px solid '+AGENT_COLORS[ai%AGENT_COLORS.length]+';"><div class="affect-header"><div class="affect-agent">'+escapeHtml(ag.name)+'</div><button class="affect-reg-toggle '+(ag.isReg?'':'nonreg')+'" onclick="toggleQuickAgentReg('+ai+');">'+(ag.isReg!==false?'Réglementaire':'Non-régl.')+'</button></div>';
       validGehs.forEach(function(g,gi){
         if(!ag.gehs)ag.gehs={};
         if(!ag.gehs[g.id])ag.gehs[g.id]={has8h:false,hasCT:false};
@@ -90,23 +90,23 @@ function renderQuickEntry(){
     h+='</div>';
   }
   
-  // Bouton crÃ©er
+  // Bouton créer
   var canCreate=q.clientSite&&q.agents.length>0&&q.gehs.some(function(g){return g.name;})&&countQuickPrelevements()>0;
   var prelCount=countQuickPrelevements();
   if(canCreate){
-    h+='<button class="btn btn-primary" onclick="createQuickMission();">'+ICONS.play+' CrÃ©er la mission ('+prelCount+' prÃ©l.)</button>';
+    h+='<button class="btn btn-primary" onclick="createQuickMission();">'+ICONS.play+' Créer la mission ('+prelCount+' prél.)</button>';
   }else{
-    h+='<div class="info-box info-box-warning"><p>Pour crÃ©er la mission :</p>';
-    if(!q.clientSite)h+='<p>â€¢ Renseignez le client/site</p>';
-    if(!q.gehs.some(function(g){return g.name;}))h+='<p>â€¢ Ajoutez au moins un GEH</p>';
-    if(q.agents.length===0)h+='<p>â€¢ SÃ©lectionnez au moins un agent</p>';
-    if(q.agents.length>0&&prelCount===0)h+='<p>â€¢ Affectez les agents aux GEH</p>';
+    h+='<div class="info-box info-box-warning"><p>Pour créer la mission :</p>';
+    if(!q.clientSite)h+='<p>? Renseignez le client/site</p>';
+    if(!q.gehs.some(function(g){return g.name;}))h+='<p>? Ajoutez au moins un GEH</p>';
+    if(q.agents.length===0)h+='<p>? Sélectionnez au moins un agent</p>';
+    if(q.agents.length>0&&prelCount===0)h+='<p>? Affectez les agents aux GEH</p>';
     h+='</div>';
   }
   
   // Modal ajout manuel
   if(state.showModal==='quickAddManual'){
-    h+='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Ajouter agent</h2><button class="close-btn" onclick="state.showModal=null;render();">Ã—</button></div><div class="field"><label class="label">Nom de l\'agent</label><input type="text" class="input" id="quick-manual-name" placeholder="Ex: BenzÃ¨ne"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addQuickManualAgent();">Ajouter</button></div></div></div>';
+    h+='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Ajouter agent</h2><button class="close-btn" onclick="state.showModal=null;render();">?</button></div><div class="field"><label class="label">Nom de l\'agent</label><input type="text" class="input" id="quick-manual-name" placeholder="Ex: Benzène"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addQuickManualAgent();">Ajouter</button></div></div></div>';
   }
   
   return h;
@@ -175,7 +175,7 @@ function addQuickManualAgent(){
   var name=input?input.value.trim():'';
   if(!name){alert('Saisissez un nom');return;}
   var q=state.quickMission;
-  if(q.agents.some(function(a){return a.name===name;})){alert('Agent dÃ©jÃ  ajoutÃ©');return;}
+  if(q.agents.some(function(a){return a.name===name;})){alert('Agent déjà ajouté');return;}
   q.agents.push({name:name,is8h:true,isCT:true,isReg:true,isManual:true,gehs:{}});
   state.showModal=null;
   render();
@@ -234,7 +234,7 @@ function countQuickPrelevements(){
 function createQuickMission(){
   var q=state.quickMission;
   
-  // CrÃ©er la mission
+  // Créer la mission
   var m=createEmptyMission();
   m.clientSite=q.clientSite;
   m.preleveur=q.preleveur;
@@ -257,7 +257,7 @@ function createQuickMission(){
     m.agentColors[a.name]=AGENT_COLORS[q.agents.indexOf(a)%AGENT_COLORS.length];
   });
   
-  // GÃ©nÃ©rer prÃ©lÃ¨vements
+  // Générer prélèvements
   generatePrelevements(m);
   m.status='encours';
   
@@ -270,8 +270,8 @@ function createQuickMission(){
   m.gehs.forEach(function(g){state.expandedGeh[g.id]=true;});
   
   render();
-  alert(''+ICONS.check+' Mission crÃ©Ã©e avec '+m.prelevements.length+' prÃ©lÃ¨vement(s) !');
+  alert(''+ICONS.check+' Mission créée avec '+m.prelevements.length+' prélèvement(s) !');
 }
 
 
-console.log('âœ“ Quick entry chargÃ©');
+console.log('?? Quick entry chargé');

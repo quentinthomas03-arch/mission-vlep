@@ -1,5 +1,5 @@
-// app.js - Point d'entrÃ©e application
-// Â© 2025 Quentin THOMAS
+// app.js - Point d'entrée application
+// © 2025 Quentin THOMAS
 // Render principal, navigation, initialisation, splash screen
 
 function render(){
@@ -37,41 +37,41 @@ setTimeout(function(){
   }
 },1800);
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ???????????????????????????????????????????????????????????
 // PWA - Service Worker Registration & Update Management
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ???????????????????????????????????????????????????????????
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then(registration => {
-      console.log('[PWA] Service Worker enregistrÃ©');
+      console.log('[PWA] Service Worker enregistré');
       
-      // VÃ©rifier les mises Ã  jour au dÃ©marrage
+      // Vérifier les mises à jour au démarrage
       registration.update();
       
-      // VÃ©rifier les mises Ã  jour toutes les 5 minutes (pour dev)
+      // Vérifier les mises à jour toutes les 5 minutes (pour dev)
       // En production, mettre 30 * 60 * 1000 (30 minutes)
       setInterval(() => {
         registration.update();
-        console.log('[PWA] VÃ©rification mise Ã  jour...');
+        console.log('[PWA] Vérification mise à jour...');
       }, 5 * 60 * 1000);
       
-      // DÃ©tecter une nouvelle version disponible
+      // Détecter une nouvelle version disponible
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
-        console.log('[PWA] Nouvelle version dÃ©tectÃ©e !');
+        console.log('[PWA] Nouvelle version détectée !');
         
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // Nouvelle version disponible et prÃªte
-            console.log('[PWA] Nouvelle version prÃªte, rechargement dans 2s...');
+            // Nouvelle version disponible et prête
+            console.log('[PWA] Nouvelle version prête, rechargement dans 2s...');
             
-            // Notification discrÃ¨te
+            // Notification discrète
             var banner = document.createElement('div');
             banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#0066b3;color:white;padding:12px;text-align:center;font-size:13px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
-            banner.innerHTML = 'ðŸ”„ Mise Ã  jour disponible... Rechargement automatique dans 2s';
+            banner.innerHTML = '??? Mise à jour disponible... Rechargement automatique dans 2s';
             document.body.appendChild(banner);
             
-            // Rechargement automatique aprÃ¨s 2 secondes
+            // Rechargement automatique après 2 secondes
             setTimeout(() => {
               window.location.reload();
             }, 2000);
@@ -79,10 +79,10 @@ if ('serviceWorker' in navigator) {
         });
       });
       
-      // Ã‰couter les messages du Service Worker
+      // ?couter les messages du Service Worker
       navigator.serviceWorker.addEventListener('message', event => {
         if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
-          console.log('[PWA] Message reÃ§u: mise Ã  jour disponible');
+          console.log('[PWA] Message reçu: mise à jour disponible');
         }
       });
       
@@ -96,19 +96,19 @@ if ('serviceWorker' in navigator) {
 loadData();
 render();
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ???????????????????????????????????????????????????????????
 // Gestion du bouton retour Android (back button)
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// ???????????????????????????????????????????????????????????
 window.addEventListener('popstate', function(event) {
-  // EmpÃªcher le comportement par dÃ©faut (quitter l'app)
+  // Empêcher le comportement par défaut (quitter l'app)
   event.preventDefault();
   
   // Navigation dans l'app selon la vue actuelle
   if (state.view === 'home') {
-    // Si on est dÃ©jÃ  sur l'accueil, on ne fait rien (ou on peut quitter)
+    // Si on est déjà sur l'accueil, on ne fait rien (ou on peut quitter)
     return;
   } else if (state.view.startsWith('prepa-')) {
-    // Dans la prÃ©paration, retour Ã  la liste des missions
+    // Dans la préparation, retour à la liste des missions
     if (state.view === 'prepa-list') {
       state.view = 'home';
     } else if (state.view === 'prepa-mission') {
@@ -117,7 +117,7 @@ window.addEventListener('popstate', function(event) {
       state.view = 'prepa-mission';
     }
   } else if (state.view.startsWith('terrain-')) {
-    // Sur le terrain, retour Ã  la liste
+    // Sur le terrain, retour à la liste
     if (state.view === 'terrain-list') {
       state.view = 'home';
     } else if (state.view === 'terrain-mission') {
@@ -126,20 +126,20 @@ window.addEventListener('popstate', function(event) {
       state.view = 'terrain-mission';
     }
   } else if (state.view === 'conditions' || state.view === 'liste-echantillons') {
-    // Depuis conditions ou Ã©chantillons, retour Ã  terrain-mission
+    // Depuis conditions ou échantillons, retour à terrain-mission
     state.view = 'terrain-mission';
   } else if (state.view.startsWith('db-') || state.view === 'quick-entry') {
-    // Depuis base de donnÃ©es ou saisie rapide, retour Ã  l'accueil
+    // Depuis base de données ou saisie rapide, retour à l'accueil
     state.view = 'home';
   } else {
-    // Par dÃ©faut, retour Ã  l'accueil
+    // Par défaut, retour à l'accueil
     state.view = 'home';
   }
   
   render();
 });
 
-// Ajouter un Ã©tat initial dans l'historique pour capturer le bouton retour
+// Ajouter un état initial dans l'historique pour capturer le bouton retour
 history.pushState({view: state.view}, '', '');
 
-console.log('âœ“ App chargÃ©');
+console.log('?? App chargé');
