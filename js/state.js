@@ -1,22 +1,22 @@
-// state.js - Ã‰tat global de l'application
-// Â© 2025 Quentin THOMAS
+// state.js - Ãƒâ€°tat global de l'application
+// Ã‚Â© 2025 Quentin THOMAS
 
 // Couleurs pour les agents chimiques
 var AGENT_COLORS=['#00a878','#0f4c81','#e63946','#7c3aed','#f59e0b','#0891b2','#c026d3','#65a30d','#0284c7','#db2777','#4f46e5','#059669','#d97706','#7c2d12','#1d4ed8'];
 
-// Nombre de GEH par dÃ©faut lors de crÃ©ation mission
+// Nombre de GEH par dÃƒÂ©faut lors de crÃƒÂ©ation mission
 var DEFAULT_GEH_COUNT=5;
 
-// Ã‰tat global de l'application
+// Ãƒâ€°tat global de l'application
 var state={
   _author:'Quentin THOMAS',
-  _copyright:'Â© 2025 Quentin THOMAS',
+  _copyright:'Ã‚Â© 2025 Quentin THOMAS',
   
   // Navigation
   view:'home',
   showModal:null,
   
-  // DonnÃ©es
+  // DonnÃƒÂ©es
   missions:[],
   agentsDB:[],
   
@@ -43,17 +43,17 @@ var state={
   quickGehId:null,
   quickMission:null,
   
-  // Ã‰chantillons
+  // Ãƒâ€°chantillons
   echantillonSort:'date',
   
   // Blancs
   blancAgentSearch:'',
   blancAgents:[],
   
-  // PrÃ©paration
+  // PrÃƒÂ©paration
   newPrelData:null,
   
-  // Co-prélèvement
+  // Co-prÃ©lÃ¨vement
   coPrelTargetPid:null,
   coPrelDetectedGroups:null,
   coPrelEditGroups:null,
@@ -80,6 +80,8 @@ function escapeJs(t){
   s=s.split(String.fromCharCode(92)).join(String.fromCharCode(92,92));
   s=s.split(String.fromCharCode(39)).join(String.fromCharCode(92,39));
   s=s.replace(/"/g,'&quot;');
+  s=s.replace(/\r/g,'\\r');
+  s=s.replace(/\n/g,'\\n');
   return s;
 }
 
@@ -101,7 +103,7 @@ function lightenColor(h,p){
   return'#'+(0x1000000+r*0x10000+g*0x100+b).toString(16).slice(1);
 }
 
-// === CHARGEMENT DONNÃ‰ES ===
+// === CHARGEMENT DONNÃƒâ€°ES ===
 
 function loadData(){
   try{
@@ -121,7 +123,7 @@ function repairMissions(){
         if(!p.agents)p.agents=[];
       });
     }
-    // Migration : dÃ©placer isReg vers isReg8h et isRegCT
+    // Migration : dÃƒÂ©placer isReg vers isReg8h et isRegCT
     if(m.affectations){
       for(var an in m.affectations){
         var af=m.affectations[an];
@@ -194,7 +196,7 @@ function hasVLEPCT(n){
   return v!=='' && v!=='-';
 }
 
-// === CRÃ‰ATION MISSION ===
+// === CRÃƒâ€°ATION MISSION ===
 
 function createEmptyMission(){
   var g=[];
@@ -215,4 +217,4 @@ function createEmptyMission(){
   };
 }
 
-console.log('âœ“ State chargÃ©');
+console.log('Ã¢Å“â€œ State chargÃƒÂ©');

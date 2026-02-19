@@ -1,5 +1,5 @@
-// app.js - Point d'entrée application
-// © 2025 Quentin THOMAS
+// app.js - Point d'entrÃ©e application
+// Â© 2025 Quentin THOMAS
 // Render principal, navigation, initialisation, splash screen
 
 function render(){
@@ -22,8 +22,9 @@ function render(){
     default:h=renderHome();
   }
   document.getElementById('app').innerHTML=h;
+  if(state.view==='prepa-agents'){var src=document.getElementById('search-results-container');if(src)attachSearchResultListeners(src);}
+  if(state.view==='quick-entry'){var qsrc=document.getElementById('quick-search-results');if(qsrc)attachQuickSearchListeners(qsrc);setTimeout(function(){var i=document.getElementById('quick-agent-search');if(i)i.focus();},50);}
   if(state.view==='db-terrain')setTimeout(updateDbResults,50);
-  if(state.view==='quick-entry')setTimeout(function(){var i=document.getElementById('quick-agent-search');if(i)i.focus();},50);
 }
 
 
@@ -36,41 +37,41 @@ setTimeout(function(){
   }
 },1800);
 
-// ═══════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // PWA - Service Worker Registration & Update Management
-// ═══════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then(registration => {
-      console.log('[PWA] Service Worker enregistré');
+      console.log('[PWA] Service Worker enregistrÃ©');
       
-      // Vérifier les mises à jour au démarrage
+      // VÃ©rifier les mises Ã  jour au dÃ©marrage
       registration.update();
       
-      // Vérifier les mises à jour toutes les 5 minutes (pour dev)
+      // VÃ©rifier les mises Ã  jour toutes les 5 minutes (pour dev)
       // En production, mettre 30 * 60 * 1000 (30 minutes)
       setInterval(() => {
         registration.update();
-        console.log('[PWA] Vérification mise à jour...');
+        console.log('[PWA] VÃ©rification mise Ã  jour...');
       }, 5 * 60 * 1000);
       
-      // Détecter une nouvelle version disponible
+      // DÃ©tecter une nouvelle version disponible
       registration.addEventListener('updatefound', () => {
         const newWorker = registration.installing;
-        console.log('[PWA] Nouvelle version détectée !');
+        console.log('[PWA] Nouvelle version dÃ©tectÃ©e !');
         
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // Nouvelle version disponible et prête
-            console.log('[PWA] Nouvelle version prête, rechargement dans 2s...');
+            // Nouvelle version disponible et prÃªte
+            console.log('[PWA] Nouvelle version prÃªte, rechargement dans 2s...');
             
-            // Notification discrète
+            // Notification discrÃ¨te
             var banner = document.createElement('div');
             banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#0066b3;color:white;padding:12px;text-align:center;font-size:13px;z-index:9999;box-shadow:0 2px 8px rgba(0,0,0,0.2);';
-            banner.innerHTML = '🔄 Mise à jour disponible... Rechargement automatique dans 2s';
+            banner.innerHTML = 'ðŸ”„ Mise Ã  jour disponible... Rechargement automatique dans 2s';
             document.body.appendChild(banner);
             
-            // Rechargement automatique après 2 secondes
+            // Rechargement automatique aprÃ¨s 2 secondes
             setTimeout(() => {
               window.location.reload();
             }, 2000);
@@ -78,10 +79,10 @@ if ('serviceWorker' in navigator) {
         });
       });
       
-      // Écouter les messages du Service Worker
+      // Ã‰couter les messages du Service Worker
       navigator.serviceWorker.addEventListener('message', event => {
         if (event.data && event.data.type === 'UPDATE_AVAILABLE') {
-          console.log('[PWA] Message reçu: mise à jour disponible');
+          console.log('[PWA] Message reÃ§u: mise Ã  jour disponible');
         }
       });
       
@@ -95,19 +96,19 @@ if ('serviceWorker' in navigator) {
 loadData();
 render();
 
-// ═══════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 // Gestion du bouton retour Android (back button)
-// ═══════════════════════════════════════════════════════════
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 window.addEventListener('popstate', function(event) {
-  // Empêcher le comportement par défaut (quitter l'app)
+  // EmpÃªcher le comportement par dÃ©faut (quitter l'app)
   event.preventDefault();
   
   // Navigation dans l'app selon la vue actuelle
   if (state.view === 'home') {
-    // Si on est déjà sur l'accueil, on ne fait rien (ou on peut quitter)
+    // Si on est dÃ©jÃ  sur l'accueil, on ne fait rien (ou on peut quitter)
     return;
   } else if (state.view.startsWith('prepa-')) {
-    // Dans la préparation, retour à la liste des missions
+    // Dans la prÃ©paration, retour Ã  la liste des missions
     if (state.view === 'prepa-list') {
       state.view = 'home';
     } else if (state.view === 'prepa-mission') {
@@ -116,7 +117,7 @@ window.addEventListener('popstate', function(event) {
       state.view = 'prepa-mission';
     }
   } else if (state.view.startsWith('terrain-')) {
-    // Sur le terrain, retour à la liste
+    // Sur le terrain, retour Ã  la liste
     if (state.view === 'terrain-list') {
       state.view = 'home';
     } else if (state.view === 'terrain-mission') {
@@ -125,20 +126,20 @@ window.addEventListener('popstate', function(event) {
       state.view = 'terrain-mission';
     }
   } else if (state.view === 'conditions' || state.view === 'liste-echantillons') {
-    // Depuis conditions ou échantillons, retour à terrain-mission
+    // Depuis conditions ou Ã©chantillons, retour Ã  terrain-mission
     state.view = 'terrain-mission';
   } else if (state.view.startsWith('db-') || state.view === 'quick-entry') {
-    // Depuis base de données ou saisie rapide, retour à l'accueil
+    // Depuis base de donnÃ©es ou saisie rapide, retour Ã  l'accueil
     state.view = 'home';
   } else {
-    // Par défaut, retour à l'accueil
+    // Par dÃ©faut, retour Ã  l'accueil
     state.view = 'home';
   }
   
   render();
 });
 
-// Ajouter un état initial dans l'historique pour capturer le bouton retour
+// Ajouter un Ã©tat initial dans l'historique pour capturer le bouton retour
 history.pushState({view: state.view}, '', '');
 
-console.log('✓ App chargé');
+console.log('âœ“ App chargÃ©');
