@@ -17,8 +17,8 @@ function renderHome(){
   h+='<div class="nav-item" onclick="state.view=\'db-terrain\';render();"><div class="nav-icon orange">'+ICONS.search+'</div><div class="nav-label">Base de données</div><div class="nav-count">'+state.agentsDB.length+'</div></div></div>';
   h+='<input type="file" id="import-mission-input" accept=".json" style="display:none;" onchange="handleImportMission(event);">';
   if(state.showModal==='importChoice'){state.showModal=null;triggerImportMission();}
-  h+='<div style="margin-top:12px;text-align:center;"><button class="btn btn-gray" onclick="window.open(\'procedure_vlep_mission.html\',\'_blank\');">🎓 Tutoriel — Guide d\'utilisation</button></div>';
-  h+='<div class="version-info">Version 3.6 © 2025 Quentin THOMAS</div>';
+  h+='<div style="margin-top:12px;text-align:center;"><button class="btn btn-gray" onclick="state.view=\'tutoriel\';render();">🎓 Tutoriel — Guide d\'utilisation</button></div>';
+  h+='<div class="version-info">Version 1.0 © 2025 Quentin THOMAS</div>';
   return h;
 }
 
@@ -41,7 +41,7 @@ function renderMissionCard(m){
   var ac=m.agents.length;
   var pc=countPrelevements(m);
   var h='<div class="mission-card mission-card-'+m.status+'"><div class="mission-title">'+escapeHtml(m.clientSite||'Sans nom')+'<span class="status-badge status-'+m.status+'">'+(m.status==='prepa'?'Prépa':'Validée')+'</span></div>';
-  h+='<div class="mission-info">'+gc+' GEH ? '+ac+' agents ? '+pc+' prél.</div><div class="mission-actions">';
+  h+='<div class="mission-info">'+gc+' GEH · '+ac+' agents · '+pc+' prél.</div><div class="mission-actions">';
   h+='<button class="btn btn-gray btn-small" onclick="openMission('+m.id+');">'+ICONS.edit+'</button>';
   h+='<button class="btn btn-blue btn-small" onclick="copyMission('+m.id+');">'+ICONS.copy+'</button>';
   if(m.status==='prepa')h+='<button class="btn btn-success btn-small" onclick="validateMission('+m.id+');">'+ICONS.check+' Valider</button>';
@@ -95,7 +95,7 @@ function validateMission(id){
   if(!m)return;
   generatePrelevements(m);
   if(m.prelevements.length===0){
-    alert('Aucun prélèvement à générer.\n\nVérifiez :\n1. Au moins un GEH avec nom\n2. Au moins un agent avec 8h ou CT\n3. Des affectations agents  ?? GEH');
+    alert('Aucun prélèvement à générer.\n\nVérifiez :\n1. Au moins un GEH avec nom\n2. Au moins un agent avec 8h ou CT\n3. Des affectations agents → GEH');
     return;
   }
   m.status='validee';
@@ -161,10 +161,10 @@ function renderPrepaMission(){
   var h='<button class="back-btn" onclick="state.view=\'prepa-list\';state.currentMissionId=null;render();">'+ICONS.arrowLeft+' Liste</button>';
   h+='<div class="card"><h2>'+ICONS.clipboard+' '+escapeHtml(m.clientSite||'Nouvelle mission')+'</h2><div class="info-box mt-12"><p><span class="svg-icon">'+ICONS.user+'</span> Préleveur : <strong>'+escapeHtml(m.preleveur||'-')+'</strong></p><p><span class="svg-icon">'+ICONS.tool+'</span> Débitmètre : <strong>'+escapeHtml(m.debitmetre||'-')+'</strong></p></div><button class="btn btn-gray btn-small mt-12" onclick="state.showModal=\'editInfo\';render();">'+ICONS.edit+' Modifier infos</button></div>';
   var step1=gc>0;var step2=ac>0;var step3=pc>0;
-  h+='<div class="info-box mt-12"><p><strong>?tapes de préparation :</strong></p><p>'+(step1?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 1. Définir les GEH ('+(gc||'aucun')+')</p><p>'+(step2?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 2. Sélectionner les agents ('+(ac||'aucun')+')</p><p>'+(step3?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 3. Affecter agents / GEH ('+(pc||'aucun')+' prél.)</p></div>';
+  h+='<div class="info-box mt-12"><p><strong>Étapes de préparation :</strong></p><p>'+(step1?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 1. Définir les GEH ('+(gc||'aucun')+')</p><p>'+(step2?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 2. Sélectionner les agents ('+(ac||'aucun')+')</p><p>'+(step3?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 3. Affecter agents / GEH ('+(pc||'aucun')+' prél.)</p></div>';
   h+='<div class="nav-menu"><div class="nav-item" onclick="state.view=\'prepa-geh\';render();"><div class="nav-icon">'+ICONS.folder+'</div><div class="nav-label">1. GEH</div><div class="nav-count">'+gc+'</div></div><div class="nav-item" onclick="state.view=\'prepa-agents\';state.searchText=\'\';render();"><div class="nav-icon green">'+ICONS.beaker+'</div><div class="nav-label">2. Agents chimiques</div><div class="nav-count">'+ac+'</div></div></div>';
   if(ac>0&&gc>0)h+='<button class="btn btn-orange" onclick="state.view=\'prepa-affectations\';render();">'+ICONS.link+' 3. Affecter agents aux GEH</button>';
-  h+='<div class="info-box info-box-success mt-12"><p><strong>Récap :</strong> '+gc+' GEH ? '+ac+' agents ? '+pc+' prélèvements</p></div>';
+  h+='<div class="info-box info-box-success mt-12"><p><strong>Récap :</strong> '+gc+' GEH · '+ac+' agents · '+pc+' prélèvements</p></div>';
   h+='<div class="row">';
   if(m.status==='prepa'){
     if(pc>0)h+='<button class="btn btn-success" onclick="validateMission('+m.id+');">'+ICONS.check+' Valider ('+pc+')</button>';
@@ -184,7 +184,7 @@ function renderPrepaMission(){
 }
 
 function renderEditInfoModal(m){
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Infos mission</h2><button class="close-btn" onclick="state.showModal=null;render();">?</button></div><div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="edit-clientsite" value="'+escapeHtml(m.clientSite)+'" placeholder="Ex: Entreprise ABC - Usine Nord"></div><div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="edit-preleveur" value="'+escapeHtml(m.preleveur)+'"></div><div class="field"><label class="label">Débitmètre</label><input type="text" inputmode="numeric" class="input" id="edit-debitmetre" value="'+escapeHtml(m.debitmetre)+'"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="saveEditInfo();">Enregistrer</button></div></div></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Infos mission</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="edit-clientsite" value="'+escapeHtml(m.clientSite)+'" placeholder="Ex: Entreprise ABC - Usine Nord"></div><div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="edit-preleveur" value="'+escapeHtml(m.preleveur)+'"></div><div class="field"><label class="label">Débitmètre</label><input type="text" inputmode="numeric" class="input" id="edit-debitmetre" value="'+escapeHtml(m.debitmetre)+'"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="saveEditInfo();">Enregistrer</button></div></div></div>';
   return h;
 }
 
@@ -201,16 +201,16 @@ function saveEditInfo(){
   render();
 }
 
-// ???????????????????????????????????????????????????????????????????????????????
-// PR?PA AUTOMATIQUE - Import depuis tableau devis
+// ═══════════════════════════════════════════════════════════
+// PRÉPA AUTOMATIQUE - Import depuis tableau devis
 // © 2025 Quentin THOMAS
-// ???????????????????????????????????????????????????????????????????????????????
+// ═══════════════════════════════════════════════════════════
 
 function renderPrepaAutoModal(m){
   if(!state.prepaAutoData)state.prepaAutoData={format:'1',devisText:'',gehListText:'',parsed:null,error:null};
   var d=state.prepaAutoData;
   
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;state.prepaAutoData=null;render();}"><div class="modal-content" style="max-height:92vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Prépa automatique</h2><button class="close-btn" onclick="state.showModal=null;state.prepaAutoData=null;render();">?</button></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;state.prepaAutoData=null;render();}"><div class="modal-content" style="max-height:92vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Prépa automatique</h2><button class="close-btn" onclick="state.showModal=null;state.prepaAutoData=null;render();">×</button></div>';
   
   // Choix du format
   h+='<div class="field"><label class="label">Format du devis</label><div class="row">';
@@ -581,7 +581,7 @@ function applyPrepaAuto(){
   if(!m||!state.prepaAutoData||!state.prepaAutoData.parsed)return;
   var p=state.prepaAutoData.parsed;
   
-  var confirm1=confirm('Appliquer la prépa automatique ?\n\nCela va remplacer les GEH, agents et affectations actuels.\n\n'+p.gehs.length+' GEH ? '+p.agents.length+' agents');
+  var confirm1=confirm('Appliquer la prépa automatique ?\n\nCela va remplacer les GEH, agents et affectations actuels.\n\n'+p.gehs.length+' GEH · '+p.agents.length+' agents');
   if(!confirm1)return;
   
   // 1. Créer les GEH
@@ -778,7 +778,7 @@ function addAgent(n){
 }
 
 function renderAddManualModal(){
-  return'<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Ajouter agent</h2><button class="close-btn" onclick="state.showModal=null;render();">?</button></div><div class="field"><label class="label">Nom de l\'agent</label><input type="text" class="input" id="manual-name" placeholder="Ex: Benzène"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addManualAgent();">Ajouter</button></div></div></div>';
+  return'<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Ajouter agent</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="field"><label class="label">Nom de l\'agent</label><input type="text" class="input" id="manual-name" placeholder="Ex: Benzène"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addManualAgent();">Ajouter</button></div></div></div>';
 }
 
 function addManualAgent(){
@@ -940,3 +940,80 @@ function toggleGehAffect(an,gid,t){
 
 
 console.log('? Prépa chargé');
+
+
+// ═══════════════════════════════════════════════════════════
+// TUTORIEL - Guide d'utilisation intégré
+// ═══════════════════════════════════════════════════════════
+function renderTutoriel(){
+  var h='<button class="back-btn" onclick="state.view=\'home\';render();">'+ICONS.arrowLeft+' Accueil</button>';
+  h+='<div class="card" style="border-left:4px solid #0066b3;">';
+  h+='<h1 style="color:#0066b3;">🎓 Guide d\'utilisation</h1>';
+  h+='<p class="subtitle">VLEP Mission — Workflow complet</p>';
+  h+='</div>';
+
+  var sections=[
+    {
+      num:'1',color:'#0066b3',title:'Préparation (au bureau)',
+      steps:[
+        {t:'Créer une mission',d:'Accueil → Préparation mission → Nouvelle mission. Saisissez le client/site, le préleveur et le numéro de débitmètre.'},
+        {t:'Ajouter les GEH',d:'Dans la mission → GEH → Ajouter. Donnez un numéro et un intitulé à chaque Groupe d\'Exposition Homogène.'},
+        {t:'Ajouter les agents chimiques',d:'Agents → Rechercher dans la base de données (459 agents). Cochez 8h et/ou CT selon le type de prélèvement.'},
+        {t:'Créer les affectations',d:'Affectations → Pour chaque agent, sélectionnez les GEH concernés. Choisissez Réglementaire ou Non-réglementaire.'},
+        {t:'Valider la mission',d:'Bouton Valider → L\'appli génère automatiquement tous les prélèvements. La mission passe en statut Validée.'}
+      ]
+    },
+    {
+      num:'2',color:'#16a34a',title:'Terrain (sur site)',
+      steps:[
+        {t:'Ouvrir la mission',d:'Accueil → Saisie terrain → sélectionner la mission validée.'},
+        {t:'Saisir les données de prélèvement',d:'Cliquer sur un prélèvement → Onglet du sous-prélèvement concerné. Saisir : opérateur, date, n° pompe, débits initial/final, plages horaires. Le pavé numérique s\'ouvre automatiquement au clic.'},
+        {t:'EPI respiratoire',d:'Sélectionner sans objet / FFP3 / TH3 / Autre. Si EPI : saisir la durée de port en minutes.'},
+        {t:'Plages horaires',d:'Ajouter autant de plages que nécessaire (début → fin). La durée totale se calcule automatiquement.'},
+        {t:'Valider le prélèvement',d:'Bouton ✓ Valider en bas de chaque prélèvement. Un ✓ apparaît dans l\'onglet quand c\'est complété.'},
+        {t:'Co-prélèvement (indicateur bleu)',d:'Plusieurs agents sur le même support physique. Les indicateurs bleus signalent cette situation automatiquement.'}
+      ]
+    },
+    {
+      num:'3',color:'#ea580c',title:'Conditions ambiantes',
+      steps:[
+        {t:'Accès',d:'Dans la vue mission terrain → bouton Conditions ambiantes.'},
+        {t:'Saisir les mesures',d:'Température, pression atmosphérique et humidité relative — initial et final pour chaque jour. Le pavé numérique s\'ouvre au clic sur chaque champ.'},
+        {t:'Fréquence',d:'Une entrée par jour de prélèvement. Cliquer + Ajouter condition pour chaque nouvelle journée.'}
+      ]
+    },
+    {
+      num:'4',color:'#7c3aed',title:'Export Excel (vers la macro)',
+      steps:[
+        {t:'Accès',d:'Mission terrain → Liste échantillons → Export Excel.'},
+        {t:'Contenu de l\'export',d:'Feuille REG : prélèvements réglementaires. Feuille NON REG : prélèvements non-réglementaires. Feuille Échantillons : récapitulatif.'},
+        {t:'Copier dans la macro',d:'Ouvrir le fichier Excel exporté. Copier-coller chaque section dans les cellules bleues de la macro accréditée de la société. Les EPI et FPA sont pré-remplis pour que le VLOOKUP fonctionne automatiquement.'},
+        {t:'Résultats labo',d:'Les résultats d\'analyse sont à saisir directement dans la macro (cellules dédiées non gérées par l\'appli).'}
+      ]
+    },
+    {
+      num:'5',color:'#0891b2',title:'Fonctions utiles',
+      steps:[
+        {t:'Bouton J-1',d:'Copie automatiquement la valeur du prélèvement précédent (opérateur, n° pompe). Évite la ressaisie sur plusieurs jours.'},
+        {t:'Fusion intelligente',d:'Regroupe automatiquement les prélèvements du même opérateur sur plusieurs jours en un seul prélèvement multi-jours.'},
+        {t:'Base de données',d:'Accueil → Base de données. Recherche parmi 459 agents chimiques avec tous les paramètres : débit, support, conservation, VLEP.'},
+        {t:'Import/Export JSON',d:'Partager une mission entre appareils via le bouton Partager (QR code ou fichier JSON).'},
+        {t:'Installation PWA',d:'Sur Android Chrome : menu → Ajouter à l\'écran d\'accueil. Sur iOS Safari : partager → Sur l\'écran d\'accueil. L\'appli fonctionne ensuite hors ligne.'}
+      ]
+    }
+  ];
+
+  sections.forEach(function(sec){
+    h+='<div style="background:'+sec.color+';color:white;border-radius:10px;padding:12px 16px;margin-top:16px;display:flex;align-items:center;gap:10px;">';
+    h+='<div style="background:rgba(255,255,255,0.25);width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;flex-shrink:0;">'+sec.num+'</div>';
+    h+='<span style="font-weight:700;font-size:15px;">'+sec.title+'</span></div>';
+    sec.steps.forEach(function(step,si){
+      h+='<div style="background:white;border-radius:8px;box-shadow:0 1px 4px rgba(0,0,0,0.08);margin-top:6px;overflow:hidden;border-left:3px solid '+sec.color+';">';
+      h+='<div style="padding:10px 14px;"><div style="font-weight:700;font-size:13px;color:#1e293b;margin-bottom:3px;">'+(si+1)+'. '+step.t+'</div>';
+      h+='<div style="font-size:12px;color:#475569;line-height:1.5;">'+step.d+'</div></div></div>';
+    });
+  });
+
+  h+='<div style="text-align:center;margin-top:20px;margin-bottom:8px;color:#94a3b8;font-size:11px;">VLEP Mission v1.0 © 2025 Quentin THOMAS</div>';
+  return h;
+}
