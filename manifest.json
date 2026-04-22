@@ -1,6 +1,7 @@
 {
   "name": "VLEP Mission",
   "short_name": "VLEP",
+  "description": "Saisie terrain VLEP — prélèvements d'exposition professionnelle",
   "icons": [
     {
       "src": "web-app-manifest-192x192.png",
@@ -15,15 +16,22 @@
       "purpose": "any"
     },
     {
+      "src": "web-app-manifest-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
       "src": "apple-touch-icon.png",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     }
   ],
-  "theme_color": "#2d3039",
-  "background_color": "#2d3039",
+  "theme_color": "#0c1220",
+  "background_color": "#0c1220",
   "display": "standalone",
+  "orientation": "portrait",
   "start_url": ".",
   "scope": "."
 }
