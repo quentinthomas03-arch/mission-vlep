@@ -1,118 +1,12 @@
-<!DOCTYPE html>
-<!--
-═══════════════════════════════════════════════════════════════════════════════
-  VLEP Mission v1.0
-  © 2025 Quentin THOMAS - Tous droits réservés
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="512" height="512"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="512" height="512"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="90" fill="#2d3039"></rect>
   
-  CONFIDENTIEL - USAGE STRICTEMENT INTERNE
+  <!-- V de VLEP -->
+  <path d="M 140 130 L 205 130 L 256 360 L 307 130 L 372 130 L 280 440 L 232 440 Z" fill="#0066b3"></path>
   
-  Ce logiciel et son code source sont la propriété exclusive de Quentin THOMAS.
-  Toute reproduction, distribution, modification ou utilisation non autorisée
-  est strictement interdite sans l'accord écrit préalable de l'auteur.
-  
-  Auteur : Quentin THOMAS
-  Création : 2025
-═══════════════════════════════════════════════════════════════════════════════
--->
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="VLEP Mission">
-  <meta name="theme-color" content="#0c1220">
-  <meta name="author" content="Quentin THOMAS">
-  <meta name="copyright" content="© 2025 Quentin THOMAS - Tous droits réservés">
-
-  <!-- Icônes Aurora -->
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  <link rel="icon" type="image/png" sizes="96x96" href="favicon-96x96.png">
-  <link rel="shortcut icon" href="favicon.ico">
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-  <link rel="manifest" href="manifest.json">
-
-  <!-- Google Fonts Aurora -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-
-  <!-- Feuille de style principale -->
-  <link rel="stylesheet" href="main.css">
-
-  <title>VLEP Mission v1.0</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-  <!-- styles déplacés dans main.css -->
-</head>
-<body>
-  <!-- SPLASH SCREEN — Aurora Halo -->
-  <div class="splash" id="splash">
-    <svg class="splash-logo" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" aria-label="VLEP Aurora">
-      <defs>
-        <radialGradient id="sp-bg" cx="0.5" cy="0.55" r="0.65">
-          <stop offset="0" stop-color="#1f2a4a"/>
-          <stop offset="0.6" stop-color="#0f1530"/>
-          <stop offset="1" stop-color="#0c1220"/>
-        </radialGradient>
-        <linearGradient id="sp-arc" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stop-color="#14d4c2"/>
-          <stop offset="0.6" stop-color="#00a3a3"/>
-          <stop offset="1" stop-color="#c14ecf"/>
-        </linearGradient>
-        <radialGradient id="sp-b1" cx="0.3" cy="0.7" r="0.4">
-          <stop offset="0" stop-color="#14d4c2" stop-opacity="0.6"/>
-          <stop offset="1" stop-color="#14d4c2" stop-opacity="0"/>
-        </radialGradient>
-        <radialGradient id="sp-b2" cx="0.75" cy="0.3" r="0.35">
-          <stop offset="0" stop-color="#c14ecf" stop-opacity="0.5"/>
-          <stop offset="1" stop-color="#c14ecf" stop-opacity="0"/>
-        </radialGradient>
-      </defs>
-      <rect width="512" height="512" rx="117" fill="url(#sp-bg)"/>
-      <rect width="512" height="512" rx="117" fill="url(#sp-b1)"/>
-      <rect width="512" height="512" rx="117" fill="url(#sp-b2)"/>
-      <circle cx="256" cy="264" r="146" fill="none" stroke="url(#sp-arc)" stroke-width="4.4" opacity="0.9"/>
-      <circle cx="256" cy="264" r="110" fill="none" stroke="#14d4c2" stroke-width="1.5" opacity="0.3"/>
-      <g transform="translate(256 242)">
-        <path d="M -80 -58 L 0 80 L 80 -58" fill="none" stroke="#ffffff" stroke-width="16.5" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle r="15" fill="#14d4c2" cy="80"/>
-        <circle r="26" fill="#14d4c2" cy="80" opacity="0.25"/>
-      </g>
-    </svg>
-    <div class="splash-title">VLEP</div>
-    <div class="splash-bar"></div>
-    <div class="splash-subtitle">MISSION</div>
-    <div class="splash-copy">&copy; 2025 Quentin THOMAS</div>
-  </div>
-  <!-- App Container -->
-  <div class="container" id="app"></div>
-
-  <!-- Modules JavaScript (ordre important) -->
-  <script src="js/icons.js"></script>
-  <script src="js/database.js"></script>
-  <script src="js/state.js"></script>
-  <script src="js/prepa.js"></script>
-  <script src="js/terrain.js"></script>
-  <script src="js/echantillons.js"></script>
-  <script src="js/export-excel.js"></script>
-  <script src="js/docx.iife.js"></script>
-  <script src="js/export-word.js"></script>
-  <script src="js/database-views.js"></script>
-  <script src="js/quick-entry.js"></script>
-  <script src="js/import-export.js"></script>
-  <script src="js/timers.js"></script>
-  <script src="js/app.js"></script>
-
-  <!-- Service Worker -->
-  <script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load', function(){
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => console.log('✓ Service Worker OK'))
-      .catch(err => console.log('Service Worker désactivé'));
-  });
-}
-  </script>
-
-</body>
-</html>
+  <!-- Barre bleue accent -->
+  <rect x="218" y="455" width="76" height="8" rx="4" fill="#00a878"></rect>
+</svg></svg><style>@media (prefers-color-scheme: light) { :root { filter: none; } }
+@media (prefers-color-scheme: dark) { :root { filter: none; } }
+</style></svg>
