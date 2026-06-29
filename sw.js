@@ -7,9 +7,14 @@ const urlsToCache = [
   './',
   './index.html',
   './manifest.json',
-  './icon-192.png',
-  './icon-512.png',
-  // Modules JavaScript
+  // Icônes (à la racine, noms réels d'après index.html / manifest.json)
+  './favicon.svg',
+  './favicon-96x96.png',
+  './favicon.ico',
+  './apple-touch-icon.png',
+  './web-app-manifest-192x192.png',
+  './web-app-manifest-512x512.png',
+  // Modules JavaScript (dossier js/)
   './js/icons.js',
   './js/database.js',
   './js/state.js',
@@ -33,7 +38,14 @@ self.addEventListener('install', function(event) {
     caches.open(CACHE_NAME)
       .then(function(cache) {
         console.log('[SW] Mise en cache des fichiers');
-        return cache.addAll(urlsToCache);
+        // Mise en cache résiliente : chaque fichier est mis en cache individuellement.
+        // Si l'un échoue (absent, mal nommé), il est ignoré au lieu de faire échouer
+        // TOUTE la mise en cache (ce qui casserait le fonctionnement hors-ligne).
+        return Promise.all(urlsToCache.map(function(url) {
+          return cache.add(url).catch(function(err) {
+            console.warn('[SW] Fichier ignoré (non mis en cache):', url, err);
+          });
+        }));
       })
       .then(function() {
         console.log('[SW] Tous les fichiers mis en cache avec succès');
