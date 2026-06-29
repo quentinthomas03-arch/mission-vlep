@@ -131,6 +131,27 @@ function buildActiviteDoc(m) {
     });
   }
 
+  // Cellule ventilation/captage : jusqu'à 3 lignes empilées
+  function makeVentilationCell(env, ventGen, capt, width) {
+    var children = [];
+    function addLine(txt) {
+      if (txt) children.push(new D.Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [new D.TextRun({ text: txt, size: 20, font: 'Arial' })]
+      }));
+    }
+    addLine(env);
+    addLine(ventGen);
+    addLine(capt);
+    if (!children.length) children.push(new D.Paragraph({ children: [] }));
+    return new D.TableCell({
+      width: { size: width, type: WidthType.DXA },
+      borders: dataBorders,
+      verticalAlign: VerticalAlign.CENTER,
+      children: children
+    });
+  }
+
   function makeHeaderRow() {
     return new D.TableRow({
       cantSplit: true,
@@ -149,7 +170,7 @@ function buildActiviteDoc(m) {
         makeDataCell(r.agents,     COL_WIDTHS[3]),
         makeDataCell(r.vlep,       COL_WIDTHS[4]),  // "8h" ou "CT"
         makeDataCell(r.epi || '',  COL_WIDTHS[5]),  // EPI : type + durée
-        makeDataCell('',           COL_WIDTHS[6]),  // Ventilation - vide
+        makeVentilationCell(r.ventEnv, r.ventGen, r.ventCapt, COL_WIDTHS[6]),  // Ventilation/captage
         makeDataCell(r.taches,     COL_WIDTHS[7]),
         makeDataCell('',           COL_WIDTHS[8]),  // Observation - vide
       ]
@@ -241,6 +262,29 @@ function buildActiviteDoc(m) {
         }
       }
 
+      // Ventilation et captage (Point 2)
+      var ventEnvStr = '';
+      var veRaw = (sb.ventEnv || '').trim();
+      if (veRaw === 'Autre') ventEnvStr = (sb.ventEnvAutre || '').trim();
+      else if (veRaw) ventEnvStr = veRaw;
+
+      // Oui => Présence ; Non ou non renseigné => Absence ; Autre => texte libre
+      var ventGenStr;
+      if (sb.ventGenerale === 'oui') {
+        ventGenStr = 'Pr\u00e9sence de ventilation g\u00e9n\u00e9rale m\u00e9canique';
+      } else if (sb.ventGenerale === 'autre') {
+        ventGenStr = (sb.ventGeneraleAutre || '').trim();
+      } else {
+        ventGenStr = 'Absence de ventilation g\u00e9n\u00e9rale m\u00e9canique';
+      }
+
+      // Captage : "Non" (ou vide) => rien dans le Word
+      var ventCaptStr = '';
+      var vcRaw = (sb.ventCaptage || '').trim();
+      if (vcRaw && vcRaw !== 'Non') {
+        ventCaptStr = (vcRaw === 'Autre') ? (sb.ventCaptageAutre || '').trim() : vcRaw;
+      }
+
       gehMap[gehId].rows.push({
         operateur: sb.operateur || '',
         date:      dateStr,
@@ -249,7 +293,10 @@ function buildActiviteDoc(m) {
         agents:    agentNames,
         vlep:      vlepStr,
         epi:       epiStr,
-        taches:    taches
+        taches:    taches,
+        ventEnv:   ventEnvStr,
+        ventGen:   ventGenStr,
+        ventCapt:  ventCaptStr
       });
     });
   });

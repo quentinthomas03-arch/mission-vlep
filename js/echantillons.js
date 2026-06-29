@@ -288,9 +288,53 @@ function exportExcel(){
   regPrels.sort(sortByGehAgent);
   nonRegPrels.sort(sortByGehAgent);
   
-  // Créer la feuille REG
-  if(regPrels.length>0){
-    var wsReg=createRegSheet(m,regPrels);
+  // Point 5 : router les prélèvements réglementaires par type de support.
+  // Tube et Cassette ont leur feuille "(multi)" ; les autres types restent
+  // dans la feuille REG générique en attendant leur propre constructeur.
+  var tubeRegPrels=[];
+  var cassetteRegPrels=[];
+  var siliceRegPrels=[];
+  var otherRegPrels=[];
+  regPrels.forEach(function(e){
+    // Silice en priorité : agents "silice cristalline" (quartz/cristobalite/tridymite)
+    // ou "poussières alvéolaires" (la silice n'apparaît pas dans l'intitulé).
+    var an=(e.agent||'').toLowerCase();
+    if(an.indexOf('silice cristalline')!==-1||an.indexOf('alvéolaire')!==-1){
+      siliceRegPrels.push(e);
+      return;
+    }
+    var ag=(typeof getAgentFromDB==='function')?getAgentFromDB(e.agent):null;
+    var sup=ag?(ag['Support de prélèvement']||''):'';
+    var t=classifySupport(sup);
+    if(t==='tube')tubeRegPrels.push(e);
+    else if(t==='cassette')cassetteRegPrels.push(e);
+    else otherRegPrels.push(e);
+  });
+  
+  // Feuille TUBE en multi (structure exacte du modèle, agents empilés)
+  if(tubeRegPrels.length>0){
+    var tubeCols=buildSupportColumns(m,tubeRegPrels);
+    var wsTube=createTubeRegMultiSheet(m,tubeCols);
+    XLSX.utils.book_append_sheet(wb,wsTube,'Tube Reg (multi)');
+  }
+  
+  // Feuille CASSETTE en multi
+  if(cassetteRegPrels.length>0){
+    var cassCols=buildSupportColumns(m,cassetteRegPrels);
+    var wsCass=createCassetteRegMultiSheet(m,cassCols);
+    XLSX.utils.book_append_sheet(wb,wsCass,'Cassette Reg (multi)');
+  }
+  
+  // Feuille SILICE (CIP10) : toutes les fractions d'un même prélèvement => une colonne
+  if(siliceRegPrels.length>0){
+    var silCols=buildSupportColumns(m,siliceRegPrels,true);
+    var wsSil=createSiliceSheet(m,silCols);
+    XLSX.utils.book_append_sheet(wb,wsSil,'CIP10 silice Reg');
+  }
+  
+  // Feuille REG générique pour les autres types de support (inchangé)
+  if(otherRegPrels.length>0){
+    var wsReg=createRegSheet(m,otherRegPrels);
     XLSX.utils.book_append_sheet(wb,wsReg,'REG');
   }
   

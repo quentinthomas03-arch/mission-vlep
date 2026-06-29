@@ -1132,4 +1132,325 @@ if (typeof restoreTimers === 'function') {
 
 
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ONGLET SILICE - Structure verticale pour fractions silice
+// © 2025 Quentin THOMAS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+
 console.log('✓ Export Excel chargé');
+
+
+var TUBE_TOP=[["Tube Reg (multi)", "CONTRÔLE REGLEMENTAIRE DES VLEP"], ["", "PRELEVEMENTS MULTI-POLLUANTS SUR SUPPORT ADSORBANT"], ["", ""], ["nom du préleveur", ""], ["site", ""], ["GEH", ""], ["opérateur", ""], ["Matériel de mesure", ""], ["n° d'identification", "pompe"], ["", "débitmètre à lame de savon ou à piston"], ["tubes adsorbant", "nature et marque"], ["", "n° de lot"], ["", "date d’expiration"], ["Plages horaires de prélèvement, durée du prélèvement et durée d'exposition", ""], ["date de prélèvement", ""], ["plage n°1 heure début n°C1-P1_", ""], ["plage n°1 heure fin n°C1-P1_", ""], ["plage n°2 heure début n°C1-P2_", ""], ["plage n°2 heure fin n°C1-P2_", ""], ["plage n°3 heure début n°C1-P3_", ""], ["plage n°3 heure fin n°C1-P3_", ""], ["plage n°4 heure début n°C1-P4_", ""], ["plage n°4 heure fin n°C1-P4_", ""], ["plage n°5 heure début n°C1-P5_", ""], ["plage n°5 heure fin n°C1-P5_", ""], ["plage n°6 heure début n°C1-P6_", ""], ["plage n°6 heure fin n°C1-P6_", ""], ["plage n°7 heure début n°C1-P7_", ""], ["plage n°7 heure fin n°C1-P7_", ""], ["plage n°8 heure début n°C1-P8_", ""], ["plage n°8 heure fin n°C1-P8_", ""], ["plage n°9 heure début n°C1-P9_", ""], ["plage n°9 heure fin n°C1-P9_", ""], ["plage n°10 heure début n°C1-P10_", ""], ["plage n°10 heure fin n°C1-P10_", ""], ["durée du prélèvement (h)", ""], ["durée d'exposition (h:min) - VLEP 8h", ""], ["durée d'exposition - VLEP 8h", ""], ["Prise en compte des Equipements de Protection Individuelle", ""], ["type d'EPI", ""], ["facteur de protection assigné (FPA)", ""], ["durée de port de l'EPI (min)", ""], ["Conditions ambiantes lors des prélèvements", ""], ["température ambiante (°C)", "initiale"], ["", "finale"], ["", "moyenne"], ["pression atmosphérique (hPa)", "initiale"], ["", "finale"], ["", "moyenne"], ["humidité relative (%)", "initiale"], ["", "finale"], ["", "moyenne"], ["pression de saturation de la vapeur d'eau (Pa)", ""], ["Volume prélevé", ""], ["Volume prélevé avec pompe - Vérification du débit avec débitmètre massique", ""], ["débit initial de la pompe (L/min)", ""], ["débit final de la pompe (L/min)", ""], ["débit moyen de la pompe (L/min)", ""], ["volume prélevé (L)", ""], ["Volume prélevé avec pompe - Vérification du débit avec débitmètre à lame de savon ou à piston", ""], ["débit initial de la pompe (L/min)", ""], ["débit initial corrigé (L/min)", ""], ["débit final de la pompe (L/min)", ""], ["débit final corrigé (L/min)", ""], ["débit moyen de la pompe (L/min)", ""], ["volume prélevé corrigé (L)", ""], ["Volume prélevé (L)", ""], ["Résultats du laboratoire d'analyse", ""], ["nom du laboratoire", ""], ["référence de l'échantillon", ""]];
+var TUBE_RESHDR=[["RESULTATS", ""], ["GEH", ""], ["type de VLEP", ""], ["opérateur", ""], ["date du prélèvement", ""], ["durée du prélèvement (min)", ""], ["référence de l'échantillon", ""]];
+var TUBE_VALHDR=[["Validation des prélèvements", ""], ["Variation du débit avant et après prélèvement (< 5%)", ""], ["référence du témoin", ""]];
+var TUBE_BOTTOM=[["", ""], ["Calcul d'incertitudes", ""], ["", ""], ["Incertitude associée au volume de gaz prélevé", ""], ["Débitmètre", ""], ["EMT (%)", ""], ["résolution (L/min)", ""], ["Paramètre", ""], ["u²(D)", ""], ["Chronomètre", ""], ["EMT (s)", ""], ["résolution (s)", ""], ["écart de synchronisation (s)", ""], ["u²(t)", ""], ["Capteur de température", ""], ["EMT (°C)", ""], ["résolution (°C)", ""], ["u²(Tp) ou u²(Té)", ""], ["Baromètre", ""], ["EMT (Pa)", ""], ["résolution (Pa)", ""], ["u²(Pp) ou u²(Pé)", ""], ["Station météorologique (humidité relative)", ""], ["EMT (%)", ""], ["résolution (%)", ""], ["u²(HR)", ""], ["", ""], ["Température lors de l'étalonnage du débitmètre massique (°C)", ""], ["Pression atmosphérique lors de l'étalonnage du débitmètre massique (kPa)", ""], ["Volume prélevé avec pompe", ""], ["Paramètre", ""], ["u²(Dc)/Dc² (débitmètre massique)", ""], ["∂Dc/∂D", ""], ["∂Dc/∂P", ""], ["∂Dc/∂HR", ""], ["u²(Dc) (débitmètre à lame de savon)", ""], ["u²(V)/V²", ""], ["", ""], ["Incertitude associée à la concentration", ""], ["u²(C)/C² N°1", ""], ["u²(C)/C² N°2", ""], ["u²(C)/C² N°3", ""], ["u²(C)/C² N°4", ""], ["u²(C)/C² N°5", ""]];
+
+// ═══════════════════════════════════════════════════════════
+// POINT 5 — Export par type de support, structure "(multi)"
+// ═══════════════════════════════════════════════════════════
+
+// Classe un libellé de support vers un type d'onglet du modèle.
+// Règles validées : tube+filtre/cassette => cassette+tube ; coupelle/mousse/cip => cip10 ;
+// tube => tube ; filtre/cassette => cassette ; sinon => autre.
+function classifySupport(s){
+  s=(s||'').toLowerCase();
+  var hasTube=s.indexOf('tube')!==-1;
+  var hasFiltreCass=s.indexOf('filtre')!==-1||s.indexOf('cassette')!==-1;
+  if(hasTube&&hasFiltreCass)return 'cassette+tube';
+  if(s.indexOf('coupelle')!==-1||s.indexOf('mousse')!==-1||s.indexOf('cip')!==-1)return 'cip10';
+  if(hasTube)return 'tube';
+  if(hasFiltreCass)return 'cassette';
+  return 'autre';
+}
+
+// Regroupe une liste d'entrées {prel,sub,subIdx,agent,gehNum,gehName,type} en colonnes-support.
+// Une colonne = un support = (prélèvement, jour J, groupe co-prélèvement). Agents empilés.
+function buildSupportColumns(m,prels,groupAllPerSub){
+  var groups={};var order=[];
+  prels.forEach(function(e){
+    var sb=e.sub;
+    var gid;
+    if(groupAllPerSub){
+      gid='_all_'; // silice : toutes les fractions d'un même prélèvement/jour => une colonne
+    }else{
+      var members=(typeof getCoPrelGroupMembers==='function')?getCoPrelGroupMembers(sb,e.agent):[];
+      if(members&&members.length>1){
+        gid=members.slice().sort().join('|'); // même groupe co-prélevé => même colonne
+      }else{
+        gid=e.agent; // agent seul = support à un seul polluant
+      }
+    }
+    var key=e.prel.id+'#'+e.subIdx+'#'+gid;
+    if(!groups[key]){
+      groups[key]={prel:e.prel,sub:sb,subIdx:e.subIdx,gehNum:e.gehNum,gehName:e.gehName,type:e.type,agentNames:[]};
+      order.push(key);
+    }
+    if(groups[key].agentNames.indexOf(e.agent)===-1)groups[key].agentNames.push(e.agent);
+  });
+  return order.map(function(key){
+    var g=groups[key];var sb=g.sub;var firstAgent=g.agentNames[0];
+    var ad=sb.agentData?sb.agentData[firstAgent]:null;
+    var ag=(typeof getAgentFromDB==='function')?getAgentFromDB(firstAgent):null;
+    var cond=(typeof getConditionsForPrel==='function')?getConditionsForPrel(m,sb):null;
+    var isTachy=(typeof isTachymetreAgent==='function')&&isTachymetreAgent(firstAgent);
+    return {
+      gehLabel:g.gehNum+' - '+g.gehName,
+      operateur:sb.operateur||'',
+      numPompe:ad&&ad.numPompe?ad.numPompe:'',
+      debitmetre:isTachy?(m.tachymetre||''):(m.debitmetre||''),
+      supportNature:ag?(ag['Support de prélèvement']||''):'',
+      date:(typeof formatDateFR==='function')?(formatDateFR(sb.date)||''):(sb.date||''),
+      plages:sb.plages||[],
+      epiType:sb.epiType||'sans objet',
+      epiDuree:((sb.epiType||'sans objet')==='sans objet')?0:(sb.epiDuree||0),
+      tempI:cond&&cond.tempI?cond.tempI:'',tempF:cond&&cond.tempF?cond.tempF:'',
+      pressionI:cond&&cond.pressionI?cond.pressionI:'',pressionF:cond&&cond.pressionF?cond.pressionF:'',
+      humiditeI:cond&&cond.humiditeI?cond.humiditeI:'',humiditeF:cond&&cond.humiditeF?cond.humiditeF:'',
+      debitInitial:ad&&ad.debitInitial?ad.debitInitial:'',debitFinal:ad&&ad.debitFinal?ad.debitFinal:'',
+      refEchantillon:ad&&ad.refEchantillon?ad.refEchantillon:'',
+      typeVlep:g.type,
+      blancRef:(typeof getBlancForAgent==='function')?getBlancForAgent(m,firstAgent):'',
+      agents:g.agentNames.map(function(n){return {name:n};})
+    };
+  });
+}
+
+// Construit la feuille "Tube Reg (multi)" : structure exacte du modèle, agents empilés.
+function createTubeRegMultiSheet(m,columns){
+  // Gabarits par agent (n°k)
+  function lab(k){return [['agent chimique n\u00b0'+k+'_',''],['masse \u00e9chantillon n\u00b0'+k+'_','(\u00b5g)'],['incertitude sur la masse n\u00b0'+k+'_','(%)     ou'],['','(\u00b5g)']];}
+  function res(k){var K='n\u00b0'+k+'_';return [['agent chimique '+K,''],['r\u00e9sultat brut (mg/m3) '+K,''],['incertitude (mg/m3) '+K,''],['r\u00e9sultat pond\u00e9r\u00e9 (mg/m3) '+K,''],["port d'un EPI respiratoire "+K,''],['Exposition (mg/m3) '+K,''],['VLEP (mg/m3) '+K,''],['concentration / VLEP (%) '+K,''],['commentaire '+K,'']];}
+  function tem(k){var K='n\u00b0'+k+'_';return [['masse t\u00e9moin agent chimique '+K+'(\u00b5g)',''],['concentration dans le blanc '+K+'(mg/m3)',''],['Crit\u00e8re de validit\u00e9 '+K+'(<LQ)','']];}
+  function zon(k){var K='n\u00b0'+k+'_';return [['masse agent chimique n\u00b0'+k+' (\u00b5g) recueillie dans','zone 1 '+K],['','zone 2 '+K],['Crit\u00e8re de validit\u00e9 (zone2 < 5% x zone1) '+K,'']];}
+
+  var slots=5;
+  columns.forEach(function(c){if(c.agents.length>slots)slots=c.agents.length;});
+
+  var rows=[];
+  function pushStatic(arr,fillMap){
+    arr.forEach(function(ab,i){rows.push({a:ab[0],b:ab[1],fill:(fillMap&&fillMap[i])?fillMap[i]:null});});
+  }
+  function pushAgentBlocks(makeBlock,nameRowIndex){
+    for(var k=1;k<=slots;k++){
+      (function(k){
+        makeBlock(k).forEach(function(ab,i){
+          var fill=null;
+          if(nameRowIndex!==null&&i===nameRowIndex){
+            fill=function(c){return c.agents[k-1]?c.agents[k-1].name:'';};
+          }
+          rows.push({a:ab[0],b:ab[1],fill:fill});
+        });
+      })(k);
+    }
+  }
+
+  // TOP (lignes 1-70)
+  var topFill={};
+  topFill[5]=function(c){return c.gehLabel;};
+  topFill[6]=function(c){return c.operateur;};
+  topFill[8]=function(c){return c.numPompe;};
+  topFill[9]=function(c){return c.debitmetre;};
+  topFill[10]=function(c){return c.supportNature;};
+  topFill[14]=function(c){return c.date;};
+  for(var j=0;j<10;j++){
+    (function(j){
+      topFill[15+2*j]=function(c){return c.plages[j]&&c.plages[j].debut?c.plages[j].debut:'';};
+      topFill[16+2*j]=function(c){return c.plages[j]&&c.plages[j].fin?c.plages[j].fin:'';};
+    })(j);
+  }
+  topFill[39]=function(c){return c.epiType;};
+  topFill[41]=function(c){return c.epiDuree;};
+  topFill[43]=function(c){return c.tempI;};
+  topFill[44]=function(c){return c.tempF;};
+  topFill[46]=function(c){return c.pressionI;};
+  topFill[47]=function(c){return c.pressionF;};
+  topFill[49]=function(c){return c.humiditeI;};
+  topFill[50]=function(c){return c.humiditeF;};
+  topFill[55]=function(c){return c.debitInitial;};
+  topFill[56]=function(c){return c.debitFinal;};
+  topFill[69]=function(c){return c.refEchantillon;};
+  pushStatic(TUBE_TOP,topFill);
+
+  // LAB blocks (agent en ligne 0 du bloc)
+  pushAgentBlocks(lab,0);
+
+  // RESHDR (lignes 91-97)
+  var resHdrFill={};
+  resHdrFill[1]=function(c){return c.gehLabel;};
+  resHdrFill[2]=function(c){return c.typeVlep;};
+  resHdrFill[3]=function(c){return c.operateur;};
+  resHdrFill[4]=function(c){return c.date;};
+  resHdrFill[6]=function(c){return c.refEchantillon;};
+  pushStatic(TUBE_RESHDR,resHdrFill);
+
+  // RES blocks (agent en ligne 0 du bloc)
+  pushAgentBlocks(res,0);
+
+  // VALHDR (lignes 143-145)
+  var valHdrFill={};
+  valHdrFill[2]=function(c){return c.blancRef;};
+  pushStatic(TUBE_VALHDR,valHdrFill);
+
+  // TEM + ZON blocks (aucune donnée appli : macro/labo)
+  pushAgentBlocks(tem,null);
+  pushAgentBlocks(zon,null);
+
+  // BOTTOM (calcul d'incertitudes, statique)
+  pushStatic(TUBE_BOTTOM,null);
+
+  // Assemblage : col A, col B, puis 2 colonnes par support (valeur + colonne vide)
+  var aoa=rows.map(function(row){
+    var r=[row.a,row.b];
+    columns.forEach(function(col){
+      r.push(row.fill?(row.fill(col)||''):'');
+      r.push('');
+    });
+    return r;
+  });
+  return XLSX.utils.aoa_to_sheet(aoa);
+}
+
+
+var CASS_TOP=[["Cassette Reg (multi)", "CONTRÔLE REGLEMENTAIRE DES VLEP"], ["", "PRELEVEMENTS SUR CASSETTE PORTE-FILTRE"], ["", ""], ["nom du préleveur", ""], ["site", ""], ["GEH", ""], ["opérateur", ""], ["Matériel de mesure", ""], ["n° d'identification", "pompe"], ["", "débitmètre à lame de savon ou à piston"], ["cassette porte-filtre", "nature et marque"], ["Plages horaires de prélèvement, durée du prélèvement et durée d'exposition", ""], ["date de prélèvement", ""], ["plage n°1", "heure début n°C1-P1_"], ["", "heure fin n°C1-P1_"], ["plage n°2", "heure début n°C1-P2_"], ["", "heure fin n°C1-P2_"], ["plage n°3", "heure début n°C1-P3_"], ["", "heure fin n°C1-P3_"], ["plage n°4", "heure début n°C1-P4_"], ["", "heure fin n°C1-P4_"], ["plage n°5", "heure début n°C1-P5_"], ["", "heure fin n°C1-P5_"], ["plage n°6", "heure début n°C1-P6_"], ["", "heure fin n°C1-P6_"], ["plage n°7", "heure début n°C1-P7_"], ["", "heure fin n°C1-P7_"], ["plage n°8", "heure début n°C1-P8_"], ["", "heure fin n°C1-P8_"], ["plage n°9", "heure début n°C1-P9_"], ["", "heure fin n°C1-P9_"], ["plage n°10", "heure début n°C1-P10_"], ["", "heure fin n°C1-P10_"], ["durée du prélèvement (h)", ""], ["durée d'exposition (h:min) - VLEP 8h", ""], ["durée d'exposition - VLEP 8h", ""], ["Prise en compte des Equipements de Protection Individuelle", ""], ["type d'EPI", ""], ["facteur de protection assigné (FPA)", ""], ["durée de port de l'EPI (min)", ""], ["Conditions ambiantes lors des prélèvements", ""], ["température ambiante (°C)", "initiale"], ["", "finale"], ["", "moyenne"], ["pression atmosphérique (hPa)", "initiale"], ["", "finale"], ["", "moyenne"], ["humidité relative (%)", "initiale"], ["", "finale"], ["", "moyenne"], ["pression de saturation de la vapeur d'eau (Pa)", ""], ["Volume prélevé", ""], ["Volume prélevé avec pompe - Vérification du débit avec débitmètre massique", ""], ["débit initial de la pompe (L/min) DM", ""], ["débit final de la pompe (L/min) DM", ""], ["débit moyen de la pompe (L/min)", ""], ["volume prélevé (L)", ""], ["Volume prélevé avec pompe - Vérification du débit avec débitmètre à lame de savon ou à piston", ""], ["débit initial de la pompe (L/min) DLS", ""], ["débit initial corrigé (L/min) DLS", ""], ["débit final de la pompe (L/min) DLS", ""], ["débit final corrigé (L/min)", ""], ["débit moyen de la pompe (L/min)", ""], ["volume prélevé corrigé (L)", ""], ["Volume prélevé (L)", ""], ["Résultats du laboratoire d'analyse", ""], ["nom du laboratoire", ""], ["référence de l'échantillon", ""]];
+var CASS_RESHDR=[["RESULTATS", ""], ["GEH", ""], ["type de VLEP", ""], ["opérateur", ""], ["référence de l'échantillon", ""], ["date du prélèvement", ""], ["durée du prélèvement (min)", ""]];
+var CASS_VALHDR=[["Validation des prélèvements", ""], ["Variation du débit avant et après prélèvement (< 5%)", ""], ["référence du témoin", ""]];
+var CASS_BOTTOM=[["", ""], ["Calcul d'incertitudes", ""], ["", ""], ["Incertitude associée au volume de gaz prélevé", ""], ["Débitmètre", ""], ["EMT (%)", ""], ["résolution (L/min)", ""], ["Agent chimique", ""], ["u²(D)", ""], ["Chronomètre", ""], ["EMT (s)", ""], ["résolution (s)", ""], ["écart de synchronisation (s)", ""], ["u²(t)", ""], ["Capteur de température", ""], ["EMT (°C)", ""], ["résolution (°C)", ""], ["u²(Tp) ou u²(Té)", ""], ["Baromètre", ""], ["EMT (Pa)", ""], ["résolution (Pa)", ""], ["u²(Pp) ou u²(Pé)", ""], ["Station météorologique (humidité relative)", ""], ["EMT (%)", ""], ["résolution (%)", ""], ["u²(HR)", ""], ["", ""], ["Température lors de l'étalonnage du débitmètre massique (°C)", ""], ["Pression atmosphérique lors de l'étalonnage du débitmètre massique (kPa)", ""], ["Volume prélevé avec pompe", ""], ["Paramètre", ""], ["u²(Dc)/Dc² (débitmètre massique)", ""], ["∂Dc/∂D (débitmètre à lame de savon)", ""], ["∂Dc/∂P (débitmètre à lame de savon)", ""], ["∂Dc/∂HR (débitmètre à lame de savon)", ""], ["u²(Dc) (débitmètre à lame de savon)", ""], ["u²(V)/V²", ""], ["", ""], ["Incertitude associée à la concentration", ""], ["u²(C)/C² N°1", ""], ["u²(C)/C² N°2", ""], ["u²(C)/C² N°3", ""], ["u²(C)/C² N°4", ""], ["u²(C)/C² N°5", ""]];
+
+// Construit la feuille "Cassette Reg (multi)" : structure exacte du modèle, agents empilés.
+// Différences avec le tube : pas de section zone1/zone2 ; libellé "exposition / VLEP (%)" ;
+// offsets propres (plages à idx13, débit DM idx53/54, réf échantillon idx67) ; RESHDR avec réf avant date.
+function createCassetteRegMultiSheet(m,columns){
+  function lab(k){return [['agent chimique n\u00b0'+k+'_',''],['masse \u00e9chantillon n\u00b0'+k+'_','(\u00b5g)'],['incertitude sur la masse n\u00b0'+k+'_','(%)     ou'],['','(\u00b5g)']];}
+  function res(k){var K='n\u00b0'+k+'_';return [['agent chimique '+K,''],['r\u00e9sultat brut (mg/m3) '+K,''],['incertitude (mg/m3) '+K,''],['r\u00e9sultat pond\u00e9r\u00e9 (mg/m3) '+K,''],["port d'un EPI respiratoire "+K,''],['Exposition (mg/m3) '+K,''],['VLEP (mg/m3) '+K,''],['exposition / VLEP (%)  '+K,''],['commentaire '+K,'']];}
+  function tem(k){var K='n\u00b0'+k+'_';return [['masse t\u00e9moin agent chimique '+K+'(\u00b5g)',''],['concentration dans le blanc '+K+'(mg/m3)',''],['Crit\u00e8re de validit\u00e9 '+K+'(<LQ)','']];}
+
+  var slots=5;
+  columns.forEach(function(c){if(c.agents.length>slots)slots=c.agents.length;});
+
+  var rows=[];
+  function pushStatic(arr,fillMap){
+    arr.forEach(function(ab,i){rows.push({a:ab[0],b:ab[1],fill:(fillMap&&fillMap[i])?fillMap[i]:null});});
+  }
+  function pushAgentBlocks(makeBlock,nameRowIndex){
+    for(var k=1;k<=slots;k++){
+      (function(k){
+        makeBlock(k).forEach(function(ab,i){
+          var fill=null;
+          if(nameRowIndex!==null&&i===nameRowIndex){
+            fill=function(c){return c.agents[k-1]?c.agents[k-1].name:'';};
+          }
+          rows.push({a:ab[0],b:ab[1],fill:fill});
+        });
+      })(k);
+    }
+  }
+
+  // TOP (lignes 1-68) — offsets cassette
+  var topFill={};
+  topFill[5]=function(c){return c.gehLabel;};
+  topFill[6]=function(c){return c.operateur;};
+  topFill[8]=function(c){return c.numPompe;};
+  topFill[9]=function(c){return c.debitmetre;};
+  topFill[10]=function(c){return c.supportNature;};
+  topFill[12]=function(c){return c.date;};
+  for(var j=0;j<10;j++){
+    (function(j){
+      topFill[13+2*j]=function(c){return c.plages[j]&&c.plages[j].debut?c.plages[j].debut:'';};
+      topFill[14+2*j]=function(c){return c.plages[j]&&c.plages[j].fin?c.plages[j].fin:'';};
+    })(j);
+  }
+  topFill[37]=function(c){return c.epiType;};
+  topFill[39]=function(c){return c.epiDuree;};
+  topFill[41]=function(c){return c.tempI;};
+  topFill[42]=function(c){return c.tempF;};
+  topFill[44]=function(c){return c.pressionI;};
+  topFill[45]=function(c){return c.pressionF;};
+  topFill[47]=function(c){return c.humiditeI;};
+  topFill[48]=function(c){return c.humiditeF;};
+  topFill[53]=function(c){return c.debitInitial;};
+  topFill[54]=function(c){return c.debitFinal;};
+  topFill[67]=function(c){return c.refEchantillon;};
+  pushStatic(CASS_TOP,topFill);
+
+  // LAB blocks
+  pushAgentBlocks(lab,0);
+
+  // RESHDR (lignes 89-95) — ordre cassette : réf échantillon (idx4) avant date (idx5)
+  var resHdrFill={};
+  resHdrFill[1]=function(c){return c.gehLabel;};
+  resHdrFill[2]=function(c){return c.typeVlep;};
+  resHdrFill[3]=function(c){return c.operateur;};
+  resHdrFill[4]=function(c){return c.refEchantillon;};
+  resHdrFill[5]=function(c){return c.date;};
+  pushStatic(CASS_RESHDR,resHdrFill);
+
+  // RES blocks
+  pushAgentBlocks(res,0);
+
+  // VALHDR (lignes 141-143)
+  var valHdrFill={};
+  valHdrFill[2]=function(c){return c.blancRef;};
+  pushStatic(CASS_VALHDR,valHdrFill);
+
+  // TEM blocks (pas de section zone pour la cassette)
+  pushAgentBlocks(tem,null);
+
+  // BOTTOM
+  pushStatic(CASS_BOTTOM,null);
+
+  var aoa=rows.map(function(row){
+    var r=[row.a,row.b];
+    columns.forEach(function(col){
+      r.push(row.fill?(row.fill(col)||''):'');
+      r.push('');
+    });
+    return r;
+  });
+  return XLSX.utils.aoa_to_sheet(aoa);
+}
+
+
+var SILICE_SKEL=[["CIP10 silice Reg", "CONTRÔLE REGLEMENTAIRE DES VLEP"], ["", "PRELEVEMENTS AVEC CIP10 (SILICE)"], ["", ""], ["nom du préleveur", ""], ["site", ""], ["GEH", ""], ["opérateur", ""], ["agent chimique", ""], ["Matériel de mesure", ""], ["n° d'identification", ""], ["marque", ""], ["Plages horaires de prélèvement, durée du prélèvement et durée d'exposition", ""], ["date de prélèvement", ""], ["plage n°1", "heure début n°C1-P1_"], ["", "heure fin n°C1-P1_"], ["plage n°2", "heure début n°C1-P2_"], ["", "heure fin n°C1-P2_"], ["plage n°3", "heure début n°C1-P3_"], ["", "heure fin n°C1-P3_"], ["plage n°4", "heure début n°C1-P4_"], ["", "heure fin n°C1-P4_"], ["plage n°5", "heure début n°C1-P5_"], ["", "heure fin n°C1-P5_"], ["plage n°6", "heure début n°C1-P6_"], ["", "heure fin n°C1-P6_"], ["plage n°7", "heure début n°C1-P7_"], ["", "heure fin n°C1-P7_"], ["plage n°8", "heure début n°C1-P8_"], ["", "heure fin n°C1-P8_"], ["plage n°9", "heure début n°C1-P9_"], ["", "heure fin n°C1-P9_"], ["plage n°10", "heure début n°C1-P10_"], ["", "heure fin n°C1-P10_"], ["durée du prélèvement (h)", ""], ["durée du prélèvement (min)", ""], ["durée d'exposition (h:min) - VLEP 8h", ""], ["durée d'exposition - VLEP 8h", ""], ["Prise en compte des Equipements de Protection Individuelle", ""], ["type d'EPI", ""], ["facteur de protection assigné (FPA)", ""], ["durée de port de l'EPI (min)", ""], ["Volume prélevé", ""], ["valeurs étalonnage", "vitesse de rotation (tr/min)"], ["", "débit de prélèvement (L/min)"], ["vitesse de rotation (tr/min)", "initiale"], ["", "finale"], ["débit moyen du CIP10 (L/min)", ""], ["Volume prélevé (L)", ""], ["Résultats du laboratoire d'analyse", ""], ["nom du laboratoire", ""], ["référence de l'échantillon", ""], ["masse dans l'échantillon (µg)", "poussières alvéolaires totales"], ["", "quartz"], ["", "cristobalite"], ["", "tridymite"], ["incertitude sur la masse", "poussières alv. totales en %  ou"], ["", "en µg"], ["", "quartz en %     ou"], ["", "en µg"], ["", "cristobalite en %     ou"], ["", "en µg"], ["", "tridymite en %     ou"], ["", "en mg"], ["RESULTATS", ""], ["GEH", ""], ["type de VLEP", ""], ["opérateur", ""], ["agent chimique", ""], ["référence de l'échantillon", ""], ["date de prélèvement", ""], ["durée du prélèvement (min)", ""], ["résultat brut (mg/m3)", "poussières alvéolaires totales"], ["", "poussières alvéolaires non silicogènes"], ["", "quartz"], ["", "cristobalite"], ["", "tridymite"], ["Incertitude (mg/m3)", "poussières alvéolaires non silicogènes"], ["", "quartz"], ["", "cristobalite"], ["", "tridymite"], ["Résultat pondéré (mg/m3)", "poussières alvéolaires totales"], ["", "poussières alvéolaires non silicogènes"], ["", "quartz"], ["", "cristobalite"], ["", "tridymite"], ["port d'un EPI respiratoire", ""], ["Exposition (mg/m3)", ""], ["VLEP (mg/m3)", "poussières alvéolaires totales"], ["0.9", "poussières alvéolaires non silicogènes"], ["", "calcul intermédiaire"], ["", "concentration / VLEP (%)"], ["0.1", "quartz"], ["", "calcul intermédiaire"], ["", "concentration / VLEP (%)"], ["0.05", "cristobalite"], ["", "calcul intermédiaire"], ["", "concentration / VLEP (%)"], ["0.05", "tridymite"], ["", "calcul intermédiaire"], ["", "concentration / VLEP (%)"], ["Validation des prélèvements", ""], ["Validation de la vitesse de rotation (variation <200 tr/min)", ""], ["référence du témoin", ""], ["masse dans le témoin (µg)", "poussières alvéolaires totales"], ["", "poussières alvéolaires non silicogènes"], ["", "quartz"], ["", "cristobalite"], ["", "tridymite"], ["concentration dans le blanc (mg/m3) (<10% x VLEP)", "poussières alvéolaires non silicogènes"], ["", "quartz"], ["", "cristobalite"], ["", "tridymite"], ["Critère de validité (<LQ)", "poussières alvéolaires non silicogènes"], ["", "quartz"], ["", "cristobalite"], ["", "tridymite"], ["Condition d'additivité ", "valeur"], ["", "validité"], ["", ""], ["Calcul d'incertitudes", ""], ["", ""], ["Incertitude associée à la concentration", ""], ["Tachymètre", ""], ["EMT (tr/min)", ""], ["résolution (tr/min)", ""], ["u²(v)", ""], ["Chronomètre", ""], ["EMT (s)", ""], ["résolution (s)", ""], ["écart de synchronisation (s)", ""], ["u²(t)", ""], ["", ""], ["u²(V)/V²", ""], ["u²(C)/C²", "poussières alvéolaires totales"], ["", "quartz"], ["", "cristobalite"], ["", "tridymite"]];
+
+// Construit la feuille "CIP10 silice Reg" : structure FIXE du modèle.
+// Les fractions (alvéolaires/quartz/cristobalite/tridymite) sont des sous-lignes du modèle ;
+// une colonne = un support CIP10 (toutes les fractions d'un même prélèvement/jour).
+// L'appli ne remplit que le partagé ; masses/résultats/VLEP = macro/labo (laissés tels quels).
+function createSiliceSheet(m,columns){
+  var fill={};
+  fill[5]=function(c){return c.gehLabel;};
+  fill[6]=function(c){return c.operateur;};
+  fill[7]=function(c){return 'silice cristalline';};
+  fill[9]=function(c){return c.numPompe;};               // n° d'identification = n° de pompe
+  fill[10]=function(c){return c.debitmetre;};            // marque = tachymètre (équivalent débitmètre)
+  fill[12]=function(c){return c.date;};
+  for(var j=0;j<10;j++){
+    (function(j){
+      fill[13+2*j]=function(c){return c.plages[j]&&c.plages[j].debut?c.plages[j].debut:'';};
+      fill[14+2*j]=function(c){return c.plages[j]&&c.plages[j].fin?c.plages[j].fin:'';};
+    })(j);
+  }
+  fill[38]=function(c){return c.epiType;};
+  fill[40]=function(c){return c.epiDuree;};
+  fill[44]=function(c){return c.debitInitial;};          // vitesse de rotation initiale (tr/min)
+  fill[45]=function(c){return c.debitFinal;};            // vitesse de rotation finale (tr/min)
+  fill[50]=function(c){return c.refEchantillon;};
+  fill[64]=function(c){return c.gehLabel;};
+  fill[65]=function(c){return c.typeVlep;};
+  fill[66]=function(c){return c.operateur;};
+  fill[67]=function(c){return 'silice cristalline';};
+  fill[68]=function(c){return c.refEchantillon;};
+  fill[69]=function(c){return c.date;};
+  fill[102]=function(c){return c.blancRef;};
+
+  var aoa=SILICE_SKEL.map(function(ab,i){
+    var r=[ab[0],ab[1]];
+    columns.forEach(function(col){
+      r.push(fill[i]?(fill[i](col)||''):'');
+      r.push('');
+    });
+    return r;
+  });
+  return XLSX.utils.aoa_to_sheet(aoa);
+}

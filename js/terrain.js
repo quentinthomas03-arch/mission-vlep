@@ -584,7 +584,14 @@ function toggleAllGroups(select){
 function openPrel(pid){
   if(state.fusionMode)return;
   state.currentPrelId=pid;
-  state.activeSubIndex=0;
+  // Point 3 : rester sur le dernier jour utilisé (J1/J2/J3) au lieu de retomber sur J1.
+  // L'index est borné au nombre de sous-prélèvements du prélèvement ouvert
+  // (un prélèvement non-réglementaire n'a qu'un seul jour) sans effacer le jour mémorisé.
+  var mOpen=getCurrentMission();
+  var pOpen=mOpen?mOpen.prelevements.find(function(x){return x.id===pid;}):null;
+  var nbSub=(pOpen&&pOpen.subPrelevements&&pOpen.subPrelevements.length)?pOpen.subPrelevements.length:1;
+  var wantedDay=(typeof state.lastDayIndex==='number')?state.lastDayIndex:0;
+  state.activeSubIndex=Math.max(0,Math.min(wantedDay,nbSub-1));
   state.view='terrain-prel';
   render();
 }
@@ -694,15 +701,22 @@ function renderMissingFieldsModal(){
   return h;
 }
 
+// Convertit une saisie numérique en nombre en acceptant la virgule décimale
+// française (0,2) aussi bien que le point (0.2). Utilisé UNIQUEMENT pour les
+// calculs : la valeur stockée/affichée/exportée conserve la virgule.
+function parseNum(v){
+  if(v===undefined||v===null)return NaN;
+  return parseFloat(String(v).replace(/\s/g,'').replace(',','.'));
+}
 function calcTachyVariation(vitesse,ref){
-  if(!vitesse||!ref||isNaN(parseFloat(vitesse))||isNaN(parseFloat(ref)))return null;
-  return Math.abs(parseFloat(vitesse)-parseFloat(ref));
+  var v=parseNum(vitesse),r=parseNum(ref);
+  if(isNaN(v)||isNaN(r))return null;
+  return Math.abs(v-r);
 }
 
 function calcDebitVariation(di,df){
-  if(!di||!df||isNaN(parseFloat(di))||isNaN(parseFloat(df)))return null;
-  var dI=parseFloat(di);
-  var dF=parseFloat(df);
+  var dI=parseNum(di),dF=parseNum(df);
+  if(isNaN(dI)||isNaN(dF))return null;
   if(dI<=0)return null;
   return Math.abs(dF-dI)/dI*100;
 }
@@ -719,7 +733,7 @@ function renderTerrainPrel(){
     h+='<div class="tabs">';
     for(var t=0;t<p.subPrelevements.length;t++){
       var sb=p.subPrelevements[t];
-      h+='<button class="tab '+(state.activeSubIndex===t?'active':'')+'" onclick="state.activeSubIndex='+t+';render();">Prél '+(t+1)+(sb.completed?' ✓':'')+'</button>';
+      h+='<button class="tab '+(state.activeSubIndex===t?'active':'')+'" onclick="state.activeSubIndex='+t+';state.lastDayIndex='+t+';render();">Prél '+(t+1)+(sb.completed?' ✓':'')+'</button>';
     }
     h+='</div>';
   }
@@ -750,6 +764,20 @@ function renderSubPrelForm(p,sb,idx){
   
   // Date
   h+='<div class="field"><label class="label">Date</label><input type="date" class="input" value="'+(sb.date||'')+'" onchange="updateSubField('+p.id+','+idx+',\'date\',this.value);"></div>';
+  
+  // Plages horaires (remontées juste sous la date, avant les agents)
+  h+='<div class="field"><label class="label">Plages horaires</label>';
+  var pl=sb.plages||[{debut:'',fin:''}];
+  pl.forEach(function(x,pi){
+    h+='<div class="plage-row"><div class="plage-num">'+(pi+1)+'</div><input type="time" class="plage-input" value="'+(x.debut||'')+'" onchange="updatePlageWithAutoDate('+p.id+','+idx+','+pi+',\'debut\',this.value);"><span class="plage-sep">'+ICONS.arrowRight+'</span><input type="time" class="plage-input" value="'+(x.fin||'')+'" onchange="updatePlageWithAutoDate('+p.id+','+idx+','+pi+',\'fin\',this.value);">';
+    if(pl.length>1)h+='<button class="plage-delete" onclick="removePlage('+p.id+','+idx+','+pi+');">✕</button>';
+    h+='</div>';
+  });
+  if(pl.length<10)h+='<button class="btn btn-gray btn-small" onclick="addPlage('+p.id+','+idx+');">+ Plage</button>';
+  h+='</div>';
+  
+  var d=getDureeTotale(pl);
+  if(d)h+='<div class="duration-box"><span style="display:inline-flex;width:16px;height:16px;">'+ICONS.clock+'</span> Durée : '+d+'</div>';
   
   h+='<div class="field"><label class="label"><span class="svg-icon">'+ICONS.beaker+'</span> Agent(s) chimique(s)</label>';
   
@@ -842,19 +870,6 @@ function renderSubPrelForm(p,sb,idx){
     }
   }
   
-  h+='<div class="field"><label class="label">Plages horaires</label>';
-  var pl=sb.plages||[{debut:'',fin:''}];
-  pl.forEach(function(x,pi){
-    h+='<div class="plage-row"><div class="plage-num">'+(pi+1)+'</div><input type="time" class="plage-input" value="'+(x.debut||'')+'" onchange="updatePlageWithAutoDate('+p.id+','+idx+','+pi+',\'debut\',this.value);"><span class="plage-sep">'+ICONS.arrowRight+'</span><input type="time" class="plage-input" value="'+(x.fin||'')+'" onchange="updatePlageWithAutoDate('+p.id+','+idx+','+pi+',\'fin\',this.value);">';
-    if(pl.length>1)h+='<button class="plage-delete" onclick="removePlage('+p.id+','+idx+','+pi+');">✕</button>';
-    h+='</div>';
-  });
-  if(pl.length<10)h+='<button class="btn btn-gray btn-small" onclick="addPlage('+p.id+','+idx+');">+ Plage</button>';
-  h+='</div>';
-  
-  var d=getDureeTotale(pl);
-  if(d)h+='<div class="duration-box"><span style="display:inline-flex;width:16px;height:16px;">'+ICONS.clock+'</span> Durée : '+d+'</div>';
-  
   h+='<div class="field"><label class="label">Observations</label><div style="display:flex;gap:6px;align-items:flex-start;"><textarea class="input" style="flex:1;" rows="2" id="obs-'+p.id+'-'+idx+'" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'observations\',this.value);">'+escapeHtml(sb.observations||'')+'</textarea><button class="dictation-btn" id="dict-btn-'+p.id+'-'+idx+'" onclick="toggleDictation('+p.id+','+idx+');" title="Dictée vocale">'+ICONS.mic+'</button></div></div>';
 
   // EPI respiratoire
@@ -872,6 +887,49 @@ function renderSubPrelForm(p,sb,idx){
   }
   if(epiVal!=='sans objet'){
     h+='<div style="display:flex;align-items:center;gap:8px;"><label style="white-space:nowrap;font-size:13px;">Durée de port (min)</label><input type="text" class="input" style="width:100px;" value="'+escapeHtml(String(sb.epiDuree||'0'))+'" placeholder="0" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'epiDuree\',this.value);"></div>';
+  }
+  h+='</div>';
+
+  // Ventilation et captage (Point 2)
+  h+='<div class="field"><label class="label">Ventilation et captage</label>';
+
+  // 1) Environnement (défaut coché d'office : Local standard industriel)
+  var venvVal=sb.ventEnv||'Local standard industriel';
+  h+='<div style="font-size:13px;color:var(--text-dark);margin-bottom:4px;">Environnement</div>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">';
+  ['Local standard industriel','Lieu de travail en plein air','Autre'].forEach(function(opt){
+    var sel=(venvVal===opt);
+    h+='<button type="button" class="btn btn-small '+(sel?'btn-primary':'btn-gray')+'" onclick="updateSubFieldWithAutoDate('+p.id+','+idx+',\'ventEnv\',\''+opt+'\');render();">'+opt+'</button>';
+  });
+  h+='</div>';
+  if(venvVal==='Autre'){
+    h+='<input type="text" class="input" style="margin-bottom:8px;" value="'+escapeHtml(sb.ventEnvAutre||'')+'" placeholder="Préciser" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'ventEnvAutre\',this.value);">';
+  }
+
+  // 2) Ventilation générale mécanique (défaut : non => Absence dans le Word ; Autre => texte libre)
+  var vgVal=sb.ventGenerale||'non';
+  h+='<div style="font-size:13px;color:var(--text-dark);margin-bottom:4px;">Ventilation générale mécanique</div>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">';
+  [['oui','Oui'],['non','Non'],['autre','Autre']].forEach(function(o){
+    var sel=(vgVal===o[0]);
+    h+='<button type="button" class="btn btn-small '+(sel?'btn-primary':'btn-gray')+'" onclick="updateSubFieldWithAutoDate('+p.id+','+idx+',\'ventGenerale\',\''+o[0]+'\');render();">'+o[1]+'</button>';
+  });
+  h+='</div>';
+  if(vgVal==='autre'){
+    h+='<input type="text" class="input" style="margin-bottom:8px;" value="'+escapeHtml(sb.ventGeneraleAutre||'')+'" placeholder="Préciser" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'ventGeneraleAutre\',this.value);">';
+  }
+
+  // 3) Captage localisé (Non => rien dans le Word)
+  var vcVal=(sb.ventCaptage||'Non');
+  h+='<div style="font-size:13px;color:var(--text-dark);margin-bottom:4px;">Captage localisé</div>';
+  h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">';
+  ['Non','Inducteur','Enveloppant','Cabine ventilée de grande dimension','Autre'].forEach(function(opt){
+    var sel=(vcVal===opt);
+    h+='<button type="button" class="btn btn-small '+(sel?'btn-primary':'btn-gray')+'" onclick="updateSubFieldWithAutoDate('+p.id+','+idx+',\'ventCaptage\',\''+opt+'\');render();">'+opt+'</button>';
+  });
+  h+='</div>';
+  if(vcVal==='Autre'){
+    h+='<input type="text" class="input" value="'+escapeHtml(sb.ventCaptageAutre||'')+'" placeholder="Préciser" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'ventCaptageAutre\',this.value);">';
   }
   h+='</div>';
 
@@ -917,7 +975,19 @@ function copyAgentDataFromPrevious(pid,idx,agentName,field){
   if(prevSub&&prevSub.agentData&&prevSub.agentData[agentName]&&prevSub.agentData[agentName][field]){
     if(!currentSub.agentData)currentSub.agentData={};
     if(!currentSub.agentData[agentName])currentSub.agentData[agentName]={};
-    currentSub.agentData[agentName][field]=prevSub.agentData[agentName][field];
+    var copiedVal=prevSub.agentData[agentName][field];
+    currentSub.agentData[agentName][field]=copiedVal;
+    // Point 1 : propager aux autres agents co-prélevés du même support (même jour),
+    // comme la saisie manuelle (updateAgentDataSynced) — évite de cliquer J-1 sur chaque ligne.
+    var coMembers=getCoPrelGroupMembers(currentSub,agentName);
+    if(coMembers.length>1){
+      coMembers.forEach(function(mn){
+        if(mn!==agentName){
+          if(!currentSub.agentData[mn])currentSub.agentData[mn]={};
+          currentSub.agentData[mn][field]=copiedVal;
+        }
+      });
+    }
     saveData('vlep_missions_v3',state.missions);
     render();
   }
