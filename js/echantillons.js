@@ -334,18 +334,18 @@ function exportExcel(){
   
   // Feuille REG générique pour les autres types de support (inchangé)
   if(otherRegPrels.length>0){
-    var wsReg=createRegSheet(m,otherRegPrels);
+    var wsReg=styleGenericSheet(createRegSheet(m,otherRegPrels));
     XLSX.utils.book_append_sheet(wb,wsReg,'REG');
   }
   
   // Créer la feuille NON REG
   if(nonRegPrels.length>0){
-    var wsNonReg=createNonRegSheet(m,nonRegPrels);
+    var wsNonReg=styleGenericSheet(createNonRegSheet(m,nonRegPrels));
     XLSX.utils.book_append_sheet(wb,wsNonReg,'NON REG');
   }
   
   // Créer la feuille Échantillons
-  var wsEchantillons=createEchantillonsSheet(m,regPrels,nonRegPrels);
+  var wsEchantillons=styleGenericSheet(createEchantillonsSheet(m,regPrels,nonRegPrels));
   XLSX.utils.book_append_sheet(wb,wsEchantillons,'Échantillons');
   
   var fn=(m.clientSite||'Mission').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüç\\s-]/g,'')+'_supports.xlsx';
