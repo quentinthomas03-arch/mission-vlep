@@ -243,23 +243,14 @@ function buildActiviteDoc(m) {
         }
       }
 
-      // Durée d'exposition : somme des plages horaires (h:mm)
+      // Durée d'exposition = durée de port (EPI) totale sur la journée, en h:mm
+      // (et NON la durée de prélèvement = somme des plages horaires)
       var dureeStr = '';
-      if (sb.plages && sb.plages.length) {
-        var totalMin = 0;
-        sb.plages.forEach(function(pl) {
-          if (!pl.debut || !pl.fin) return;
-          var d = pl.debut.split(':'), f = pl.fin.split(':');
-          if (d.length < 2 || f.length < 2) return;
-          var dm = parseInt(d[0], 10) * 60 + parseInt(d[1], 10);
-          var fm = parseInt(f[0], 10) * 60 + parseInt(f[1], 10);
-          if (isFinite(dm) && isFinite(fm) && fm > dm) totalMin += (fm - dm);
-        });
-        if (totalMin > 0) {
-          var hh = Math.floor(totalMin / 60);
-          var mm = totalMin % 60;
-          dureeStr = hh + 'h' + (mm < 10 ? '0' : '') + mm;
-        }
+      var portMin = parseInt(sb.epiDuree, 10);
+      if (isFinite(portMin) && portMin > 0) {
+        var hh = Math.floor(portMin / 60);
+        var mm = portMin % 60;
+        dureeStr = hh + 'h' + (mm < 10 ? '0' : '') + mm;
       }
 
       // Ventilation et captage (Point 2)
@@ -278,11 +269,12 @@ function buildActiviteDoc(m) {
         ventGenStr = 'Absence de ventilation g\u00e9n\u00e9rale m\u00e9canique';
       }
 
-      // Captage : "Non" (ou vide) => rien dans le Word
+      // Captage : "Non" (ou vide) => rien ; sinon préfixer le texte libre saisi
       var ventCaptStr = '';
       var vcRaw = (sb.ventCaptage || '').trim();
       if (vcRaw && vcRaw !== 'Non') {
-        ventCaptStr = (vcRaw === 'Autre') ? (sb.ventCaptageAutre || '').trim() : vcRaw;
+        var captDetail = (vcRaw === 'Autre') ? (sb.ventCaptageAutre || '').trim() : vcRaw;
+        if (captDetail) ventCaptStr = 'Pr\u00e9sence de captage localis\u00e9 ' + captDetail;
       }
 
       gehMap[gehId].rows.push({

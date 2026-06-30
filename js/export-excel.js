@@ -1188,7 +1188,7 @@ function buildSupportColumns(m,prels,groupAllPerSub){
     }
     if(groups[key].agentNames.indexOf(e.agent)===-1)groups[key].agentNames.push(e.agent);
   });
-  return order.map(function(key){
+  var cols=order.map(function(key){
     var g=groups[key];var sb=g.sub;var firstAgent=g.agentNames[0];
     var ad=sb.agentData?sb.agentData[firstAgent]:null;
     var ag=(typeof getAgentFromDB==='function')?getAgentFromDB(firstAgent):null;
@@ -1208,12 +1208,19 @@ function buildSupportColumns(m,prels,groupAllPerSub){
       pressionI:cond&&cond.pressionI?cond.pressionI:'',pressionF:cond&&cond.pressionF?cond.pressionF:'',
       humiditeI:cond&&cond.humiditeI?cond.humiditeI:'',humiditeF:cond&&cond.humiditeF?cond.humiditeF:'',
       debitInitial:ad&&ad.debitInitial?ad.debitInitial:'',debitFinal:ad&&ad.debitFinal?ad.debitFinal:'',
+      debitRef:ad&&ad.debitRef?ad.debitRef:'',
       refEchantillon:ad&&ad.refEchantillon?ad.refEchantillon:'',
       typeVlep:g.type,
       blancRef:(typeof getBlancForAgent==='function')?getBlancForAgent(m,firstAgent):'',
       agents:g.agentNames.map(function(n){return {name:n};})
     };
   });
+  // Regrouper les colonnes par GEH (contiguës) pour des fusions par-GEH correctes
+  var gehOrder=[];var byGeh={};
+  cols.forEach(function(c){if(!byGeh[c.gehLabel]){byGeh[c.gehLabel]=[];gehOrder.push(c.gehLabel);}byGeh[c.gehLabel].push(c);});
+  var grouped=[];
+  gehOrder.forEach(function(gl){grouped=grouped.concat(byGeh[gl]);});
+  return grouped;
 }
 
 // Construit la feuille "Tube Reg (multi)" : structure exacte du modèle, agents empilés.
@@ -1437,6 +1444,7 @@ function createSiliceSheet(m,columns){
   }
   fill[38]=function(c){return c.epiType;};
   fill[40]=function(c){return c.epiDuree;};
+  fill[42]=function(c){return c.debitRef;};               // valeurs étalonnage : vitesse de rotation de référence (tr/min)
   fill[44]=function(c){return c.debitInitial;};          // vitesse de rotation initiale (tr/min)
   fill[45]=function(c){return c.debitFinal;};            // vitesse de rotation finale (tr/min)
   fill[50]=function(c){return c.refEchantillon;};
@@ -1462,9 +1470,9 @@ function createSiliceSheet(m,columns){
 }
 
 
-var MERGE_TUBE={"full": [3, 4, 5, 68, 70, 74, 78, 82, 86, 91, 92, 97, 103, 106, 112, 115, 121, 124, 130, 133, 139, 182], "twocol": [6, 8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 39, 40, 41, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 55, 56, 57, 58, 60, 61, 62, 63, 64, 65, 66, 69, 72, 73, 76, 77, 80, 81, 84, 85, 88, 89, 93, 94, 95, 96, 101, 105, 110, 114, 119, 123, 128, 132, 137, 141, 143, 144, 146, 147, 149, 150, 152, 153, 155, 156, 158, 159, 162, 165, 168, 171, 174, 180, 181, 183, 185, 186, 187, 188, 190, 191, 192, 194, 195, 196, 198, 199, 200, 202, 203, 205, 206, 207, 208, 209, 210, 211, 214, 215, 216, 217, 218], "ab": [[203, 0, 203, 1], [49, 0, 51, 0], [205, 0, 205, 1], [216, 0, 216, 1], [88, 0, 89, 0], [172, 0, 173, 0], [206, 0, 206, 1], [160, 0, 161, 0], [143, 0, 143, 1], [214, 0, 214, 1], [163, 0, 164, 0], [84, 0, 85, 0], [166, 0, 167, 0], [215, 0, 215, 1], [217, 0, 217, 1], [43, 0, 45, 0], [218, 0, 218, 1], [52, 0, 52, 1], [207, 0, 207, 1], [209, 0, 209, 1], [202, 0, 202, 1], [8, 0, 9, 0], [46, 0, 48, 0], [182, 0, 182, 1], [208, 0, 208, 1], [37, 0, 37, 1], [169, 0, 170, 0], [210, 0, 210, 1], [80, 0, 81, 0], [76, 0, 77, 0], [10, 0, 12, 0], [72, 0, 73, 0]], "rows": 219};
-var MERGE_CASS={"full": [3, 4, 5, 9, 66, 68, 72, 76, 80, 84, 89, 90, 95, 101, 104, 110, 113, 119, 122, 128, 131, 137, 165, 188], "twocol": [6, 8, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 37, 38, 39, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 53, 54, 55, 56, 58, 59, 60, 61, 62, 63, 64, 67, 70, 71, 74, 75, 78, 79, 82, 83, 86, 87, 91, 92, 93, 94, 99, 103, 108, 112, 117, 121, 126, 130, 135, 139, 141, 142, 144, 145, 147, 148, 150, 151, 153, 154, 156, 157, 163, 164, 166, 168, 169, 170, 171, 173, 174, 175, 177, 178, 179, 181, 182, 183, 185, 186, 189, 190, 191, 192, 193, 194, 197, 198, 199, 200, 201], "ab": [[185, 0, 185, 1], [190, 0, 190, 1], [50, 0, 50, 1], [78, 0, 79, 0], [86, 0, 87, 0], [191, 0, 191, 1], [193, 0, 193, 1], [199, 0, 199, 1], [201, 0, 201, 1], [17, 0, 18, 0], [31, 0, 32, 0], [15, 0, 16, 0], [21, 0, 22, 0], [41, 0, 43, 0], [88, 0, 88, 1], [165, 0, 165, 1], [13, 0, 14, 0], [44, 0, 46, 0], [186, 0, 186, 1], [188, 0, 188, 1], [27, 0, 28, 0], [29, 0, 30, 0], [189, 0, 189, 1], [141, 0, 141, 1], [8, 0, 9, 0], [192, 0, 192, 1], [74, 0, 75, 0], [47, 0, 49, 0], [198, 0, 198, 1], [70, 0, 71, 0], [19, 0, 20, 0], [25, 0, 26, 0], [82, 0, 83, 0], [23, 0, 24, 0], [200, 0, 200, 1], [197, 0, 197, 1]], "rows": 202};
-var MERGE_SILICE={"full": [3, 4, 5, 7, 49, 64, 65, 67], "twocol": [6, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 38, 39, 40, 42, 43, 44, 45, 46, 47, 50, 55, 56, 57, 58, 59, 60, 61, 62, 66, 68, 69, 70, 85, 99, 101, 102, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 123, 124, 125, 127, 128, 129, 130, 132, 133, 134, 135, 136], "ab": [[63, 0, 63, 1], [44, 0, 45, 0], [17, 0, 18, 0], [31, 0, 32, 0], [15, 0, 16, 0], [21, 0, 22, 0], [116, 0, 117, 0], [71, 0, 75, 0], [42, 0, 43, 0], [101, 0, 101, 1], [13, 0, 14, 0], [27, 0, 28, 0], [29, 0, 30, 0], [112, 0, 115, 0], [36, 0, 36, 1], [51, 0, 54, 0], [133, 0, 136, 0], [55, 0, 62, 0], [103, 0, 107, 0], [80, 0, 84, 0], [19, 0, 20, 0], [25, 0, 26, 0], [76, 0, 79, 0], [23, 0, 24, 0], [108, 0, 111, 0]], "rows": 137};
+var MERGE_TUBE={"sheet": [3, 4], "geh": [5, 68, 70, 74, 78, 82, 86, 91, 92, 97, 103, 106, 112, 115, 121, 124, 130, 133, 139, 182], "ab": [[203, 0, 203, 1], [49, 0, 51, 0], [205, 0, 205, 1], [216, 0, 216, 1], [88, 0, 89, 0], [172, 0, 173, 0], [206, 0, 206, 1], [160, 0, 161, 0], [143, 0, 143, 1], [214, 0, 214, 1], [163, 0, 164, 0], [84, 0, 85, 0], [166, 0, 167, 0], [215, 0, 215, 1], [217, 0, 217, 1], [43, 0, 45, 0], [218, 0, 218, 1], [52, 0, 52, 1], [207, 0, 207, 1], [209, 0, 209, 1], [202, 0, 202, 1], [8, 0, 9, 0], [46, 0, 48, 0], [182, 0, 182, 1], [208, 0, 208, 1], [37, 0, 37, 1], [169, 0, 170, 0], [210, 0, 210, 1], [80, 0, 81, 0], [76, 0, 77, 0], [10, 0, 12, 0], [72, 0, 73, 0]], "rows": 219};
+var MERGE_CASS={"sheet": [3, 4], "geh": [5, 9, 66, 68, 72, 76, 80, 84, 89, 90, 95, 101, 104, 110, 113, 119, 122, 128, 131, 137, 165, 188], "ab": [[185, 0, 185, 1], [190, 0, 190, 1], [50, 0, 50, 1], [78, 0, 79, 0], [86, 0, 87, 0], [191, 0, 191, 1], [193, 0, 193, 1], [199, 0, 199, 1], [201, 0, 201, 1], [17, 0, 18, 0], [31, 0, 32, 0], [15, 0, 16, 0], [21, 0, 22, 0], [41, 0, 43, 0], [88, 0, 88, 1], [165, 0, 165, 1], [13, 0, 14, 0], [44, 0, 46, 0], [186, 0, 186, 1], [188, 0, 188, 1], [27, 0, 28, 0], [29, 0, 30, 0], [189, 0, 189, 1], [141, 0, 141, 1], [8, 0, 9, 0], [192, 0, 192, 1], [74, 0, 75, 0], [47, 0, 49, 0], [198, 0, 198, 1], [70, 0, 71, 0], [19, 0, 20, 0], [25, 0, 26, 0], [82, 0, 83, 0], [23, 0, 24, 0], [200, 0, 200, 1], [197, 0, 197, 1]], "rows": 202};
+var MERGE_SILICE={"sheet": [3, 4], "geh": [5, 7, 49, 64, 65, 67], "ab": [[63, 0, 63, 1], [44, 0, 45, 0], [17, 0, 18, 0], [31, 0, 32, 0], [15, 0, 16, 0], [21, 0, 22, 0], [116, 0, 117, 0], [71, 0, 75, 0], [42, 0, 43, 0], [101, 0, 101, 1], [13, 0, 14, 0], [27, 0, 28, 0], [29, 0, 30, 0], [112, 0, 115, 0], [36, 0, 36, 1], [51, 0, 54, 0], [133, 0, 136, 0], [55, 0, 62, 0], [103, 0, 107, 0], [80, 0, 84, 0], [19, 0, 20, 0], [25, 0, 26, 0], [76, 0, 79, 0], [23, 0, 24, 0], [108, 0, 111, 0]], "rows": 137};
 
 // Applique les fusions de cellules du modèle aux feuilles multi (tube/cassette/silice),
 // pour retrouver le collage parfait : chaque support = ses 2 colonnes fusionnées (C-D, E-F…),
@@ -1474,27 +1482,50 @@ function applyMultiMerges(ws,columns,cfg,nRows){
   if(!ws['!merges'])ws['!merges']=[];
   var n=columns.length;
   if(n<1)return ws;
-  // Garde-fou : si la structure a été décalée (ex. >5 agents empilés), on n'applique pas
-  // les fusions du modèle (indices de lignes non valides) plutôt que de produire de mauvaises fusions.
+  // Garde-fou : structure décalée (ex. >5 agents empilés) => pas de fusions du modèle
   if(cfg.rows&&nRows&&nRows!==cfg.rows){
+    var colsWg=[{wch:48},{wch:18}];
+    for(var kg=0;kg<n;kg++){colsWg.push({wch:16});colsWg.push({wch:3});}
+    ws['!cols']=colsWg;
     return ws;
   }
   var lastDataCol=2+2*n-1;
-  // Lignes pleine largeur (GEH / agent / titre)
-  cfg.full.forEach(function(r){
-    ws['!merges'].push({s:{r:r,c:2},e:{r:r,c:lastDataCol}});
-  });
-  // Lignes 2-colonnes : une fusion par support
-  cfg.twocol.forEach(function(r){
-    for(var i=0;i<n;i++){
-      var sc=2+i*2;
-      ws['!merges'].push({s:{r:r,c:sc},e:{r:r,c:sc+1}});
+
+  // Blocs GEH : suites de colonnes contiguës de même GEH (colonnes déjà regroupées par GEH)
+  var blocks=[];var cur=null;
+  for(var i=0;i<n;i++){
+    var gl=columns[i].gehLabel;
+    if(!cur||cur.gl!==gl){ cur={gl:gl,start:i,end:i}; blocks.push(cur); }
+    else cur.end=i;
+  }
+
+  var sheetRows={}, gehRows={};
+  (cfg.sheet||[]).forEach(function(r){sheetRows[r]=1;});
+  (cfg.geh||[]).forEach(function(r){gehRows[r]=1;});
+
+  for(var r=0;r<nRows;r++){
+    if(sheetRows[r]){
+      // Pleine largeur : une fusion sur toute la zone data
+      ws['!merges'].push({s:{r:r,c:2},e:{r:r,c:lastDataCol}});
+    }else if(gehRows[r]){
+      // Par-GEH : une fusion par bloc GEH
+      blocks.forEach(function(b){
+        ws['!merges'].push({s:{r:r,c:2+b.start*2},e:{r:r,c:2+b.end*2+1}});
+      });
+    }else{
+      // Par-prélèvement : une fusion 2-colonnes par support (couvre toutes les autres lignes)
+      for(var s=0;s<n;s++){
+        var sc=2+s*2;
+        ws['!merges'].push({s:{r:r,c:sc},e:{r:r,c:sc+1}});
+      }
     }
-  });
+  }
+
   // Fusions des libellés colonnes A/B (telles que dans le modèle)
-  cfg.ab.forEach(function(mr){
+  (cfg.ab||[]).forEach(function(mr){
     ws['!merges'].push({s:{r:mr[0],c:mr[1]},e:{r:mr[2],c:mr[3]}});
   });
+
   // Largeurs de colonnes : A large, B moyen, puis (valeur + espaceur étroit) par support
   var colsW=[{wch:48},{wch:18}];
   for(var k=0;k<n;k++){colsW.push({wch:16});colsW.push({wch:3});}
