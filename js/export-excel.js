@@ -381,7 +381,9 @@ function createRegSheet(m,prels){
   ws['!merges'].push({s:{r:38,c:0},e:{r:40,c:0}});
   
   // Fusions colonnes prélèvements (C-D, E-F, etc.)
-  var fuseRows=[5,6,7,9,10,11,13,25,26,27,28,29,30,32,33,34,35,36,37,38,39,40,41,44,45,46,47,48,58,59,63,64,65,66,67,68,69,80,81];
+  // NB : GEH (L6=idx5) et agent chimique (L8=idx7) sont exclus ici : ils sont fusionnés
+  // PAR GROUPE de prélèvement réglementaire (voir plus bas), pas par sous-prélèvement.
+  var fuseRows=[6,9,10,11,13,25,26,27,28,29,30,32,33,34,35,36,37,38,39,40,41,44,45,46,47,48,58,59,63,64,65,66,67,68,69,80,81];
   for(var ri=0;ri<fuseRows.length;ri++){
     var row=fuseRows[ri];
     for(var i=0;i<prels.length;i++){
@@ -389,6 +391,24 @@ function createRegSheet(m,prels){
       ws['!merges'].push({s:{r:row,c:startCol},e:{r:row,c:startCol+1}});
     }
   }
+
+  // Fusions GEH (L6=idx5) et agent chimique (L8=idx7) PAR GROUPE de prélèvement réglementaire.
+  // Un groupe = sous-prélèvements consécutifs du même prélèvement (même prel) et même agent (= J1/J2/J3).
+  var regGroups=[];
+  for(var gi=0;gi<prels.length;gi++){
+    var lastG=regGroups[regGroups.length-1];
+    if(lastG && prels[gi].prel===prels[lastG.startIdx].prel && prels[gi].agent===prels[lastG.startIdx].agent){
+      lastG.endIdx=gi;
+    }else{
+      regGroups.push({startIdx:gi,endIdx:gi});
+    }
+  }
+  regGroups.forEach(function(grp){
+    var scg=2+grp.startIdx*2;
+    var ecg=2+grp.endIdx*2+1;
+    ws['!merges'].push({s:{r:5,c:scg},e:{r:5,c:ecg}}); // GEH par groupe
+    ws['!merges'].push({s:{r:7,c:scg},e:{r:7,c:ecg}}); // agent chimique par groupe
+  });
   
   // Fusions plages horaires
   for(var plageNum=0;plageNum<5;plageNum++){
@@ -1592,7 +1612,7 @@ function styleGenericSheet(ws){
     if(m.s.r!==m.e.r) return;
     var span=m.e.c-m.s.c;
     if(m.s.c<=2 && m.e.c>=lastC-1 && span>=3){ headerRows[m.s.r]=1; }       // pleine largeur => en-tête bleu
-    else if(m.s.c>=2 && span>=1 && span<=3){ if(!headerRows[m.s.r]) bandRows[m.s.r]=1; } // bande GEH/opérateur
+    else if(m.s.c>=2 && span>=1){ if(!headerRows[m.s.r]) bandRows[m.s.r]=1; } // bande GEH/agent/opérateur (2-col ou par-groupe)
   });
   for(var R=range.s.r;R<=range.e.r;R++){
     var isHeader=headerRows[R], isBand=bandRows[R];
