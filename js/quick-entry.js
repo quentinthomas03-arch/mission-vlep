@@ -106,7 +106,7 @@ function renderQuickEntry(){
   
   // Modal ajout manuel
   if(state.showModal==='quickAddManual'){
-    h+='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Ajouter agent</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="field"><label class="label">Nom de l\'agent</label><input type="text" class="input" id="quick-manual-name" placeholder="Ex: Benzène"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addQuickManualAgent();">Ajouter</button></div></div></div>';
+    h+='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Ajouter agent</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="info-box info-box-warning"><p><strong>Agent hors base de données</strong></p><p style="font-size:12px;margin-top:4px;">Cet agent ne sera pas reconnu dans la base : vous devrez renseigner vous-même le(s) débit(s), le support de prélèvement, la méthode et la conservation. Il n\'aura pas de code analytique dans le récapitulatif échantillons.</p></div><div class="field"><label class="label">Nom de l\'agent</label><input type="text" class="input" id="quick-manual-name" placeholder="Ex: Benzène"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addQuickManualAgent();">Ajouter</button></div></div></div>';
   }
   
   return h;
