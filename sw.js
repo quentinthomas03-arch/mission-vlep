@@ -1,8 +1,8 @@
 // sw.js - Service Worker
 // © 2025 Quentin THOMAS
 
-const CACHE_NAME = 'vlep-mission-v2.3';
-const VERSION = '2.3'; // Incrémenter à chaque mise à jour
+const CACHE_NAME = 'vlep-mission-v2.4';
+const VERSION = '2.4'; // Incrémenter à chaque mise à jour
 const urlsToCache = [
   './',
   './index.html',
