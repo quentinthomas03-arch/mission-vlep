@@ -24,10 +24,7 @@ function renderTerrainMission(){
   if(state.fusionMode){
     h+='<div class="info-box info-box-warning mb-12"><p><strong>Fusion manuelle</strong></p><p>Sélectionnez les prélèvements à fusionner (même GEH, même type)</p></div><div class="row mb-12"><button class="btn btn-gray" onclick="cancelFusion();">Annuler</button><button class="btn btn-primary" onclick="doFusion();" '+(state.selectedForFusion.length<2?'disabled':'')+'>Fusionner ('+state.selectedForFusion.length+')</button></div>';
   }
-  // Conditions ambiantes du jour : une ligne, l'état se lit sans ouvrir
-  var auj=getTodayDate(),condAuj=(m.conditionsAmbiantes||[]).find(function(c){return c.date===auj;});
-  var condOk=condAuj&&(condAuj.tempI||condAuj.pressionI||condAuj.humiditeI);
-  h+='<div class="row-card" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+'<span class="row-card-label">Conditions ambiantes</span><span class="row-card-state '+(condOk?'ok':'todo')+'">'+(condOk?'saisies aujourd’hui':'à saisir aujourd’hui')+'</span>'+ICONS.chevronRight+'</div>';
+  h+='<div class="row-card" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+'<span class="row-card-label">Conditions ambiantes</span>'+ICONS.chevronRight+'</div>';
   var byGeh={};
   m.prelevements.forEach(function(p){var k=p.gehId;if(!byGeh[k])byGeh[k]=[];byGeh[k].push(p);});
   m.gehs.filter(function(g){return g.name;}).forEach(function(g){
@@ -71,6 +68,12 @@ function renderTerrainMission(){
   return h;
 }
 
+function setJustifNb(pid,v){
+  var m=getCurrentMission();if(!m)return;
+  var p=m.prelevements.find(function(x){return x.id===pid;});
+  if(p){p.justifNb=String(v||'').trim();saveData('vlep_missions_v3',state.missions);}
+}
+
 function toggleGehAccordion(gid){state.expandedGeh[gid]=!state.expandedGeh[gid];render();}
 
 // Anneau d'avancement (prélèvements terminés / total), même dessin que l'appli Aération
@@ -106,7 +109,6 @@ function renderMissionHead(m){
       item('render();sendMissionByMail('+m.id+');',ICONS.mail,'Envoyer la mission par e-mail')+
       item('render();exportMissionJSON('+m.id+');',ICONS.download,'Enregistrer la mission (.json)')+
       item('render();exportActiviteWord();',ICONS.fileText,'Activité (Word)')+
-      item('render();exportExcel();',ICONS.download,'Ancien export Excel')+
       item('showSmartFusionModal();',ICONS.zap,'Fusionner intelligemment')+
       item('startFusionMode();',ICONS.merge,'Fusion manuelle')+
       item('state.showModal=\'addGehTerrain\';render();',ICONS.plus,'Ajouter un GEH')+
@@ -877,6 +879,12 @@ function renderTerrainPrel(){
   var mc=p.agents&&p.agents[0]?p.agents[0].color:'#3b82f6';
   var agentNames=p.agents&&p.agents.length>0?p.agents.map(function(a){return escapeHtml(a.name||'???');}).join(' + '):'Agent inconnu';
   var h='<div class="sticky-header"><button class="back-btn" onclick="state.view=\'terrain-mission\';state.currentPrelId=null;render();">'+ICONS.arrowLeft+' Mission</button><div class="sticky-sub">'+agentNames+' · '+p.type+' · GEH '+p.gehNum+'</div></div><div class="card" style="border-left:4px solid '+mc+';border-radius:0 16px 16px 0;"><h2>'+agentNames+' - '+p.type+'</h2><p class="subtitle"><span class="svg-icon">'+ICONS.folder+'</span> GEH '+p.gehNum+' - '+escapeHtml(p.gehName)+' | '+(p.isReglementaire?'Réglementaire':'Non-régl.')+'</p></div>';
+  // Réglementaire avec moins de 3 prélèvements (stratégie) : justification reprise dans le commentaire de la feuille
+  if(p.isReglementaire&&p.subPrelevements.length<3){
+    h+='<div class="card"><label class="label">Réglementaire avec '+p.subPrelevements.length+' prélèvement'+(p.subPrelevements.length>1?'s':'')+' : justification</label>';
+    h+='<textarea class="input" rows="2" placeholder="'+escapeHtml(JUSTIF_NB_DEFAUT)+'" onchange="setJustifNb('+p.id+',this.value);">'+escapeHtml(p.justifNb||'')+'</textarea>';
+    h+='<p class="subtitle" style="margin-top:4px;">Reprise dans le commentaire de la feuille de calcul.</p></div>';
+  }
   if(p.subPrelevements.length>1){
     h+='<div class="tabs">';
     for(var t=0;t<p.subPrelevements.length;t++){

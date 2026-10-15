@@ -6,13 +6,19 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.20';
+var APP_VERSION = '2.21';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.21', date: '15/10/2026', items: [
+    'Feuille de calcul : les onglets modèles non remplis sont masqués à l’ouverture, le premier onglet GEH s’affiche directement.',
+    'Statut réglementaire tiré de la base (VLEP contraignante ou indicative), indépendamment du nombre de prélèvements : un devis à 1 prélèvement reste réglementaire si l’agent l’est. Le nombre (×3, ×1, ×2) se règle dans les affectations ; avec moins de 3 prélèvements, une justification est demandée sur le terrain et reprise dans le commentaire de la feuille de calcul.',
+    'L’ancien export Excel est retiré (remplacé par la feuille de calcul). L’export Word se trouve dans le menu ⋯ de la mission.',
+    'Retour en préparation après le début de la saisie (Modifier la mission, ← Prépa) : revalider garde tout ce qui a été saisi et n’ajoute que les nouveaux prélèvements. Un prélèvement déjà saisi dont le GEH ou l’agent a été retiré n’est supprimé qu’après confirmation.'
+  ] },
   { version: '2.20', date: '15/10/2026', items: [
     'Nouvelle présentation, la même que l’appli Aération : écran plus clair, une seule couleur pour l’action principale.',
-    'Mission terrain : en-tête bleu avec l’avancement (prélèvements terminés), Feuille de calcul et Échantillons en un toucher, les autres actions (e-mail, .json, Word, fusions, ajouter un GEH, modifier) dans le menu ⋯. Les conditions ambiantes du jour s’affichent « à saisir » ou « saisies » sans ouvrir l’écran.'
+    'Mission terrain : en-tête bleu avec l’avancement (prélèvements terminés), Feuille de calcul et Échantillons en un toucher, les autres actions (e-mail, .json, Word, fusions, ajouter un GEH, modifier) dans le menu ⋯.'
   ] },
   { version: '2.19', date: '15/10/2026', items: [
     'Sur téléphone, les débits, vitesses de rotation et durée de port de l’EPI ouvrent directement le clavier numérique. Virgule ou point : les deux sont acceptés partout.'

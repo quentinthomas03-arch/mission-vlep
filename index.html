@@ -34,7 +34,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap">
   <title>VLEP Mission v1.0 - © Quentin THOMAS</title>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <style>
     /*
      * VLEP Mission — © 2025 Quentin THOMAS - Tous droits réservés
@@ -237,6 +236,7 @@
     .affect-mini-badge.disabled { opacity: 0.3; cursor: not-allowed; }
     .affect-reg-toggle-mini { font-size: 10px; padding: 5px 7px; border-radius: 6px; cursor: pointer; background: var(--status-ok-bg); color: var(--status-ok-fg); border: none; font-weight: 700; margin-left: 2px; }
     .affect-reg-toggle-mini.nonreg { background: var(--status-warn-bg); color: var(--status-warn-fg); }
+    .affect-reg-toggle-mini.nb { background: var(--primary-pale); color: var(--primary-dark); }
 
     /* GEH et prélèvements (terrain) */
     .accordion { margin-bottom: 8px; }
@@ -397,7 +397,6 @@
   <script src="js/consignes-agents.js"></script>
   <script src="js/releves-analyseur.js"></script>
   <script src="js/echantillons.js"></script>
-  <script src="js/export-excel.js"></script>
   <script src="js/jszip.min.js"></script>
   <script src="js/xlsm-moteur.js"></script>
   <script src="js/feuille-calcul.js"></script>

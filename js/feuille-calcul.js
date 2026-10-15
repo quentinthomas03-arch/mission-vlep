@@ -261,7 +261,9 @@ function fcRemplirColonne(s, R, col, ctx) {
   if (labo) set(f(eg('nom du laboratoire'), { col: 'A', formuleOk: true }), labo);
   set(f(eg('type de VLEP'), { col: 'A' }), ctx.type === 'CT' ? 'court-terme' : '8h');
   if (ctx.blanc && ctx.blanc.ref) set(f(eg('référence du témoin'), { col: 'A' }), ctx.blanc.ref);
-  set(f(eg('commentaire'), { col: 'A' }), sb.observations || '');
+  // commentaire : observations, puis justification d'un réglementaire à moins de 3 prélèvements
+  var pc = ctx.p || {}, justif = pc.isReglementaire && (pc.subPrelevements || []).length < 3 ? pc.justifNb : '';
+  set(f(eg('commentaire'), { col: 'A' }), [sb.observations, justif].filter(Boolean).join(' – '));
 
   fcScola(s, R, col, ctx, supports);
 }
@@ -528,6 +530,20 @@ function fcChargerModele() {
   });
 }
 
+// Onglets modèles laissés vierges (« Tube Reg », « Cassette (séq) »…) : masqués à l'ouverture, comme les macros
+// d'extraction qui ne lisent que les onglets visibles. L'onglet affiché est le premier onglet rempli.
+var FC_MODELE_RE = /^(Cassette\+tube|Cassette|Tube|Fibres|CIP10 sf silice|CIP10 silice|Cyclone silice)( Reg)?( \((séq|multi)\))?$/;
+var FC_ONGLETS_FIXES = ['Hist. Version', 'Eurofins', 'Scol@', 'Scol@_Prélèvement', 'FPA'];
+function fcMasquerModeles(wb, analyseursRemplis) {
+  var modeles = Object.keys(wb.paths).filter(function (n) {
+    return FC_MODELE_RE.test(n) || (!analyseursRemplis && (n === 'Analyseurs' || n === 'Acquisition'));
+  });
+  wb.masquerOnglets(modeles);
+  var visibles = wb.ongletsVisibles().filter(function (n) { return FC_ONGLETS_FIXES.indexOf(n) === -1; });
+  var premier = visibles.filter(function (n) { return /^GEH /.test(n); })[0] || visibles[0];
+  return premier ? wb.activerOnglet(premier) : null;
+}
+
 // Construit la feuille de calcul remplie ; renvoie {blob, filename, onglets, alertes}
 function construireFeuilleCalcul(m, donneesModele) {
   var plan = fcPlan(m);
@@ -567,6 +583,8 @@ function construireFeuilleCalcul(m, donneesModele) {
     }).then(function () {
       // en-tête Scol@ du dossier (site, année, n° de dossier, établissement)
       return typeof scolaRemplirDossier === 'function' ? scolaRemplirDossier(wb, m) : null;
+    }).then(function () {
+      return fcMasquerModeles(wb, !!analyseursAExporter);
     }).then(function () { return wb.generer('blob'); }).then(function (blob) {
       var safe = (m.clientSite || 'Mission').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüçÀÂÄÉÈÊËÏÎÔÙÛÜÇ _-]/g, '').trim().replace(/\s+/g, '_').slice(0, 40);
       return { blob: blob, filename: safe + ' - Contrôle des VLEP - Feuille de calculs.xlsm', onglets: resume, alertes: plan.alertes };

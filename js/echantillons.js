@@ -51,7 +51,7 @@ function renderListeEchantillons(){
   if(!m.blancs)m.blancs=[];
   
   var h='<button class="back-btn" onclick="state.view=\'terrain-mission\';render();">'+ICONS.arrowLeft+' Mission</button><div class="card"><h2>'+ICONS.list+' Liste échantillons</h2><p class="subtitle">'+escapeHtml(m.clientSite)+'</p></div>';
-  h+='<div class="row mb-12"><button class="btn btn-gray" onclick="state.showModal=\'addBlanc\';state.blancAgentSearch=\'\';state.blancAgents=[];if(!state.blancDate)state.blancDate=getTodayDate();render();">+ Blanc terrain</button>'+(typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true?'<button class="btn btn-primary" onclick="exportFeuilleCalcul();">'+ICONS.sheet+' Feuille de calcul</button>':'')+'</div><div class="row mb-12"><button class="btn btn-gray btn-small" onclick="exportActiviteWord();">'+ICONS.fileText+' Activité (Word)</button><button class="btn btn-gray btn-small" onclick="exportExcel();">'+ICONS.download+' Ancien export Excel</button></div>';
+  h+='<div class="row mb-12"><button class="btn btn-gray" onclick="state.showModal=\'addBlanc\';state.blancAgentSearch=\'\';state.blancAgents=[];if(!state.blancDate)state.blancDate=getTodayDate();render();">+ Blanc terrain</button>'+(typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true?'<button class="btn btn-primary" onclick="exportFeuilleCalcul();">'+ICONS.sheet+' Feuille de calcul</button>':'')+'</div>';
   h+='<div class="row mb-12"><span style="font-size:13px;margin-right:8px;">Trier par :</span><button class="btn btn-small '+(state.echantillonSort==='date'?'btn-blue':'btn-gray')+'" onclick="state.echantillonSort=\'date\';render();">Date</button><button class="btn btn-small '+(state.echantillonSort==='agent'?'btn-blue':'btn-gray')+'" onclick="state.echantillonSort=\'agent\';render();">Agent</button></div>';
   
   // FIX #2: Regrouper par référence échantillon
@@ -247,119 +247,51 @@ function deleteBlanc(i){
   render();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// EXPORT EXCEL - Structure support REG/NON REG COMPLÈTE
-// © 2025 Quentin THOMAS
-// Inclut : Conditions ambiantes, Débits I/F, Type 8h/CT, Blancs
-// ═══════════════════════════════════════════════════════════════════════════════
+// ---------- Utilitaires communs (feuille de calcul, Word, Véolia) ----------
 
-function exportExcel(){
-  var m=getCurrentMission();
-  if(!m){alert('Aucune mission');return;}
-  
-  var wb=XLSX.utils.book_new();
-  
-  // Séparer les prélèvements REG et NON-REG
-  var regPrels=[];
-  var nonRegPrels=[];
-  
-  m.prelevements.forEach(function(p){
-    p.subPrelevements.forEach(function(sb0,si){
-      expandSubSupports(sb0).forEach(function(sb){
-      p.agents.forEach(function(a){
-        var prelData={
-          prel:p,
-          sub:sb,
-          subIdx:si,
-          agent:a.name,
-          gehName:p.gehName,
-          gehNum:p.gehNum,
-          type:p.type,
-          isReg:p.isReglementaire
-        };
-        
-        if(p.isReglementaire){
-          regPrels.push(prelData);
-        }else{
-          nonRegPrels.push(prelData);
-        }
-      });
-      });
-    });
+// Fonction helper pour récupérer les conditions ambiantes d'un sous-prélèvement
+function getConditionsForPrel(m,subPrel){
+  if(!m.conditionsAmbiantes||m.conditionsAmbiantes.length===0||!subPrel.date)return null;
+  // Uniquement les conditions du jour du prélèvement : jamais celles d'un autre jour
+  for(var i=0;i<m.conditionsAmbiantes.length;i++){
+    if(m.conditionsAmbiantes[i].date===subPrel.date)return m.conditionsAmbiantes[i];
+  }
+  return null;
+}
+
+// Blanc terrain d'un agent pour un jour donné :
+// 1) blanc de l'agent pris le jour même ; 2) blanc de l'agent sans date ;
+// 3) blanc unique de l'agent sur la mission (un blanc pour toute la campagne).
+// Plusieurs blancs, tous d'autres jours : aucun (on ne devine pas).
+function findBlancForAgent(m,agentName,date){
+  if(!m.blancs||m.blancs.length===0)return null;
+  var duJour=null,sansDate=null,tous=[];
+  m.blancs.forEach(function(b){
+    if(!b.agents||b.agents.indexOf(agentName)===-1)return;
+    tous.push(b);
+    if(date&&b.date===date&&!duJour)duJour=b;
+    if(!b.date&&!sansDate)sansDate=b;
   });
+  return duJour||sansDate||(tous.length===1?tous[0]:null);
+}
+
+function getBlancForAgent(m,agentName,date){
+  var b=findBlancForAgent(m,agentName,date);
+  return b?(b.ref||''):'';
+}
+
+// Fonction helper pour formater les dates en JJ/MM/AAAA
+function formatDateFR(dateStr){
+  if(!dateStr) return '';
   
-  // Trier par GEH puis agent
-  var sortByGehAgent=function(a,b){
-    if(a.gehNum!==b.gehNum)return a.gehNum-b.gehNum;
-    return a.agent.localeCompare(b.agent);
-  };
-  
-  regPrels.sort(sortByGehAgent);
-  nonRegPrels.sort(sortByGehAgent);
-  
-  // Point 5 : router les prélèvements réglementaires par type de support.
-  // Tube et Cassette ont leur feuille "(multi)" ; les autres types restent
-  // dans la feuille REG générique en attendant leur propre constructeur.
-  var tubeRegPrels=[];
-  var cassetteRegPrels=[];
-  var siliceRegPrels=[];
-  var otherRegPrels=[];
-  regPrels.forEach(function(e){
-    // Silice en priorité : agents "silice cristalline" (quartz/cristobalite/tridymite)
-    // ou "poussières alvéolaires" (la silice n'apparaît pas dans l'intitulé).
-    var an=(e.agent||'').toLowerCase();
-    if(an.indexOf('silice cristalline')!==-1||an.indexOf('alvéolaire')!==-1){
-      siliceRegPrels.push(e);
-      return;
-    }
-    var ag=(typeof getAgentFromDB==='function')?getAgentFromDB(e.agent):null;
-    var sup=ag?(ag['Support de prélèvement']||''):'';
-    var t=classifySupport(sup);
-    if(t==='tube')tubeRegPrels.push(e);
-    else if(t==='cassette')cassetteRegPrels.push(e);
-    else otherRegPrels.push(e);
-  });
-  
-  // Feuille TUBE en multi (structure exacte du modèle, agents empilés)
-  if(tubeRegPrels.length>0){
-    var tubeCols=buildSupportColumns(m,tubeRegPrels);
-    var wsTube=createTubeRegMultiSheet(m,tubeCols);
-    XLSX.utils.book_append_sheet(wb,wsTube,'Tube Reg (multi)');
+  // Si la date est au format AAAA-MM-JJ (format ISO)
+  if(dateStr.match(/^\d{4}-\d{2}-\d{2}$/)){
+    var parts = dateStr.split('-');
+    return parts[2] + '/' + parts[1] + '/' + parts[0]; // JJ/MM/AAAA
   }
   
-  // Feuille CASSETTE en multi
-  if(cassetteRegPrels.length>0){
-    var cassCols=buildSupportColumns(m,cassetteRegPrels);
-    var wsCass=createCassetteRegMultiSheet(m,cassCols);
-    XLSX.utils.book_append_sheet(wb,wsCass,'Cassette Reg (multi)');
-  }
-  
-  // Feuille SILICE (CIP10) : toutes les fractions d'un même prélèvement => une colonne
-  if(siliceRegPrels.length>0){
-    var silCols=buildSupportColumns(m,siliceRegPrels,true);
-    var wsSil=createSiliceSheet(m,silCols);
-    XLSX.utils.book_append_sheet(wb,wsSil,'CIP10 silice Reg');
-  }
-  
-  // Feuille REG générique pour les autres types de support (inchangé)
-  if(otherRegPrels.length>0){
-    var wsReg=styleGenericSheet(createRegSheet(m,otherRegPrels));
-    XLSX.utils.book_append_sheet(wb,wsReg,'REG');
-  }
-  
-  // Créer la feuille NON REG
-  if(nonRegPrels.length>0){
-    var wsNonReg=styleGenericSheet(createNonRegSheet(m,nonRegPrels));
-    XLSX.utils.book_append_sheet(wb,wsNonReg,'NON REG');
-  }
-  
-  // Créer la feuille Échantillons
-  var wsEchantillons=styleGenericSheet(createEchantillonsSheet(m,regPrels,nonRegPrels));
-  XLSX.utils.book_append_sheet(wb,wsEchantillons,'Échantillons');
-  
-  var fn=(m.clientSite||'Mission').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüç\\s-]/g,'')+'_supports.xlsx';
-  XLSX.writeFile(wb,fn);
-  alert('Export terminé : '+fn);
+  // Si déjà au bon format ou autre, retourner tel quel
+  return dateStr;
 }
 
 console.log('✓ Échantillons chargé');

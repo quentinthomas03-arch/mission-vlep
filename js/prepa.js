@@ -58,8 +58,8 @@ function countPrelevements(m){
     var a=m.affectations[an];
     for(var gid in a.gehs){
       var g=a.gehs[gid];
-      if(g.has8h)c+=(a.isReg!==false?3:1);
-      if(g.hasCT)c+=1;
+      if(g.has8h)c+=nbPrelPrevu(g,'8h');
+      if(g.hasCT)c+=nbPrelPrevu(g,'CT');
     }
   }
   return c;
@@ -95,7 +95,12 @@ function copyMission(id){
 function validateMission(id){
   var m=state.missions.find(function(x){return x.id===id;});
   if(!m)return;
-  generatePrelevements(m);
+  var avant=JSON.parse(JSON.stringify(m.prelevements||[]));
+  var retires=generatePrelevements(m);
+  if(retires.length){
+    var noms=retires.map(function(p){return '• GEH '+p.gehNum+' – '+(p.agents||[]).map(function(a){return a.name;}).join(' + ')+' ('+p.type+')';}).join('\n');
+    if(!confirm('Ces prélèvements déjà saisis n\'ont plus de GEH ou d\'agent dans la préparation et seront supprimés :\n\n'+noms+'\n\nContinuer ?')){m.prelevements=avant;render();return;}
+  }
   if(m.prelevements.length===0){
     alert('Aucun prélèvement à générer.\n\nVérifiez :\n1. Au moins un GEH avec nom\n2. Au moins un agent avec 8h ou CT\n3. Des affectations agents → GEH');
     return;
@@ -105,8 +110,26 @@ function validateMission(id){
   render();
 }
 
+// Un prélèvement a-t-il déjà été saisi (même partiellement) ?
+function prelASaisie(p){
+  return (p.subPrelevements||[]).some(function(s0){
+    return expandSubSupports(s0).some(function(sb){
+      if(sb.completed||sb.operateur||sb.date||sb.observations)return true;
+      if((sb.plages||[]).some(function(pl){return pl.debut||pl.fin;}))return true;
+      return Object.keys(sb.agentData||{}).some(function(an){
+        var d=sb.agentData[an]||{};
+        return Object.keys(d).some(function(k){var v=d[k];return Array.isArray(v)?v.length>0:(v!==''&&v!==null&&v!==undefined&&v!==false);});
+      });
+    });
+  });
+}
+
 // FIX #8: Le statut réglementaire est maintenant géré indépendamment pour 8h et CT
+// Mission déjà commencée (retour en préparation pour modifier les GEH, agents ou affectations) : les prélèvements
+// existants sont gardés tels quels (saisie, fusions, prélèvements ajoutés sur le terrain), seuls les nouveaux sont
+// ajoutés. Renvoie les prélèvements saisis qui n'ont plus de GEH ou d'agent (à confirmer avant suppression).
 function generatePrelevements(m){
+  var anciens=m.prelevements||[];
   m.prelevements=[];
   for(var an in m.affectations){
     var a=m.affectations[an];
@@ -122,8 +145,9 @@ function generatePrelevements(m){
       var isRegCT=(ga.isRegCT!==undefined)?ga.isRegCT:((ga.isReg!==undefined)?ga.isReg:((a.isReg!==undefined)?a.isReg:true));
       
       if(ga.has8h){
-        var ns=isReg8h?3:1;
+        var ns=nbPrelPrevu(ga,'8h');
         var p={id:generateId(),gehId:g.id,gehName:g.name,gehNum:g.num,agents:[{name:an,color:c}],type:'8h',isReglementaire:isReg8h,subPrelevements:[]};
+        if(isReg8h&&ns<3)p.justifNb=JUSTIF_NB_DEFAUT;
         for(var s=0;s<ns;s++){
           var sb={id:generateId(),operateur:'',date:'',plages:[{debut:'',fin:''}],observations:'',completed:false,agentData:{}};
           sb.agentData[an]={refEchantillon:'',numPompe:'',debitInitial:'',debitFinal:''};
@@ -132,8 +156,9 @@ function generatePrelevements(m){
         m.prelevements.push(p);
       }
       if(ga.hasCT){
-        var nsCT=isRegCT?3:1;
+        var nsCT=nbPrelPrevu(ga,'CT');
         var pct={id:generateId(),gehId:g.id,gehName:g.name,gehNum:g.num,agents:[{name:an,color:lightenColor(c,0.4)}],type:'CT',isReglementaire:isRegCT,subPrelevements:[]};
+        if(isRegCT&&nsCT<3)pct.justifNb=JUSTIF_NB_DEFAUT;
         for(var sCT=0;sCT<nsCT;sCT++){
           var sbCT={id:generateId(),operateur:'',date:'',plages:[{debut:'',fin:''}],observations:'',completed:false,agentData:{}};
           sbCT.agentData[an]={refEchantillon:'',numPompe:'',debitInitial:'',debitFinal:''};
@@ -143,6 +168,31 @@ function generatePrelevements(m){
       }
     }
   }
+  var neufs=m.prelevements;
+  if(!anciens.length)return [];
+  var gehOk={};m.gehs.forEach(function(g){if(g.name)gehOk[String(g.id)]=g;});
+  var agentsMission={};(m.agents||[]).forEach(function(a){agentsMission[a.name]=true;});
+  var sansAgents=!(m.agents||[]).length;
+  var gardes=[],retires=[];
+  anciens.forEach(function(p){
+    var g=gehOk[String(p.gehId)];
+    var agentOk=sansAgents||(p.agents||[]).some(function(a){return agentsMission[a.name];});
+    if(g&&agentOk){p.gehName=g.name;p.gehNum=g.num;gardes.push(p);}
+    else if(prelASaisie(p))retires.push(p);
+  });
+  neufs.forEach(function(p){
+    var an=p.agents[0].name;
+    var couvrant=gardes.filter(function(x){return String(x.gehId)===String(p.gehId)&&x.type===p.type&&(x.agents||[]).some(function(a){return a.name===an;});});
+    if(!couvrant.length){gardes.push(p);return;}
+    // prélèvement mono-agent déjà là : statut réglementaire et nombre prévu mis à jour, sans rien retirer
+    var ex=couvrant.filter(function(x){return x.agents.length===1;})[0];
+    if(!ex)return;
+    ex.isReglementaire=p.isReglementaire;
+    if(ex.isReglementaire&&p.subPrelevements.length<3&&ex.subPrelevements.length<3&&!ex.justifNb)ex.justifNb=JUSTIF_NB_DEFAUT;
+    while(ex.subPrelevements.length<p.subPrelevements.length)ex.subPrelevements.push(p.subPrelevements[ex.subPrelevements.length]);
+  });
+  m.prelevements=gardes;
+  return retires;
 }
 
 function goToTerrain(id){
@@ -264,19 +314,20 @@ function renderPrepaAutoModal(m){
     // Agents et affectations
     h+='<div class="card" style="padding:10px;"><div style="font-weight:700;font-size:13px;margin-bottom:6px;"><span class="svg-icon">'+ICONS.beaker+'</span> '+p.agents.length+' agent(s) chimique(s)</div>';
     p.rows.forEach(function(r){
-      var regLabel=r.isReg?'<span style="color:#047857;font-size:10px;font-weight:700;"> REG</span>':'<span style="color:#b45309;font-size:10px;font-weight:700;"> NR</span>';
+      var regs=r.agentNames.map(agentEstReglementaire);
+      var regLabel=regs.every(Boolean)?'<span style="color:#047857;font-size:10px;font-weight:700;"> REG</span>':(regs.some(Boolean)?'<span style="color:#047857;font-size:10px;font-weight:700;"> REG / NR</span>':'<span style="color:#b45309;font-size:10px;font-weight:700;"> NR</span>');
       h+='<div style="background:#f8fafc;border-radius:6px;padding:8px;margin-bottom:6px;border-left:3px solid var(--primary);">';
       r.agentNames.forEach(function(an){
         h+='<div style="font-size:12px;font-weight:600;">'+escapeHtml(an)+'</div>';
       });
-      h+='<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">'+r.type+regLabel+' · '+r.gehNums.length+' GEH × '+(r.isReg?'3':'1')+' = '+(r.gehNums.length*(r.isReg?3:1))+' sous-prél.</div>';
+      h+='<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">'+r.type+regLabel+' · '+r.gehNums.length+' GEH × '+r.nb+' = '+(r.gehNums.length*r.nb)+' sous-prél.'+(r.nb<3&&regs.some(Boolean)?' (réglementaire, justification à confirmer sur le terrain)':'')+'</div>';
       h+='</div>';
     });
     h+='</div>';
     
     // Résumé
     var totalPrel=0;
-    p.rows.forEach(function(r){totalPrel+=r.gehNums.length*(r.isReg?3:1);});
+    p.rows.forEach(function(r){totalPrel+=r.gehNums.length*r.nb;});
     h+='<div class="info-box info-box-success"><p><strong>Total :</strong> '+p.gehs.length+' GEH · '+p.agents.length+' agents · '+totalPrel+' sous-prélèvements</p></div>';
     
     // Avertissements agents non trouvés dans la DB
@@ -440,8 +491,7 @@ function parsePrepaAuto(){
       
       // Col 2 : Nb prélèvements
       var nbRaw=(cols[2]||'').trim().toLowerCase();
-      var isReg=true;
-      if(nbRaw.indexOf('1')!==-1&&nbRaw.indexOf('3')===-1)isReg=false;
+      var nb=(nbRaw.indexOf('1')!==-1&&nbRaw.indexOf('3')===-1)?1:3;
       
       // Col 3 : Type VLEP
       var typeRaw=(cols[3]||'8h').trim().toUpperCase();
@@ -456,7 +506,7 @@ function parsePrepaAuto(){
       rows.push({
         agentNames:agentNames,
         gehNums:gehNums,
-        isReg:isReg,
+        nb:nb,
         type:type
       });
     });
@@ -641,11 +691,13 @@ function applyPrepaAuto(){
         
         if(r.type==='8h'){
           gaf.has8h=true;
-          gaf.isReg8h=r.isReg;
+          gaf.isReg8h=agentEstReglementaire(an);
+          gaf.nb8h=r.nb;
         }
         if(r.type==='CT'){
           gaf.hasCT=true;
-          gaf.isRegCT=r.isReg;
+          gaf.isRegCT=agentEstReglementaire(an);
+          gaf.nbCT=r.nb;
         }
       });
     });
@@ -662,7 +714,7 @@ function applyPrepaAuto(){
 
 function unvalidateMission(id){
   var m=state.missions.find(function(x){return x.id===id;});
-  if(m){m.status='prepa';m.prelevements=[];saveData('vlep_missions_v3',state.missions);render();}
+  if(m){m.status='prepa';saveData('vlep_missions_v3',state.missions);render();}
 }
 function unvalidateMissionFromTerrain(){
   var m=getCurrentMission();
@@ -909,7 +961,7 @@ function renderPrepaAffectations(){
     var c=getAgentColor(m,ag.name);
     // Obtenir le statut réglementaire par défaut de l'agent depuis la DB
     var agentDB=getAgentFromDB(ag.name);
-    var defaultIsReg=agentDB?(agentDB['Réglementaire']!=='Non'):true;
+    var defaultIsReg=agentEstReglementaire(ag.name);
     h+='<div class="affect-card" style="border-left:4px solid '+c+';"><div class="affect-header"><div class="affect-agent">'+escapeHtml(ag.name)+'</div></div>';
     ga.forEach(function(g){
       if(!af.gehs[g.id])af.gehs[g.id]={has8h:false,hasCT:false,isReg8h:defaultIsReg,isRegCT:defaultIsReg};
@@ -927,10 +979,12 @@ function renderPrepaAffectations(){
       h+='<span class="affect-mini-badge '+(gaf.has8h?'active-8h':'')+' '+(!can8h?'disabled':'')+'" onclick="toggleGehAffect(\''+escapeJs(ag.name)+'\','+g.id+',\'8h\');">8h</span>';
       if(gaf.has8h){
         h+='<button class="affect-reg-toggle-mini '+(gaf.isReg8h?'':'nonreg')+'" onclick="toggleGehAffectReg(\''+escapeJs(ag.name)+'\','+g.id+',\'8h\');" title="'+(gaf.isReg8h?'8h Réglementaire':'8h Non réglementaire')+'">'+(gaf.isReg8h?'R':'NR')+'</button>';
+        h+='<button class="affect-reg-toggle-mini nb" onclick="toggleGehAffectNb(\''+escapeJs(ag.name)+'\','+g.id+',\'8h\');" title="Nombre de prélèvements">×'+nbPrelPrevu(gaf,'8h')+'</button>';
       }
       h+='<span class="affect-mini-badge '+(gaf.hasCT?'active-ct':'')+' '+(!canCT?'disabled':'')+'" onclick="toggleGehAffect(\''+escapeJs(ag.name)+'\','+g.id+',\'CT\');">CT</span>';
       if(gaf.hasCT){
         h+='<button class="affect-reg-toggle-mini '+(gaf.isRegCT?'':'nonreg')+'" onclick="toggleGehAffectReg(\''+escapeJs(ag.name)+'\','+g.id+',\'CT\');" title="'+(gaf.isRegCT?'CT Réglementaire':'CT Non réglementaire')+'">'+(gaf.isRegCT?'R':'NR')+'</button>';
+        h+='<button class="affect-reg-toggle-mini nb" onclick="toggleGehAffectNb(\''+escapeJs(ag.name)+'\','+g.id+',\'CT\');" title="Nombre de prélèvements">×'+nbPrelPrevu(gaf,'CT')+'</button>';
       }
       h+='</div></div>';
     });
@@ -938,6 +992,16 @@ function renderPrepaAffectations(){
   });
   saveData('vlep_missions_v3',state.missions);
   return h;
+}
+
+// Nombre de prélèvements prévus : 3 → 1 → 2 → 3 (une stratégie peut en prévoir moins de 3 en réglementaire)
+function toggleGehAffectNb(an,gid,type){
+  var m=getCurrentMission();
+  if(!m||!m.affectations[an]||!m.affectations[an].gehs[gid])return;
+  var gaf=m.affectations[an].gehs[gid],cle=type==='CT'?'nbCT':'nb8h';
+  gaf[cle]={3:1,1:2,2:3}[nbPrelPrevu(gaf,type)]||3;
+  saveData('vlep_missions_v3',state.missions);
+  render();
 }
 
 function toggleGehAffectReg(an,gid,type){

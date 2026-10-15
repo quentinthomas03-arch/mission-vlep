@@ -179,6 +179,24 @@ function getAgentColor(m,n){
 
 // === UTILITAIRES DB ===
 
+// Statut réglementaire d'un agent : VLEP réglementaire contraignante ou indicative dans la base
+// (agent absent de la base : réglementaire, comme avant)
+function agentEstReglementaire(n){
+  var a=getAgentFromDB(n);
+  if(!a)return true;
+  return a['VLEP Reglementaire contraignante']==='X'||a['VLEP Reglementaire Indicative']==='X';
+}
+// Nombre de sous-prélèvements prévus pour une affectation agent/GEH : celui du devis (gaf.nb8h / gaf.nbCT),
+// sinon 3 en réglementaire et 1 sinon. Le statut réglementaire ne dépend pas de ce nombre.
+function nbPrelPrevu(gaf,type){
+  var n=type==='CT'?gaf.nbCT:gaf.nb8h;
+  if(n)return n;
+  var reg=type==='CT'?gaf.isRegCT:gaf.isReg8h;
+  if(reg===undefined)reg=gaf.isReg!==undefined?gaf.isReg:true;
+  return reg?3:1;
+}
+var JUSTIF_NB_DEFAUT='Prélèvement unique prévu par la stratégie de prélèvement.';
+
 function getAgentFromDB(n){
   for(var i=0;i<state.agentsDB.length;i++){
     if(state.agentsDB[i]['Agent chimique']===n)return state.agentsDB[i];

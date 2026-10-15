@@ -521,6 +521,41 @@
     if (this.sheets[ancien]) { this.sheets[nouveau] = this.sheets[ancien]; delete this.sheets[ancien]; }
   };
 
+  // Masque des onglets (clic droit › Afficher pour les retrouver dans Excel)
+  Classeur.prototype.masquerOnglets = function (noms) {
+    var self = this;
+    noms.forEach(function (nom) {
+      var re = new RegExp('<sheet\\b([^>]*?\\sname="' + enc(nom).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"[^>]*?)/>');
+      self.workbookXml = self.workbookXml.replace(re, function (all, a) { return '<sheet' + setAttr(a, 'state', 'hidden') + '/>'; });
+    });
+  };
+
+  // Onglet affiché à l'ouverture : un seul onglet sélectionné, jamais un onglet masqué
+  Classeur.prototype.activerOnglet = function (nom) {
+    var self = this, ordre = this._ordre(), idx = ordre.indexOf(nom);
+    if (idx === -1) return Promise.resolve();
+    this.workbookXml = this.workbookXml.replace(/<workbookView\b([^>]*?)\/>/, function (all, a) {
+      return '<workbookView' + setAttr(setAttr(a, 'firstSheet', null), 'activeTab', String(idx)) + '/>';
+    });
+    var fix = function (x, actif) {
+      x = x.replace(/(<sheetView\b[^>]*?)\stabSelected="1"/g, '$1');
+      return actif ? x.replace(/<sheetView\b/, '<sheetView tabSelected="1"') : x;
+    };
+    return Promise.all(ordre.map(function (n) {
+      if (self.sheets[n]) { self.sheets[n].head = fix(self.sheets[n].head, n === nom); return null; }
+      var p = self.paths[n];
+      if (!p || !self.zip.file(p)) return null;
+      return self.zip.file(p).async('string').then(function (x) { self.zip.file(p, fix(x, n === nom)); });
+    }));
+  };
+
+  // Onglets visibles (ni hidden ni veryHidden), dans l'ordre du classeur
+  Classeur.prototype.ongletsVisibles = function () {
+    var out = [], m, re = /<sheet\b([^>]*?)\/>/g;
+    while ((m = re.exec(this.workbookXml))) if (!getAttr(m[1], 'state')) out.push(dec(getAttr(m[1], 'name')));
+    return out;
+  };
+
   // Commentaires d'un onglet dont on a retiré lignes/colonnes (removeRowsCols) : décalés ou supprimés
   Classeur.prototype.recalerCommentaires = function (nom) {
     var self = this, s = this.sheets[nom], path = this.paths[nom], rp = relsPath(path);
