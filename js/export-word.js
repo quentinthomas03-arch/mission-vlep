@@ -219,8 +219,10 @@ function buildActiviteDoc(m) {
 
       // Plages horaires
       var plagesStr = '';
-      if (sb.plages) {
-        plagesStr = sb.plages
+      // Prélèvement fractionné : plages de tous les supports, dans l'ordre
+      var toutesPlages = expandSubSupports(sb).reduce(function(acc, s) { return acc.concat(s.plages || []); }, []);
+      if (toutesPlages.length) {
+        plagesStr = toutesPlages
           .filter(function(pl) { return pl.debut || pl.fin; })
           .map(function(pl) { return (pl.debut || '?') + ' - ' + (pl.fin || '?'); })
           .join(' / ');
@@ -243,15 +245,8 @@ function buildActiviteDoc(m) {
         }
       }
 
-      // Durée d'exposition = durée de port (EPI) totale sur la journée, en h:mm
-      // (et NON la durée de prélèvement = somme des plages horaires)
-      var dureeStr = '';
-      var portMin = parseInt(sb.epiDuree, 10);
-      if (isFinite(portMin) && portMin > 0) {
-        var hh = Math.floor(portMin / 60);
-        var mm = portMin % 60;
-        dureeStr = hh + 'h' + (mm < 10 ? '0' : '') + mm;
-      }
+      // Durée d'exposition saisie sur le terrain (8h) ; court-terme : durée du prélèvement
+      var dureeStr = formatHeuresMinutes(dureeExpositionMin(p, sb));
 
       // Ventilation et captage (Point 2)
       var ventEnvStr = '';

@@ -1,8 +1,8 @@
 // sw.js - Service Worker
 // © 2025 Quentin THOMAS
 
-const CACHE_NAME = 'vlep-mission-v2.4';
-const VERSION = '2.4'; // Incrémenter à chaque mise à jour
+const CACHE_NAME = 'vlep-mission-v2.20';
+const VERSION = '2.20'; // Incrémenter à chaque mise à jour
 const urlsToCache = [
   './',
   './index.html',
@@ -17,14 +17,25 @@ const urlsToCache = [
   // Modules JavaScript (dossier js/)
   './js/icons.js',
   './js/database.js',
+  './js/scola-listes.js',
   './js/state.js',
   './js/prepa.js',
   './js/terrain.js',
+  './js/consignes-agents.js',
+  './js/releves-analyseur.js',
   './js/echantillons.js',
   './js/export-excel.js',
+  './js/jszip.min.js',
+  './js/xlsm-moteur.js',
+  './js/feuille-calcul.js',
+  './js/veolia.js',
+  './js/scola-dossier.js',
+  './modele/feuille-calcul-vlep.xlsm',
   './js/database-views.js',
   './js/quick-entry.js',
   './js/import-export.js',
+  './js/envoi-mail.js',
+  './js/nouveautes.js',
   './js/timers.js',
   './js/docx.iife.js',
   './js/export-word.js',
@@ -91,6 +102,8 @@ self.addEventListener('activate', function(event) {
 
 // Fetch - Stratégie Network First pour le développement
 self.addEventListener('fetch', function(event) {
+  // Seules les requêtes GET passent par le cache (la vérification du modèle se fait en HEAD)
+  if (event.request.method !== 'GET') return;
   event.respondWith(
     fetch(event.request)
       .then(function(response) {

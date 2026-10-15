@@ -3,21 +3,25 @@
 // Sauvegarde/restauration missions, partage QR
 
 // ===== EXPORT / IMPORT MISSION JSON =====
+// Fichier de la mission, partagé par le téléchargement et l'envoi par e-mail (envoi-mail.js)
+function buildMissionJSON(m){
+  var exportData={_format:'VLEP_Mission_JSON',_version:'1.0',_exportDate:new Date().toISOString(),_author:'Quentin THOMAS',mission:JSON.parse(JSON.stringify(m))};
+  var json=JSON.stringify(exportData,null,2);
+  var safeName=(m.clientSite||'mission').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüçÀÂÄÉÈÊËÏÎÔÙÛÜÇ _-]/g,'').replace(/\s+/g,'_').substring(0,40);
+  return {blob:new Blob([json],{type:'application/json'}),filename:'VLEP_Mission_'+safeName+'_'+String(m.id).slice(-6)+'.json'};
+}
+
 function exportMissionJSON(id){
   var m=state.missions.find(function(x){return x.id===id;});
   if(!m){alert('Mission introuvable');return;}
-  var exportData={_format:'VLEP_Mission_JSON',_version:'1.0',_exportDate:new Date().toISOString(),_author:'Quentin THOMAS',mission:JSON.parse(JSON.stringify(m))};
-  var json=JSON.stringify(exportData,null,2);
-  var blob=new Blob([json],{type:'application/json'});
-  var url=URL.createObjectURL(blob);
-  var a=document.createElement('a');
-  var safeName=(m.clientSite||'mission').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüçÀÂÄÉÈÊËÏÎÔÙÛÜÇ _-]/g,'').replace(/\s+/g,'_').substring(0,40);
-  a.href=url;
-  a.download='VLEP_Mission_'+safeName+'_'+String(m.id).slice(-6)+'.json';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  var built=buildMissionJSON(m);
+  downloadBlob(built.blob,built.filename);
+}
+
+// Boutons « Export JSON » + « Envoyer par e-mail » (préparation et terrain)
+function renderMissionFileButtons(m){
+  return '<div class="row mb-12"><button class="btn btn-gray" onclick="exportMissionJSON('+m.id+');">'+ICONS.download+' Export JSON</button>'+
+    '<button class="btn btn-gray" onclick="sendMissionByMail('+m.id+');">'+ICONS.mail+' Envoyer par e-mail</button></div>';
 }
 
 function triggerImportMission(){

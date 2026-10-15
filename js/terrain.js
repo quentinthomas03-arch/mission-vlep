@@ -4,7 +4,7 @@
 
 function renderTerrainList(){
   var h='<button class="back-btn" onclick="state.view=\'home\';render();">'+ICONS.arrowLeft+' Accueil</button><div class="card"><h1>'+ICONS.clipboard+' Saisie terrain</h1><p class="subtitle">Missions prêtes pour le terrain</p></div>';
-  h+='<button class="btn btn-success mb-12" onclick="openQuickEntry();">'+ICONS.zap+' Saisie rapide (sans prépa)</button>';
+  h+='<button class="btn btn-gray mb-12" onclick="openQuickEntry();">'+ICONS.zap+' Saisie rapide (sans prépa)</button>';
   var ml=state.missions.filter(function(m){return m.status==='validee'||m.status==='encours'||m.status==='terminee';});
   if(ml.length===0)h+='<div class="empty-state"><div class="empty-state-icon">'+ICONS.list+'</div><p>Aucune mission validée</p><p style="font-size:13px;margin-top:8px;">Validez d\'abord une mission dans Préparation</p></div>';
   else ml.forEach(function(m){
@@ -19,19 +19,15 @@ function renderTerrainList(){
 function renderTerrainMission(){
   var m=getCurrentMission();
   if(!m){state.view='terrain-list';render();return'';}
-  var h='<div class="sticky-header"><button class="back-btn" onclick="state.view=\'terrain-list\';state.currentMissionId=null;render();">'+ICONS.arrowLeft+' Liste</button><div style="display:flex;justify-content:space-between;align-items:center;"><div style="color:white;font-weight:700;font-size:14px;">'+escapeHtml(m.clientSite)+'</div><div class="row" style="gap:4px;"><button class="btn btn-gray btn-small btn-icon" onclick="unvalidateMissionFromTerrain();" title="Repasser en prépa" style="background:rgba(255,255,255,0.15);color:white;border:none;">'+ICONS.arrowLeft+'</button><button class="btn btn-danger btn-icon" onclick="deleteMissionTerrain();" style="width:24px;height:24px;">'+ICONS.trash+'</button></div></div></div>';
-  h+='<div class="card" style="margin-top:4px;"><p class="subtitle"><span class="svg-icon">'+ICONS.user+'</span> '+escapeHtml(m.preleveur||'-')+' • <span class="svg-icon">'+ICONS.tool+'</span> '+escapeHtml(m.debitmetre||'-')+(m.tachymetre?' • <span class="svg-icon">'+ICONS.tool+'</span> Tachym. '+escapeHtml(m.tachymetre):'')+' </p></div>';
-  h+='<div class="row mb-12"><button class="btn btn-gray" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+' Conditions</button><button class="btn btn-blue" onclick="state.view=\'liste-echantillons\';render();">'+ICONS.list+' Échantillons</button></div>';
-  h+='<div class="row mb-12"><button class="btn btn-gray" onclick="exportMissionJSON('+m.id+');">'+ICONS.download+' Export JSON</button></div>';
-  
-  // Boutons d'ajout
-  h+='<div class="row mb-12"><button class="btn btn-success btn-small" onclick="state.showModal=\'addGehTerrain\';render();">+ GEH</button><button class="btn btn-primary btn-small" onclick="state.showModal=\'addPrelTerrain\';render();">+ Prélèvement</button><button class="btn btn-gray btn-small" onclick="editMissionFromTerrain();">'+ICONS.edit+' Modifier</button></div>';
-  
+  var h='<button class="back-btn" onclick="state.view=\'terrain-list\';state.currentMissionId=null;state.missionMenuOpen=false;render();">'+ICONS.arrowLeft+' Missions</button>';
+  h+=renderMissionHead(m);
   if(state.fusionMode){
-    h+='<div class="info-box info-box-warning mb-12"><p><strong>Mode fusion manuelle actif</strong></p><p>Sélectionnez les prélèvements à fusionner (même GEH, même type)</p></div><div class="row mb-12"><button class="btn btn-gray" onclick="cancelFusion();">Annuler</button><button class="btn btn-success" onclick="doFusion();" '+(state.selectedForFusion.length<2?'disabled':'')+'>Fusionner ('+state.selectedForFusion.length+')</button></div>';
-  }else{
-    h+='<div class="row mb-12"><button class="btn btn-success" onclick="showSmartFusionModal();">'+ICONS.zap+' Fusionner intelligemment</button><button class="btn btn-orange" onclick="startFusionMode();">'+ICONS.merge+' Fusion manuelle</button></div>';
+    h+='<div class="info-box info-box-warning mb-12"><p><strong>Fusion manuelle</strong></p><p>Sélectionnez les prélèvements à fusionner (même GEH, même type)</p></div><div class="row mb-12"><button class="btn btn-gray" onclick="cancelFusion();">Annuler</button><button class="btn btn-primary" onclick="doFusion();" '+(state.selectedForFusion.length<2?'disabled':'')+'>Fusionner ('+state.selectedForFusion.length+')</button></div>';
   }
+  // Conditions ambiantes du jour : une ligne, l'état se lit sans ouvrir
+  var auj=getTodayDate(),condAuj=(m.conditionsAmbiantes||[]).find(function(c){return c.date===auj;});
+  var condOk=condAuj&&(condAuj.tempI||condAuj.pressionI||condAuj.humiditeI);
+  h+='<div class="row-card" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+'<span class="row-card-label">Conditions ambiantes</span><span class="row-card-state '+(condOk?'ok':'todo')+'">'+(condOk?'saisies aujourd’hui':'à saisir aujourd’hui')+'</span>'+ICONS.chevronRight+'</div>';
   var byGeh={};
   m.prelevements.forEach(function(p){var k=p.gehId;if(!byGeh[k])byGeh[k]=[];byGeh[k].push(p);});
   m.gehs.filter(function(g){return g.name;}).forEach(function(g){
@@ -39,7 +35,7 @@ function renderTerrainMission(){
     var dc=0,tc=0;
     ps.forEach(function(p){p.subPrelevements.forEach(function(s){tc++;if(s.completed)dc++;});});
     var isOpen=state.expandedGeh[g.id];
-    h+='<div class="accordion"><div class="accordion-header '+(isOpen?'open':'')+'" onclick="toggleGehAccordion('+g.id+');"><span class="accordion-icon">'+ICONS.chevronRight+'</span><span class="accordion-title">'+g.num+'. '+escapeHtml(g.name)+'</span><span class="accordion-count">'+dc+'/'+tc+'</span><button class="btn btn-danger btn-icon" style="width:24px;height:24px;margin-left:6px;font-size:11px;" onclick="event.stopPropagation();deleteGehTerrain('+g.id+');">'+ICONS.trash+'</button></div><div class="accordion-body '+(isOpen?'open':'')+'">';
+    h+='<div class="accordion"><div class="accordion-header '+(isOpen?'open':'')+'" onclick="toggleGehAccordion('+g.id+');"><span class="accordion-icon">'+ICONS.chevronRight+'</span><span class="accordion-title">'+g.num+'. '+escapeHtml(g.name)+'</span><span class="accordion-count">'+dc+'/'+tc+'</span><button class="btn btn-danger btn-icon" aria-label="Supprimer le GEH" onclick="event.stopPropagation();deleteGehTerrain('+g.id+');">'+ICONS.trash+'</button><div class="accordion-progress'+(tc&&dc===tc?' done':'')+'"><span style="width:'+(tc?Math.round(dc/tc*100):0)+'%;"></span></div></div><div class="accordion-body '+(isOpen?'open':'')+'">';
     if(ps.length===0){
       h+='<div class="empty-state" style="padding:16px;color:#6b7280;"><p>Aucun prélèvement</p></div>';
     }else{
@@ -49,16 +45,16 @@ function renderTerrainMission(){
         var mc=p.agents&&p.agents[0]?p.agents[0].color:'#3b82f6';
         var isSelected=state.selectedForFusion.indexOf(p.id)!==-1;
         var agentNames=p.agents&&p.agents.length>0?p.agents.map(function(a){return escapeHtml(a.name);}).join(' + '):'Agent inconnu';
-        h+='<div class="prel-item '+(isSelected?'selected':'')+'" style="background:'+lightenColor(mc,0.85)+';">';
+        h+='<div class="prel-item '+(isSelected?'selected':'')+'" style="--agent-color:'+mc+';">';
         if(state.fusionMode){
           h+='<div class="prel-checkbox '+(isSelected?'checked':'')+'" onclick="toggleFusionSelect('+p.id+');">✓</div>';
         }else{
           h+='<div class="prel-status '+(allDone?'done':'pending')+'" onclick="openPrel('+p.id+');">✓</div>';
         }
-        h+='<div class="prel-content" onclick="'+(state.fusionMode?'toggleFusionSelect('+p.id+');':'openPrel('+p.id+');')+'"><div class="prel-title" style="color:'+mc+';">'+agentNames+'</div><div class="prel-subtitle">'+p.type+' • '+p.subPrelevements.length+' sous-prél. '+(p.isReglementaire?'<span class="prel-reg-badge">Régl.</span>':'<span class="prel-nonreg-badge">Non-régl.</span>')+'</div></div>';
+        h+='<div class="prel-content" onclick="'+(state.fusionMode?'toggleFusionSelect('+p.id+');':'openPrel('+p.id+');')+'"><div class="prel-title">'+agentNames+'</div><div class="prel-subtitle">'+p.type+' • '+p.subPrelevements.length+' sous-prél. '+(p.isReglementaire?'<span class="prel-reg-badge">Régl.</span>':'<span class="prel-nonreg-badge">Non-régl.</span>')+'</div></div>';
         if(!state.fusionMode){
-          if(p.agents&&p.agents.length>1)h+='<button class="btn btn-gray btn-icon" style="width:24px;height:24px;font-size:11px;margin-right:2px;" onclick="event.stopPropagation();defusionPrel('+p.id+');" title="Défusionner">'+ICONS.merge+'</button>';
-          h+='<button class="btn btn-danger btn-icon" style="width:24px;height:24px;font-size:11px;margin-right:2px;" onclick="event.stopPropagation();deletePrelTerrain('+p.id+');">'+ICONS.trash+'</button>';
+          if(p.agents&&p.agents.length>1)h+='<button class="btn btn-gray btn-icon" onclick="event.stopPropagation();defusionPrel('+p.id+');" title="Défusionner" aria-label="Défusionner">'+ICONS.merge+'</button>';
+          h+='<button class="btn btn-danger btn-icon" onclick="event.stopPropagation();deletePrelTerrain('+p.id+');" aria-label="Supprimer le prélèvement">'+ICONS.trash+'</button>';
         }
         h+='<div class="prel-arrow" onclick="'+(state.fusionMode?'toggleFusionSelect('+p.id+');':'openPrel('+p.id+');')+'">'+ICONS.arrowRight+'</div></div>';
       });
@@ -66,6 +62,7 @@ function renderTerrainMission(){
     h+='</div></div>';
   });
   
+  if(!state.fusionMode)h+='<button class="add-link" onclick="state.showModal=\'addPrelTerrain\';render();">'+ICONS.plus+' Ajouter un prélèvement</button>';
   // Modals
   if(state.showModal==='addGehTerrain')h+=renderAddGehTerrainModal();
   if(state.showModal==='addPrelTerrain')h+=renderAddPrelTerrainModal();
@@ -75,6 +72,51 @@ function renderTerrainMission(){
 }
 
 function toggleGehAccordion(gid){state.expandedGeh[gid]=!state.expandedGeh[gid];render();}
+
+// Anneau d'avancement (prélèvements terminés / total), même dessin que l'appli Aération
+function missionRingSvg(done,total){
+  var r=30,c=2*Math.PI*r,len=total?c*done/total:0;
+  return '<svg class="mission-ring" viewBox="0 0 76 76" role="img" aria-label="'+done+' prélèvements terminés sur '+total+'">'+
+    '<circle cx="38" cy="38" r="'+r+'" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="7"/>'+
+    '<circle cx="38" cy="38" r="'+r+'" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-dasharray="'+len.toFixed(1)+' '+(c-len).toFixed(1)+'" transform="rotate(-90 38 38)"/>'+
+    '<text x="38" y="40" text-anchor="middle" class="mission-ring-value">'+done+'/'+total+'</text>'+
+    '<text x="38" y="53" text-anchor="middle" class="mission-ring-label">terminés</text></svg>';
+}
+
+// En-tête de mission : infos, avancement, feuille de calcul et échantillons, le reste dans « ⋯ »
+function renderMissionHead(m){
+  var t=0,d=0,dates=[];
+  m.prelevements.forEach(function(p){p.subPrelevements.forEach(function(s){t++;if(s.completed)d++;if(s.date)dates.push(s.date);});});
+  dates.sort();
+  var fr=function(x){return x?x.slice(8,10)+'/'+x.slice(5,7)+'/'+x.slice(0,4):'';};
+  var periode=dates.length?(dates[0]===dates[dates.length-1]?fr(dates[0]):fr(dates[0])+' → '+fr(dates[dates.length-1])):'';
+  var meta=[periode?'<span>'+ICONS.clock+periode+'</span>':'',m.preleveur?'<span>'+ICONS.user+escapeHtml(m.preleveur)+'</span>':'',m.debitmetre?'<span>'+ICONS.tool+escapeHtml(m.debitmetre)+'</span>':'',m.tachymetre?'<span>'+ICONS.tool+'Tachym. '+escapeHtml(m.tachymetre)+'</span>':''].join('');
+  var h='<div class="card mission-head"><div class="mission-hero"><div class="mission-hero-text">';
+  h+='<div class="mission-hero-kicker">'+(m.scolaDossier?'Dossier '+escapeHtml(m.scolaDossier):'Mission')+'</div>';
+  h+='<h1>'+escapeHtml(m.clientSite||'Sans nom')+'</h1>';
+  if(meta)h+='<div class="mission-hero-meta">'+meta+'</div>';
+  h+='</div>'+(t?missionRingSvg(d,t):'')+'</div><div class="mission-head-body"><div class="mission-actions">';
+  var fc=typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true;
+  if(fc)h+='<button class="btn btn-primary btn-small" onclick="state.missionMenuOpen=false;exportFeuilleCalcul();">'+ICONS.sheet+' Feuille de calcul</button>';
+  h+='<button class="btn '+(fc?'btn-gray':'btn-primary')+' btn-small" onclick="state.missionMenuOpen=false;state.view=\'liste-echantillons\';render();">'+ICONS.list+' Échantillons</button>';
+  h+='<button class="btn btn-gray btn-small mission-more-btn'+(state.missionMenuOpen?' active':'')+'" aria-label="Plus d’actions" onclick="state.missionMenuOpen=!state.missionMenuOpen;render();">'+ICONS.more+'</button></div>';
+  if(state.missionMenuOpen){
+    var item=function(onclick,icon,label,cls){return '<button type="button" class="menu-row'+(cls?' '+cls:'')+'" onclick="state.missionMenuOpen=false;'+onclick+'">'+icon+'<span>'+label+'</span></button>';};
+    h+='<div class="mission-menu">'+
+      item('render();sendMissionByMail('+m.id+');',ICONS.mail,'Envoyer la mission par e-mail')+
+      item('render();exportMissionJSON('+m.id+');',ICONS.download,'Enregistrer la mission (.json)')+
+      item('render();exportActiviteWord();',ICONS.fileText,'Activité (Word)')+
+      item('render();exportExcel();',ICONS.download,'Ancien export Excel')+
+      item('showSmartFusionModal();',ICONS.zap,'Fusionner intelligemment')+
+      item('startFusionMode();',ICONS.merge,'Fusion manuelle')+
+      item('state.showModal=\'addGehTerrain\';render();',ICONS.plus,'Ajouter un GEH')+
+      item('editMissionFromTerrain();',ICONS.edit,'Modifier la mission')+
+      item('unvalidateMissionFromTerrain();',ICONS.arrowLeft,'Repasser en préparation')+
+      item('deleteMissionTerrain();',ICONS.trash,'Supprimer la mission','danger')+
+      '</div>';
+  }
+  return h+'</div></div>';
+}
 
 function deleteMissionTerrain(){
   var m=getCurrentMission();if(!m)return;
@@ -388,6 +430,7 @@ function doFusion(){
           if(!mn.subPrelevements[s].agentData[an])mn.subPrelevements[s].agentData[an]=o.subPrelevements[s].agentData[an];
         }
       }
+      mergeSupportsSupp(mn.subPrelevements[s],o.subPrelevements[s]);
     }
     var idx=m.prelevements.findIndex(function(x){return x.id===o.id;});
     if(idx!==-1)m.prelevements.splice(idx,1);
@@ -408,11 +451,13 @@ function defusionPrel(prelId){
   if(!confirm('Défusionner ce prélèvement ?\nChaque agent redeviendra un prélèvement séparé.'))return;
   var newPrels=[];
   p.agents.forEach(function(agent){
-    var np={id:Date.now()+Math.floor(Math.random()*1000),gehId:p.gehId,type:p.type,isReglementaire:p.isReglementaire,agents:[agent],subPrelevements:[]};
+    var np={id:generateId(),gehId:p.gehId,gehName:p.gehName,gehNum:p.gehNum,type:p.type,isReglementaire:p.isReglementaire,agents:[agent],subPrelevements:[]};
     p.subPrelevements.forEach(function(sub){
       var ns=JSON.parse(JSON.stringify(sub));
-      ns.id=Date.now()+Math.floor(Math.random()*10000);
+      ns.id=generateId();
       if(ns.agentData){var kept={};if(ns.agentData[agent.name])kept[agent.name]=ns.agentData[agent.name];ns.agentData=kept;}
+      (ns.supportsSupp||[]).forEach(function(sp){var k2={};if(sp.agentData&&sp.agentData[agent.name])k2[agent.name]=sp.agentData[agent.name];sp.agentData=k2;});
+      delete ns.coPrelGroups;
       np.subPrelevements.push(ns);
     });
     newPrels.push(np);
@@ -547,6 +592,7 @@ function doSmartFusion(){
             }
           }
         }
+        mergeSupportsSupp(first.subPrelevements[s],other.subPrelevements[s]);
       }
       
       // Supprimer l'autre prélèvement
@@ -603,6 +649,58 @@ function isTachymetreAgent(agentName){
   return sup.indexOf('mousse')!==-1||sup.indexOf('coupelle rotative')!==-1;
 }
 
+// Agent mesuré en continu par un analyseur portable (CO, CO2…) : ni pompe ni débit, onglet « Analyseurs »
+function isAnalyseurAgent(agentName){
+  var ag=getAgentFromDB(agentName);
+  if(!ag)return false;
+  // « anlyseur » : coquille présente dans la base pour le CO
+  return /mesure en continu|an?a?lyseur|lecture directe/i.test(String(ag['Principe du prélèvement']||'')+' '+String(ag['Méthode']||''));
+}
+
+// Champs de contrôle de l'analyseur (onglet Analyseurs de la feuille de calcul), tous facultatifs
+var ANALYSEUR_CHAMPS=[
+  {cle:'bouteilleZero',label:'Bouteille zéro'},
+  {cle:'bouteilleEtalon',label:'Bouteille étalon'},
+  {cle:'gazEtalon',label:'Gaz étalon'},
+  {cle:'attenduZero',label:'Attendu zéro',num:true},
+  {cle:'attenduEtalon',label:'Attendu étalon',num:true},
+  {cle:'ctrlZeroAvant',label:'Zéro avant',num:true},
+  {cle:'ctrlSensAvant',label:'Sensib. avant',num:true},
+  {cle:'ctrlZeroApres',label:'Zéro après',num:true},
+  {cle:'ctrlSensApres',label:'Sensib. après',num:true}
+];
+
+function renderAnalyseurChamps(p,idx,aname,ad,canCopy){
+  var call=function(f){return 'updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\''+f+'\',this.value);';};
+  var h='<div class="multi-agent-row"><label>N° analyseur';
+  if(canCopy)h+='<button class="copy-btn" onclick="copyAnalyseurFromPrevious('+p.id+','+idx+',\''+escapeJs(aname)+'\');">J-1</button>';
+  h+='</label><input type="text" class="input" style="flex:1;" value="'+escapeHtml(ad.numPompe||'')+'" placeholder="Ex: 24259" onchange="'+call('numPompe')+'"></div>';
+  var rempli=ANALYSEUR_CHAMPS.some(function(c){return ad[c.cle];});
+  h+='<details style="margin:4px 0;"'+(rempli?' open':'')+'><summary style="font-size:12px;color:var(--primary);cursor:pointer;">Contrôles de l\'analyseur (facultatif)</summary>';
+  ANALYSEUR_CHAMPS.forEach(function(c){
+    h+='<div class="multi-agent-row"><label>'+c.label+'</label><input type="text"'+(c.num?' inputmode="decimal"':'')+' class="input" style="flex:1;" value="'+escapeHtml(ad[c.cle]||'')+'" onchange="'+call(c.cle)+'"></div>';
+  });
+  h+='</details>';
+  h+='<div class="multi-agent-row"><label>N° d\'essai</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Ex: CO2 - PF1" onchange="'+call('refEchantillon')+'"></div>';
+  // relevés exportés par l'appareil (onglet Acquisition de la feuille de calcul)
+  if(typeof renderRelevesAnalyseur==='function')h+=renderRelevesAnalyseur(p,idx,aname,p.subPrelevements[idx],ad);
+  return h;
+}
+
+// J-1 : même analyseur, mêmes bouteilles et valeurs attendues (les contrôles du jour restent à saisir)
+function copyAnalyseurFromPrevious(pid,idx,an){
+  if(idx<=0)return;
+  var m=getCurrentMission();if(!m)return;
+  var p=m.prelevements.find(function(x){return x.id===pid;});
+  var prev=(p.subPrelevements[idx-1].agentData||{})[an]||{};
+  var cur=p.subPrelevements[idx];
+  if(!cur.agentData)cur.agentData={};
+  if(!cur.agentData[an])cur.agentData[an]={};
+  ['numPompe','bouteilleZero','bouteilleEtalon','gazEtalon','attenduZero','attenduEtalon'].forEach(function(f){if(prev[f])cur.agentData[an][f]=prev[f];});
+  saveData('vlep_missions_v3',state.missions);
+  render();
+}
+
 // Plage de débit recommandée par la base de données (null si inconnu ou tachymètre)
 // ATTENTION: les clés DB contiennent un DOUBLE ESPACE sur 8h : "débit min  8h (L/min)"
 function getDebitRange(agentName,prelType){
@@ -623,11 +721,23 @@ function getDebitRange(agentName,prelType){
   return {min:minV,max:maxV};
 }
 
-function isDebitOutOfRange(value,range){
-  if(!range)return false;
-  var v=parseFloat(value);
-  if(!isFinite(v))return false;
-  return v<range.min||v>range.max;
+// Contrôle du débit : moyenne (initial + final) / 2 comparée au débit attendu avec ± 5 %.
+// Débit attendu = valeur de la base quand min = max (cas courant) ; si la base donne une
+// plage, la tolérance s'applique aux bornes (min − 5 %, max + 5 %).
+// Retourne null tant que les deux débits ne sont pas saisis ou que la base ne dit rien.
+var DEBIT_TOLERANCE=0.05;
+function checkDebitMoyen(agentName,prelType,di,df){
+  var range=getDebitRange(agentName,prelType);
+  var dI=parseNum(di),dF=parseNum(df);
+  if(!range||isNaN(dI)||isNaN(dF))return null;
+  var moy=(dI+dF)/2;
+  var lo=range.min*(1-DEBIT_TOLERANCE),hi=range.max*(1+DEBIT_TOLERANCE);
+  return {moy:moy,range:range,lo:lo,hi:hi,horsTolerance:moy<lo||moy>hi};
+}
+
+// Affichage d'un débit sans bruit de virgule flottante (0,1 et non 0,10000000001)
+function formatDebit(v){
+  return String(Math.round(v*10000)/10000).replace('.',',');
 }
 
 // Détection des champs manquants pour validation
@@ -647,8 +757,19 @@ function getMissingFields(p,sb){
   if(p.agents&&p.agents.length){
     p.agents.forEach(function(a){
       var aname=a.name||'Agent inconnu';
+      // Support partagé : contrôlé une seule fois, sous le nom du premier agent du groupe
+      var grp=getCoPrelGroupMembers(sb,aname);
+      if(grp.length>1){
+        var premier=p.agents.filter(function(x){return grp.indexOf(x.name)!==-1;})[0];
+        if(premier&&premier.name!==aname)return;
+      }
       var ad=(sb.agentData&&sb.agentData[aname])||{};
       var shortName=aname.length>25?aname.substring(0,25)+'…':aname;
+      if(grp.length>1)shortName+=' + '+(grp.length-1);
+      if(isAnalyseurAgent(aname)){
+        if(!ad.numPompe||!(''+ad.numPompe).trim())missing.push('N° analyseur · '+shortName);
+        return;
+      }
       if(!ad.numPompe||!(''+ad.numPompe).trim())missing.push('N° Pompe · '+shortName);
       if(isTachymetreAgent(aname)){
         if(!ad.debitRef||!(''+ad.debitRef).trim())missing.push('Vitesse réf · '+shortName);
@@ -660,7 +781,34 @@ function getMissingFields(p,sb){
       }
     });
   }
+  getSupportsSupp(sb).forEach(function(s,k){
+    var num='support n°'+(k+2);
+    var plOk=(s.plages||[]).some(function(pl){return pl.debut&&pl.fin;});
+    if(!plOk)missing.push('Plage horaire · '+num);
+    (p.agents||[]).forEach(function(a){
+      var grp=getCoPrelGroupMembers(sb,a.name);
+      if(grp.length>1&&p.agents.filter(function(x){return grp.indexOf(x.name)!==-1;})[0].name!==a.name)return;
+      var ad=(s.agentData&&s.agentData[a.name])||{};
+      var nm=a.name.length>25?a.name.substring(0,25)+'…':a.name;
+      if(!ad.debitInitial||!(''+ad.debitInitial).trim())missing.push('Débit initial · '+num+' · '+nm);
+      if(!ad.debitFinal||!(''+ad.debitFinal).trim())missing.push('Débit final · '+num+' · '+nm);
+      if(!ad.refEchantillon||!(''+ad.refEchantillon).trim())missing.push('Réf. échantillon · '+num+' · '+nm);
+    });
+  });
   return missing;
+}
+
+// Fusion de prélèvements : réunit les supports suivants de deux sous-prélèvements (même rang)
+function mergeSupportsSupp(dst,src){
+  var ex=getSupportsSupp(src);
+  if(!ex.length)return;
+  if(!dst.supportsSupp)dst.supportsSupp=[];
+  ex.forEach(function(s,k){
+    if(!dst.supportsSupp[k]){dst.supportsSupp[k]=s;return;}
+    var d=dst.supportsSupp[k];
+    if(!d.agentData)d.agentData={};
+    for(var an in (s.agentData||{})){if(!d.agentData[an])d.agentData[an]=s.agentData[an];}
+  });
 }
 
 function showMissingFieldsModal(pid,idx){
@@ -728,7 +876,7 @@ function renderTerrainPrel(){
   if(!p){state.view='terrain-mission';render();return'';}
   var mc=p.agents&&p.agents[0]?p.agents[0].color:'#3b82f6';
   var agentNames=p.agents&&p.agents.length>0?p.agents.map(function(a){return escapeHtml(a.name||'???');}).join(' + '):'Agent inconnu';
-  var h='<div class="sticky-header"><button class="back-btn" onclick="state.view=\'terrain-mission\';state.currentPrelId=null;render();">'+ICONS.arrowLeft+' Liste</button><div style="color:white;font-size:12px;opacity:0.85;">'+agentNames+' - '+p.type+' | GEH '+p.gehNum+'</div></div><div class="card" style="border-left:4px solid '+mc+';"><h2 style="color:'+mc+';">'+agentNames+' - '+p.type+'</h2><p class="subtitle"><span class="svg-icon">'+ICONS.folder+'</span> GEH '+p.gehNum+' - '+escapeHtml(p.gehName)+' | '+(p.isReglementaire?'Réglementaire':'Non-régl.')+'</p></div>';
+  var h='<div class="sticky-header"><button class="back-btn" onclick="state.view=\'terrain-mission\';state.currentPrelId=null;render();">'+ICONS.arrowLeft+' Mission</button><div class="sticky-sub">'+agentNames+' · '+p.type+' · GEH '+p.gehNum+'</div></div><div class="card" style="border-left:4px solid '+mc+';border-radius:0 16px 16px 0;"><h2>'+agentNames+' - '+p.type+'</h2><p class="subtitle"><span class="svg-icon">'+ICONS.folder+'</span> GEH '+p.gehNum+' - '+escapeHtml(p.gehName)+' | '+(p.isReglementaire?'Réglementaire':'Non-régl.')+'</p></div>';
   if(p.subPrelevements.length>1){
     h+='<div class="tabs">';
     for(var t=0;t<p.subPrelevements.length;t++){
@@ -766,7 +914,8 @@ function renderSubPrelForm(p,sb,idx){
   h+='<div class="field"><label class="label">Date</label><input type="date" class="input" value="'+(sb.date||'')+'" onchange="updateSubField('+p.id+','+idx+',\'date\',this.value);"></div>';
   
   // Plages horaires (remontées juste sous la date, avant les agents)
-  h+='<div class="field"><label class="label">Plages horaires</label>';
+  var fractionne=getSupportsSupp(sb).length>0;
+  h+='<div class="field"><label class="label">Plages horaires'+(fractionne?' · support n°1':'')+'</label>';
   var pl=sb.plages||[{debut:'',fin:''}];
   pl.forEach(function(x,pi){
     h+='<div class="plage-row"><div class="plage-num">'+(pi+1)+'</div><input type="time" class="plage-input" value="'+(x.debut||'')+'" onchange="updatePlageWithAutoDate('+p.id+','+idx+','+pi+',\'debut\',this.value);"><span class="plage-sep">'+ICONS.arrowRight+'</span><input type="time" class="plage-input" value="'+(x.fin||'')+'" onchange="updatePlageWithAutoDate('+p.id+','+idx+','+pi+',\'fin\',this.value);">';
@@ -778,9 +927,19 @@ function renderSubPrelForm(p,sb,idx){
   
   var d=getDureeTotale(pl);
   if(d)h+='<div class="duration-box"><span style="display:inline-flex;width:16px;height:16px;">'+ICONS.clock+'</span> Durée : '+d+'</div>';
-  
-  h+='<div class="field"><label class="label"><span class="svg-icon">'+ICONS.beaker+'</span> Agent(s) chimique(s)</label>';
-  
+
+  // Durée d'exposition (VLEP 8h) : reprise dans la feuille de calcul et le Word. Court-terme : durée du prélèvement.
+  if(p.type!=='CT'){
+    var dPrel=dureePrelevementMin(sb);
+    h+='<div class="field"><div class="field-header"><label class="label">Durée d\'exposition (VLEP 8h)</label>';
+    if(canCopyFromPrevious)h+='<button class="copy-btn" onclick="copyFromPrevious('+p.id+','+idx+',\'dureeExpo\');">'+ICONS.list+' J-1</button>';
+    h+='</div><div style="display:flex;gap:6px;align-items:center;"><input type="time" class="input" style="max-width:140px;margin:0;" value="'+escapeHtml(sb.dureeExpo||'')+'" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'dureeExpo\',this.value);">';
+    if(dPrel>0)h+='<button type="button" class="btn btn-gray btn-small" style="width:auto;margin:0;" onclick="updateSubFieldWithAutoDate('+p.id+','+idx+',\'dureeExpo\',\''+(Math.floor(dPrel/60)<10?'0':'')+Math.floor(dPrel/60)+':'+(dPrel%60<10?'0':'')+(dPrel%60)+'\');render();">= durée du prélèvement</button>';
+    h+='</div><div style="font-size:11px;color:var(--text-muted);margin-top:3px;">Temps d\'exposition de l\'opérateur sur la journée (h:min).</div></div>';
+  }
+
+  h+='<div class="field"><label class="label"><span class="svg-icon">'+ICONS.beaker+'</span> Agent(s) chimique(s)'+(fractionne?' · support n°1':'')+'</label>';
+
   if(!p.agents||p.agents.length===0){
     h+='<div class="info-box info-box-warning"><p>Aucun agent chimique défini pour ce prélèvement</p></div>';
   }else{
@@ -805,24 +964,46 @@ function renderSubPrelForm(p,sb,idx){
       var isLinked=grpIdx!==-1;
       var grpMembers=isLinked?sb.coPrelGroups[grpIdx]:[];
       var hasOtherAgents=p.agents.length>1;
-      
-      var borderStyle=isLinked?'border:2px solid #0891b2;border-radius:8px;margin-bottom:8px;':'border:1px solid var(--border);border-radius:8px;margin-bottom:8px;';
+      // Support partagé : un seul bloc, porté par le premier agent du groupe (ordre du prélèvement) ;
+      // les données sont communes (updateAgentDataSynced), les autres agents ne sont pas répétés.
+      var grpOrdered=isLinked?p.agents.filter(function(x){return grpMembers.indexOf(x.name)!==-1;}):[];
+      if(isLinked&&grpOrdered.length&&grpOrdered[0].name!==aname)return;
+
+      var borderStyle=isLinked?'border:1.5px solid var(--primary-light);border-radius:10px;margin-bottom:8px;':'border:1px solid var(--border);border-radius:8px;margin-bottom:8px;';
       h+='<div class="multi-agent-item" style="'+borderStyle+'">';
-      h+='<div class="multi-agent-header" style="'+(isLinked?'background:#e0f2fe;border-radius:6px 6px 0 0;padding:6px 8px;':'padding:6px 8px;')+'">';
-      h+='<div class="multi-agent-color" style="background:'+(a.color||'#3b82f6')+';"></div>';
-      h+='<div class="multi-agent-name">'+escapeHtml(aname)+'</div>';
+      h+='<div class="multi-agent-header" style="'+(isLinked?'background:#e0f2fe;border-radius:6px 6px 0 0;padding:6px 8px;flex-wrap:wrap;gap:4px;':'padding:6px 8px;')+'">';
+      if(isLinked){
+        h+='<div style="font-size:11px;color:var(--primary-dark);font-weight:700;width:100%;">Même support · '+grpOrdered.length+' agents</div>';
+        grpOrdered.forEach(function(ga){
+          h+='<span style="display:inline-flex;align-items:center;gap:4px;background:white;border-radius:12px;padding:2px 8px;font-size:12px;font-weight:600;">';
+          h+='<span style="width:8px;height:8px;border-radius:50%;background:'+(ga.color||'#3b82f6')+';"></span>'+escapeHtml(ga.name);
+          h+='<span title="Délier cet agent" style="cursor:pointer;color:#dc2626;font-weight:700;margin-left:2px;" onclick="unlinkAgentFromSupport('+p.id+','+idx+',\''+escapeJs(ga.name)+'\');">×</span></span>';
+        });
+        if(grpOrdered.length<p.agents.length){
+          h+='<button class="btn btn-small btn-blue" style="margin-left:auto;font-size:11px;padding:2px 8px;" onclick="showLinkAgentModal('+p.id+','+idx+',\''+escapeJs(aname)+'\');">+ Agent</button>';
+        }
+      }else{
+        h+='<div class="multi-agent-color" style="background:'+(a.color||'#3b82f6')+';"></div>';
+        h+='<div class="multi-agent-name">'+escapeHtml(aname)+'</div>';
+      }
       if(hasOtherAgents){
         if(isLinked){
-          var autresMembres=grpMembers.filter(function(n){return n!==aname;}).map(escapeHtml).join(', ');
-          h+='<span style="font-size:11px;color:#0891b2;font-weight:600;margin-left:4px;">🔗 '+autresMembres+'</span>';
-          h+='<button class="btn btn-small" style="margin-left:auto;font-size:11px;padding:2px 6px;background:#fee2e2;color:#dc2626;border:none;border-radius:4px;" onclick="unlinkAgentFromSupport('+p.id+','+idx+',\''+escapeJs(aname)+'\');">Délier</button>';
+          // boutons portés par les pastilles ci-dessus
         }else{
           h+='<button class="btn btn-small btn-blue" style="margin-left:auto;font-size:11px;padding:2px 8px;" onclick="showLinkAgentModal('+p.id+','+idx+',\''+escapeJs(aname)+'\');">🔗 Même support</button>';
         }
       }
       h+='</div>';
       h+='<div class="multi-agent-fields" style="padding:6px 8px;">';
-      
+
+      // Analyseur portable (CO, CO2…) : n° d'analyseur, contrôles, n° d'essai — ni pompe ni débit
+      if(isAnalyseurAgent(aname)){
+        h+=renderAnalyseurChamps(p,idx,aname,ad,canCopyFromPrevious);
+        if(typeof renderConsignesAgent==='function')h+=renderConsignesAgent(m,p,sb,aname);
+        h+='</div></div>';
+        return;
+      }
+
       // N° Pompe avec bouton copier J-1
       h+='<div class="multi-agent-row"><label>N° Pompe';
       if(canCopyFromPrevious)h+='<button class="copy-btn" onclick="copyAgentDataFromPrevious('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'numPompe\');">J-1</button>';
@@ -833,33 +1014,51 @@ function renderSubPrelForm(p,sb,idx){
         var ecartF=calcTachyVariation(ad.debitFinal,ad.debitRef);
         var warnI=ecartI!==null&&ecartI>200;
         var warnF=ecartF!==null&&ecartF>200;
-        h+='<div class="multi-agent-row"><label>Vitesse réf. (tr/min)</label><input type="text" class="input" style="flex:1;" value="'+escapeHtml(ad.debitRef||'')+'" placeholder="tr/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitRef\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');"></div>';
-        h+='<div class="multi-agent-row"><label>Vitesse initiale (tr/min)</label><input type="text" class="input '+(warnI?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitInitial||'')+'" placeholder="tr/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitInitial\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');">';
+        h+='<div class="multi-agent-row"><label>Vitesse réf. (tr/min)</label><input type="text" inputmode="decimal" class="input" style="flex:1;" value="'+escapeHtml(ad.debitRef||'')+'" placeholder="tr/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitRef\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');"></div>';
+        h+='<div class="multi-agent-row"><label>Vitesse initiale (tr/min)</label><input type="text" inputmode="decimal" class="input '+(warnI?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitInitial||'')+'" placeholder="tr/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitInitial\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');">';
         if(ecartI!==null){h+='<span class="debit-variation '+(warnI?'warning':'')+'">Δ '+ecartI.toFixed(0)+' tr/min</span>';}
         h+='</div>';
-        h+='<div class="multi-agent-row"><label>Vitesse finale (tr/min)</label><input type="text" class="input '+(warnF?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitFinal||'')+'" placeholder="tr/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitFinal\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');">';
+        h+='<div class="multi-agent-row"><label>Vitesse finale (tr/min)</label><input type="text" inputmode="decimal" class="input '+(warnF?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitFinal||'')+'" placeholder="tr/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitFinal\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');">';
         if(ecartF!==null){h+='<span class="debit-variation '+(warnF?'warning':'')+'">Δ '+ecartF.toFixed(0)+' tr/min</span>';}
         h+='</div>';
         if(hasWarning){h+='<div style="color:#dc2626;font-size:11px;padding:4px 0;">⚠️ Écart > 200 tr/min par rapport à la vitesse de référence</div>';}
       }else{
-        var range=getDebitRange(aname,p.type);
-        var outI=range&&ad.debitInitial?isDebitOutOfRange(ad.debitInitial,range):false;
-        var outF=range&&ad.debitFinal?isDebitOutOfRange(ad.debitFinal,range):false;
-        h+='<div class="multi-agent-row"><label>Débit initial</label><input type="text" class="input '+(hasWarning||outI?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitInitial||'')+'" placeholder="L/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitInitial\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');"></div>';
-        h+='<div class="multi-agent-row"><label>Débit final</label><input type="text" class="input '+(hasWarning||outF?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitFinal||'')+'" placeholder="L/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitFinal\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');">';
+        // Contrôle pour chaque agent du support (les débits attendus peuvent différer)
+        var ctrls=(isLinked?grpOrdered.map(function(x){return x.name;}):[aname]).map(function(n){
+          var c=checkDebitMoyen(n,p.type,ad.debitInitial,ad.debitFinal);
+          if(c)c.agent=n;
+          return c;
+        }).filter(function(c){return c;});
+        var horsTol=ctrls.some(function(c){return c.horsTolerance;});
+        h+='<div class="multi-agent-row"><label>Débit initial</label><input type="text" inputmode="decimal" class="input '+(hasWarning||horsTol?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitInitial||'')+'" placeholder="L/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitInitial\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');"></div>';
+        h+='<div class="multi-agent-row"><label>Débit final</label><input type="text" inputmode="decimal" class="input '+(hasWarning||horsTol?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitFinal||'')+'" placeholder="L/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitFinal\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');">';
         if(variation!==null){h+='<span class="debit-variation '+(hasWarning?'warning':'')+'">Δ '+variation.toFixed(1)+'%</span>';}
         h+='</div>';
-        if(range&&(outI||outF)){
-          h+='<div style="color:#dc2626;font-size:11px;padding:4px 0;">⚠️ Débit hors plage recommandée ['+range.min+' – '+range.max+' L/min] ('+(p.type==='CT'?'CT':'8h')+')</div>';
+        if(hasWarning){
+          h+='<div style="color:#dc2626;font-size:11px;padding:4px 0;">⚠️ Écart entre débit initial et final > 5 %</div>';
         }
+        var dejaAffiche={};
+        ctrls.forEach(function(ctrl){
+          var attendu=ctrl.range.min===ctrl.range.max?formatDebit(ctrl.range.min)+' L/min':formatDebit(ctrl.range.min)+' – '+formatDebit(ctrl.range.max)+' L/min';
+          if(dejaAffiche[attendu])return; // même débit attendu : une seule ligne
+          dejaAffiche[attendu]=true;
+          var hors=ctrl.horsTolerance;
+          var qui=ctrls.length>1?' · '+escapeHtml(ctrls.filter(function(c){return c.range.min===ctrl.range.min&&c.range.max===ctrl.range.max;}).map(function(c){return c.agent;}).join(', ')):'';
+          h+='<div style="color:'+(hors?'#dc2626':'var(--text-muted)')+';font-size:11px;padding:4px 0;">'+(hors?'⚠️ ':'')+'Débit moyen '+formatDebit(ctrl.moy)+' L/min '+(hors?'hors':'dans')+' tolérance (attendu '+attendu+' ± 5 %, '+(p.type==='CT'?'CT':'8h')+')'+qui+'</div>';
+        });
       }
       
       h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'refEchantillon\',this.value);"></div>';
+      // consignes de la base (durées, volumes, rappels) pour cet agent
+      if(typeof renderConsignesAgent==='function')(isLinked?grpOrdered.map(function(x){return x.name;}):[aname]).forEach(function(n){h+=renderConsignesAgent(m,p,sb,n);});
       h+='</div></div>';
     });
   }
   h+='</div>';
-  
+
+  // Supports suivants (prélèvement 8h fractionné)
+  h+=renderSupportsSupp(p,sb,idx);
+
   // Timer CT
   if(p.type==='CT'){
     var timerRunning=isTimerRunning(p.id,idx);
@@ -883,15 +1082,28 @@ function renderSubPrelForm(p,sb,idx){
   });
   h+='</div>';
   if(isAutre){
-    h+='<input type="text" class="input" style="margin-bottom:6px;" value="'+escapeHtml(epiVal)+'" placeholder="Ex: masque complet P3" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'epiType\',this.value);">';
+    // Liste de l'onglet FPA de la feuille de calcul (intitulé court = valeur attendue par la feuille)
+    var dansListe=EPI_FPA.some(function(e){return e.court===epiVal;});
+    h+='<select class="input" style="margin-bottom:6px;" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'epiType\',this.value);render();">';
+    h+='<option value=""'+(epiVal===''?' selected':'')+'>Choisir l\'EPI…</option>';
+    if(epiVal&&!dansListe)h+='<option value="'+escapeHtml(epiVal)+'" selected>'+escapeHtml(epiVal)+' (hors liste FPA)</option>';
+    EPI_FPA.forEach(function(e){
+      h+='<option value="'+escapeHtml(e.court)+'"'+(e.court===epiVal?' selected':'')+'>'+escapeHtml(e.court)+' — FPA '+e.fpa+'</option>';
+    });
+    h+='</select>';
+    var choisi=EPI_FPA.find(function(e){return e.court===epiVal;});
+    if(choisi)h+='<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">'+escapeHtml(choisi.norme+' · '+choisi.long)+'</div>';
   }
   if(epiVal!=='sans objet'){
-    h+='<div style="display:flex;align-items:center;gap:8px;"><label style="white-space:nowrap;font-size:13px;">Durée de port (min)</label><input type="text" class="input" style="width:100px;" value="'+escapeHtml(String(sb.epiDuree||'0'))+'" placeholder="0" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'epiDuree\',this.value);"></div>';
+    h+='<div style="display:flex;align-items:center;gap:8px;"><label style="white-space:nowrap;font-size:13px;">Durée de port (min)</label><input type="text" inputmode="numeric" class="input" style="width:100px;" value="'+escapeHtml(String(sb.epiDuree||'0'))+'" placeholder="0" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'epiDuree\',this.value);"></div>';
   }
   h+='</div>';
 
   // Ventilation et captage (Point 2)
-  h+='<div class="field"><label class="label">Ventilation et captage</label>';
+  var srcCond=findConditionsSource(m,p,idx);
+  h+='<div class="field"><div class="field-header"><label class="label">Ventilation et captage</label>';
+  if(srcCond)h+='<button class="copy-btn" title="Recopier ventilation, captage et EPI depuis '+escapeHtml(srcCond.label)+'" onclick="copyConditionsFrom('+p.id+','+idx+');">'+ICONS.list+' '+(idx>0?'J-1':'Prél. précédent')+'</button>';
+  h+='</div>';
 
   // 1) Environnement (défaut coché d'office : Local standard industriel)
   var venvVal=sb.ventEnv||'Local standard industriel';
@@ -932,6 +1144,9 @@ function renderSubPrelForm(p,sb,idx){
     h+='<input type="text" class="input" value="'+escapeHtml(sb.ventCaptageAutre||'')+'" placeholder="Préciser" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'ventCaptageAutre\',this.value);">';
   }
   h+='</div>';
+
+  // Scol@ : tâche, métier, type de procédé (listes Scol@), repris dans le bloc Scol@ de la feuille de calcul
+  h+=renderScolaChamps(p,sb,idx);
 
   // Bouton Valider : grisé + pastille ⓘ si champs manquants
   if(sb.completed){
@@ -991,6 +1206,102 @@ function copyAgentDataFromPrevious(pid,idx,agentName,field){
     saveData('vlep_missions_v3',state.missions);
     render();
   }
+}
+
+// Conditions de prélèvement (ventilation, captage, EPI) recopiables d'un prélèvement à l'autre
+var CONDITIONS_FIELDS=['ventEnv','ventEnvAutre','ventGenerale','ventGeneraleAutre','ventCaptage','ventCaptageAutre','epiType','epiDuree','scolaTache','scolaMetier','scolaProcede'];
+
+// ═══════════════════════════════════════════════════════════
+// SCOL@ : descripteurs de la mesure (tâche, métier, procédé) choisis dans les listes Scol@.
+// Ventilation, captage, lieu et EPI viennent des champs ci-dessus ; le reste est déduit à l'export.
+// ═══════════════════════════════════════════════════════════
+var SCOLA_CHAMPS=[
+  {cle:'scolaTache',liste:'tache',label:'Tâche',placeholder:'Rechercher une tâche (ex. pistolet, ponçage)…'},
+  {cle:'scolaMetier',liste:'metier',label:'Métier',placeholder:'Rechercher un métier (ex. peintre, soudeur)…'}
+];
+
+function scolaNorm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
+
+function renderScolaChamps(p,sb,idx){
+  // sans le modèle de feuille de calcul, ces descripteurs ne servent à rien : non affichés
+  if(typeof SCOLA_LISTES==='undefined'||typeof FC_MODELE_DISPO==='undefined'||FC_MODELE_DISPO!==true)return '';
+  var h='<div class="field"><label class="label">Scol@</label>';
+  SCOLA_CHAMPS.forEach(function(c){
+    h+='<div style="font-size:13px;color:var(--text-dark);margin:6px 0 4px;">'+c.label+'</div>';
+    if(sb[c.cle]){
+      h+='<div style="display:flex;align-items:center;gap:6px;background:var(--primary-pale);border-radius:8px;padding:6px 8px;font-size:12px;"><span style="flex:1;">'+escapeHtml(sb[c.cle])+'</span>';
+      h+='<button type="button" class="btn btn-gray btn-small" style="width:auto;margin:0;" onclick="updateSubFieldWithAutoDate('+p.id+','+idx+',\''+c.cle+'\',\'\');render();">Changer</button></div>';
+    }else{
+      h+='<input type="text" class="input" style="margin-bottom:4px;" placeholder="'+escapeHtml(c.placeholder)+'" oninput="scolaRechercher('+p.id+','+idx+',\''+c.cle+'\',this.value);">';
+      h+='<div id="scola-res-'+c.cle+'"></div>';
+    }
+  });
+  h+='<div style="font-size:13px;color:var(--text-dark);margin:6px 0 4px;">Type de procédé</div><div style="display:flex;gap:6px;flex-wrap:wrap;">';
+  SCOLA_LISTES.procede.forEach(function(o){
+    var sel=(sb.scolaProcede===o);
+    var court=o.replace(/\s*\(anciennement[^)]*\)/,'');
+    h+='<button type="button" class="btn btn-small '+(sel?'btn-primary':'btn-gray')+'" style="width:auto;" onclick="updateSubFieldWithAutoDate('+p.id+','+idx+',\'scolaProcede\','+(sel?'\'\'':'\''+escapeJs(o)+'\'')+');render();">'+escapeHtml(court)+'</button>';
+  });
+  h+='</div></div>';
+  return h;
+}
+
+// Recherche dans une liste Scol@ sans tout redessiner (garde le clavier ouvert)
+function scolaRechercher(pid,idx,cle,valeur){
+  var box=document.getElementById('scola-res-'+cle);
+  if(!box)return;
+  var c=SCOLA_CHAMPS.find(function(x){return x.cle===cle;});
+  var mots=scolaNorm(valeur).split(/\s+/).filter(function(w){return w.length>=2;});
+  if(!mots.length){box.innerHTML='';return;}
+  var res=[];
+  var liste=SCOLA_LISTES[c.liste];
+  for(var i=0;i<liste.length&&res.length<8;i++){
+    var n=scolaNorm(liste[i]);
+    if(mots.every(function(w){return n.indexOf(w)!==-1;}))res.push(liste[i]);
+  }
+  var h='';
+  if(!res.length)h='<div style="font-size:12px;color:var(--text-muted);padding:4px;">Aucun résultat dans la liste Scol@</div>';
+  else{
+    h='<div class="search-results">';
+    res.forEach(function(r){
+      h+='<div class="search-result-item" onmousedown="event.preventDefault();" onclick="updateSubFieldWithAutoDate('+pid+','+idx+',\''+cle+'\',\''+escapeJs(r)+'\');render();">'+escapeHtml(r)+'</div>';
+    });
+    h+='</div>';
+  }
+  box.innerHTML=h;
+}
+
+function hasConditionsSaisies(sb){
+  return !!sb&&CONDITIONS_FIELDS.some(function(f){return sb[f]!==undefined&&sb[f]!==''&&!(f==='epiType'&&sb[f]==='sans objet');});
+}
+
+// Source : jour précédent du même prélèvement ; pour le 1er jour, le dernier prélèvement
+// du même GEH saisi à la même date (même opérateur / poste en général).
+function findConditionsSource(m,p,idx){
+  if(idx>0)return {sb:p.subPrelevements[idx-1],label:'le jour précédent'};
+  var sb=p.subPrelevements[idx];
+  var found=null;
+  m.prelevements.forEach(function(o){
+    if(o.id===p.id||o.gehId!==p.gehId)return;
+    o.subPrelevements.forEach(function(s){
+      if(s.date&&s.date===sb.date&&hasConditionsSaisies(s))found={sb:s,label:o.agents.map(function(a){return a.name;}).join(', ')+' ('+o.type+')'};
+    });
+  });
+  return found;
+}
+
+function copyConditionsFrom(pid,idx){
+  var m=getCurrentMission();if(!m)return;
+  var p=m.prelevements.find(function(x){return x.id===pid;});
+  if(!p||!p.subPrelevements[idx])return;
+  var src=findConditionsSource(m,p,idx);
+  if(!src)return;
+  var sb=p.subPrelevements[idx];
+  CONDITIONS_FIELDS.forEach(function(f){
+    if(src.sb[f]!==undefined)sb[f]=src.sb[f];else delete sb[f];
+  });
+  saveData('vlep_missions_v3',state.missions);
+  render();
 }
 
 // FIX #5: Fonctions avec auto-date
@@ -1103,6 +1414,57 @@ function getDureeTotale(pl){
   if(mn<=0)return'';
   return Math.floor(mn/60)+'h'+(mn%60<10?'0':'')+(mn%60);
 }
+
+// Facteurs de protection assignés : onglet « FPA » de la feuille de calcul Contrôle des VLEP (v73).
+// Le FPA lui-même est calculé par la feuille à partir de l'intitulé court.
+var EPI_FPA=[
+  {norme:'EN 149',court:'FFP1',long:'demi-masque filtrant FFP1',fpa:4},
+  {norme:'EN 149',court:'FFP2',long:'demi-masque filtrant FFP2',fpa:10},
+  {norme:'EN 149',court:'FFP3',long:'demi-masque filtrant FFP3',fpa:10},
+  {norme:'EN 405',court:'FFGazX P1',long:'demi-masque filtrant à soupape FFGazX P1',fpa:4},
+  {norme:'EN 405',court:'FFGazX P2',long:'demi-masque filtrant à soupape FFGazX P2',fpa:10},
+  {norme:'EN 405',court:'FFGazX P3',long:'demi-masque filtrant à soupape FFGazX P3',fpa:10},
+  {norme:'EN 140 / EN 143 / EN 14387 / EN 12083',court:'1/2 ou 1/4 masque P1',long:'demi-masque ou quart de masque avec filtre P1',fpa:4},
+  {norme:'EN 140 / EN 143 / EN 14387 / EN 12083',court:'1/2 ou 1/4 masque P2',long:'demi-masque ou quart de masque avec filtre P2',fpa:10},
+  {norme:'EN 140 / EN 143 / EN 14387 / EN 12083',court:'1/2 ou 1/4 masque P3',long:'demi-masque ou quart de masque avec filtre P3',fpa:10},
+  {norme:'EN 140 / EN 143 / EN 14387 / EN 12083',court:'1/2 ou 1/4 masque GazX',long:'demi-masque ou quart de masque avec filtre GazX',fpa:10},
+  {norme:'EN 140 / EN 143 / EN 14387 / EN 12083',court:'1/2 ou 1/4 masque GazX P1',long:'demi-masque ou quart de masque avec filtre GazX P1',fpa:4},
+  {norme:'EN 140 / EN 143 / EN 14387 / EN 12083',court:'1/2 ou 1/4 masque GazX P2',long:'demi-masque ou quart de masque avec filtre GazX P2',fpa:12},
+  {norme:'EN 140 / EN 143 / EN 14387 / EN 12083',court:'1/2 ou 1/4 masque GazX P3',long:'demi-masque ou quart de masque avec filtre GazX P3',fpa:10},
+  {norme:'EN 1827',court:'FM P1',long:'demi-masque filtrant sans soupape respiratoire FM P1',fpa:4},
+  {norme:'EN 1827',court:'FM P2',long:'demi-masque filtrant sans soupape respiratoire FM P2',fpa:10},
+  {norme:'EN 1827',court:'FM P3',long:'demi-masque filtrant sans soupape respiratoire FM P3',fpa:20},
+  {norme:'EN 1827',court:'FM GazX',long:'demi-masque filtrant sans soupape respiratoire FM GazX',fpa:10},
+  {norme:'EN 1827',court:'FM GazX P1',long:'demi-masque filtrant sans soupape respiratoire FM GazX P1',fpa:4},
+  {norme:'EN 1827',court:'FM GazX P2',long:'demi-masque filtrant sans soupape respiratoire FM GazX P2',fpa:12},
+  {norme:'EN 1827',court:'FM GazX P3',long:'demi-masque filtrant sans soupape respiratoire FM GazX P3',fpa:48},
+  {norme:'EN 136 / EN 143 / EN 14387 / EN 12083',court:'masque complet P1',long:'masque complet P1',fpa:4},
+  {norme:'EN 136 / EN 143 / EN 14387 / EN 12083',court:'masque complet P2',long:'masque complet P2',fpa:10},
+  {norme:'EN 136 / EN 143 / EN 14387 / EN 12083',court:'masque complet P3',long:'masque complet P3',fpa:30},
+  {norme:'EN 136 / EN 143 / EN 14387 / EN 12083',court:'masque complet GazX',long:'masque complet GazX',fpa:20},
+  {norme:'EN 136 / EN 143 / EN 14387 / EN 12083',court:'masque complet GazX P1',long:'masque complet GazX P1',fpa:5},
+  {norme:'EN 136 / EN 143 / EN 14387 / EN 12083',court:'masque complet GazX P2',long:'masque complet GazX P2',fpa:16},
+  {norme:'EN 136 / EN 143 / EN 14387 / EN 12083',court:'masque complet GazX P3',long:'masque complet GazX P3',fpa:20},
+  {norme:'EN 12941',court:'TH1',long:'appareils filtrants à ventilation assistée avec cagoule ou casque TH1',fpa:10},
+  {norme:'EN 12941',court:'TH2',long:'appareils filtrants à ventilation assistée avec cagoule ou casque TH2',fpa:20},
+  {norme:'EN 12941',court:'TH3',long:'appareils filtrants à ventilation assistée avec cagoule ou casque TH3',fpa:40},
+  {norme:'EN 12942',court:'TM1',long:'appareils filtrants à ventilation assistée avec masque complet, mi-masque ou quart de masque TM1',fpa:10},
+  {norme:'EN 12942',court:'TM2',long:'appareils filtrants à ventilation assistée avec masque complet, mi-masque ou quart de masque TM2',fpa:20},
+  {norme:'EN 12942',court:'TM3',long:'appareils filtrants à ventilation assistée avec masque complet, mi-masque ou quart de masque TM3',fpa:60},
+  {norme:'EN 14593-1',court:'EN 14593-1',long:'isolant à adduction d\'air comprimé avec soupape à la demande - masque complet',fpa:40},
+  {norme:'EN 14593-2',court:'EN 14593-2',long:'isolant à adduction d\'air comprimé avec soupape à la demande - demi-masque à pression positive',fpa:200},
+  {norme:'EN 14594',court:'EN 14594 type 1A / 1B',long:'isolant à adduction d\'air comprimé à débit continu 1A / 1B',fpa:10},
+  {norme:'EN 14594',court:'EN 14594 type 2A / 2B',long:'isolant à adduction d\'air comprimé à débit continu 2A / 2B',fpa:50},
+  {norme:'EN 14594',court:'EN 14594 type 3A / 3B',long:'isolant à adduction d\'air comprimé à débit continu 3A / 3B',fpa:200},
+  {norme:'EN 14594',court:'EN 14594 type 4A / 4B',long:'isolant à adduction d\'air comprimé à débit continu 4A / 4B',fpa:250},
+  {norme:'EN 138',court:'1/2 masque avec tuyau alimentation',long:'tuyau d\'alimentation en air, isolant, demi-masque',fpa:10},
+  {norme:'EN 138',court:'masque complet avec tuyau alim',long:'tuyau d\'alimentation en air, isolant, masque complet',fpa:40},
+  {norme:'EN 269',court:'isolant à air libre avec cagoule',long:'isolant à air libre avec cagoule',fpa:100},
+  {norme:'EN 137',court:'EN 137 à pression négative',long:'autonome à circuit ouvert à air comprimé, demande à pression négative',fpa:40},
+  {norme:'EN 137',court:'EN 137 à pression positive',long:'autonome à circuit ouvert à air comprimé, demande à pression positive',fpa:1000},
+  {norme:'EN 145',court:'EN 145',long:'isolant autonome à circuit fermé, du type à oxygène-azote comprimé',fpa:400},
+  {norme:'EN 402',court:'EN 402',long:'autonome à circuit ouvert, à air comprimé, avec masque complet ou embout buccal pour l\'évacuation',fpa:1000}
+];
 
 function selectEPI(pid,idx,opt){
   var m=getCurrentMission();if(!m)return;
@@ -1419,6 +1781,141 @@ function applyCoPrelSelection(){
   state.coPrelSelection=null;
   state.coPrelPropagateAll=null;
   render();
+}
+
+// ═══════════════════════════════════════════════════════════
+// MULTI-SUPPORTS : prélèvement 8h fractionné sur plusieurs supports successifs
+// (ex. 6 h de méthanol = 3 supports de 2 h). Chaque support a ses plages, ses débits
+// et sa référence ; il sort sur sa propre colonne / ligne analytique à l'export.
+// ═══════════════════════════════════════════════════════════
+
+function renderSupportsSupp(p,sb,idx){
+  if(p.type!=='8h'||!p.agents||!p.agents.length)return '';
+  if(p.agents.every(function(a){return isAnalyseurAgent(a.name);}))return ''; // mesure en continu : pas de supports
+  var ex=getSupportsSupp(sb);
+  var h='';
+  ex.forEach(function(s,k){
+    var num=k+2;
+    var pl=s.plages&&s.plages.length?s.plages:[{debut:'',fin:''}];
+    h+='<div class="card" style="border:1.5px solid var(--primary-light);padding:10px;margin:8px 0;">';
+    h+='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;"><strong style="color:var(--primary-dark);">Support n°'+num+'</strong>';
+    var d=getDureeTotale(pl);
+    h+='<span style="font-size:12px;color:var(--text-muted);margin-left:auto;margin-right:8px;">'+(d?'Durée : '+d:'')+'</span>';
+    h+='<button class="btn btn-danger btn-small" style="width:auto;margin:0;" onclick="removeSupportSupp('+p.id+','+idx+','+k+');">'+ICONS.trash+'</button></div>';
+    // Plages du support
+    pl.forEach(function(x,pi){
+      h+='<div class="plage-row"><div class="plage-num">'+(pi+1)+'</div><input type="time" class="plage-input" value="'+(x.debut||'')+'" onchange="updateSupportPlage('+p.id+','+idx+','+k+','+pi+',\'debut\',this.value);"><span class="plage-sep">'+ICONS.arrowRight+'</span><input type="time" class="plage-input" value="'+(x.fin||'')+'" onchange="updateSupportPlage('+p.id+','+idx+','+k+','+pi+',\'fin\',this.value);">';
+      if(pl.length>1)h+='<button class="plage-delete" onclick="removeSupportPlage('+p.id+','+idx+','+k+','+pi+');">✕</button>';
+      h+='</div>';
+    });
+    if(pl.length<10)h+='<button class="btn btn-gray btn-small" onclick="addSupportPlage('+p.id+','+idx+','+k+');">+ Plage</button>';
+    // Un bloc par agent (ou par groupe d'agents sur le même support physique)
+    p.agents.forEach(function(a){
+      var aname=a.name;
+      var grp=getCoPrelGroupMembers(sb,aname);
+      var grpOrdered=grp.length>1?p.agents.filter(function(x){return grp.indexOf(x.name)!==-1;}):[a];
+      if(grpOrdered[0].name!==aname||isAnalyseurAgent(aname))return;
+      var ad=(s.agentData&&s.agentData[aname])||{};
+      var isTachy=isTachymetreAgent(aname);
+      var u=isTachy?'tr/min':'L/min';
+      var variation=isTachy?null:calcDebitVariation(ad.debitInitial,ad.debitFinal);
+      var ctrls=isTachy?[]:grpOrdered.map(function(x){return checkDebitMoyen(x.name,p.type,ad.debitInitial,ad.debitFinal);}).filter(function(c){return c;});
+      var horsTol=ctrls.some(function(c){return c.horsTolerance;})||(variation!==null&&variation>5);
+      var call=function(f){return 'updateSupportAgentData('+p.id+','+idx+','+k+',\''+escapeJs(aname)+'\',\''+f+'\',this.value);';};
+      h+='<div class="multi-agent-item" style="border:1px solid var(--border);border-radius:8px;margin-top:8px;"><div class="multi-agent-header" style="padding:6px 8px;flex-wrap:wrap;gap:4px;">';
+      grpOrdered.forEach(function(ga){
+        h+='<span style="display:inline-flex;align-items:center;gap:4px;font-size:12px;font-weight:600;"><span style="width:8px;height:8px;border-radius:50%;background:'+(ga.color||'#3b82f6')+';"></span>'+escapeHtml(ga.name)+'</span>';
+      });
+      h+='</div><div class="multi-agent-fields" style="padding:6px 8px;">';
+      h+='<div class="multi-agent-row"><label>N° Pompe</label><input type="text" class="input" style="flex:1;" value="'+escapeHtml(ad.numPompe||'')+'" placeholder="Ex: 123" onchange="'+call('numPompe')+'"></div>';
+      if(isTachy)h+='<div class="multi-agent-row"><label>Vitesse réf. ('+u+')</label><input type="text" inputmode="decimal" class="input" style="flex:1;" value="'+escapeHtml(ad.debitRef||'')+'" placeholder="'+u+'" onchange="'+call('debitRef')+'render();"></div>';
+      h+='<div class="multi-agent-row"><label>'+(isTachy?'Vitesse':'Débit')+' initial'+(isTachy?'e':'')+'</label><input type="text" inputmode="decimal" class="input '+(horsTol?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitInitial||'')+'" placeholder="'+u+'" onchange="'+call('debitInitial')+'render();"></div>';
+      h+='<div class="multi-agent-row"><label>'+(isTachy?'Vitesse':'Débit')+' final'+(isTachy?'e':'')+'</label><input type="text" inputmode="decimal" class="input '+(horsTol?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitFinal||'')+'" placeholder="'+u+'" onchange="'+call('debitFinal')+'render();">';
+      if(variation!==null)h+='<span class="debit-variation '+(variation>5?'warning':'')+'">Δ '+variation.toFixed(1)+'%</span>';
+      h+='</div>';
+      if(variation!==null&&variation>5)h+='<div style="color:#dc2626;font-size:11px;padding:4px 0;">⚠️ Écart entre débit initial et final > 5 %</div>';
+      ctrls.forEach(function(c){
+        h+='<div style="color:'+(c.horsTolerance?'#dc2626':'var(--text-muted)')+';font-size:11px;padding:4px 0;">'+(c.horsTolerance?'⚠️ ':'')+'Débit moyen '+formatDebit(c.moy)+' L/min '+(c.horsTolerance?'hors':'dans')+' tolérance (attendu '+formatDebit(c.range.min)+(c.range.min!==c.range.max?' – '+formatDebit(c.range.max):'')+' L/min ± 5 %)</div>';
+      });
+      h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="'+call('refEchantillon')+'"></div>';
+      h+='</div></div>';
+    });
+    h+='</div>';
+  });
+  h+='<button class="btn btn-gray btn-small" style="margin:6px 0;" onclick="addSupportSupp('+p.id+','+idx+');">+ Support (prélèvement fractionné)</button>';
+  return h;
+}
+
+function getSubForSupport(pid,idx){
+  var m=getCurrentMission();if(!m)return null;
+  var p=m.prelevements.find(function(x){return x.id===pid;});
+  if(!p||!p.subPrelevements[idx])return null;
+  return {p:p,sb:p.subPrelevements[idx]};
+}
+
+function addSupportSupp(pid,idx){
+  var r=getSubForSupport(pid,idx);if(!r)return;
+  if(!r.sb.supportsSupp)r.sb.supportsSupp=[];
+  var ad={};
+  // Même pompe que le support n°1 par défaut (cas le plus courant : on change seulement le support)
+  r.p.agents.forEach(function(a){
+    var src=(r.sb.agentData&&r.sb.agentData[a.name])||{};
+    ad[a.name]={numPompe:src.numPompe||'',debitInitial:'',debitFinal:'',refEchantillon:''};
+    if(src.debitRef)ad[a.name].debitRef=src.debitRef;
+  });
+  r.sb.supportsSupp.push({plages:[{debut:'',fin:''}],agentData:ad});
+  autoFillDate(r.p,idx);
+  saveData('vlep_missions_v3',state.missions);
+  render();
+}
+
+function removeSupportSupp(pid,idx,k){
+  var r=getSubForSupport(pid,idx);if(!r||!r.sb.supportsSupp)return;
+  if(!confirm('Supprimer le support n°'+(k+2)+' et ses saisies ?'))return;
+  r.sb.supportsSupp.splice(k,1);
+  if(!r.sb.supportsSupp.length)delete r.sb.supportsSupp;
+  saveData('vlep_missions_v3',state.missions);
+  render();
+}
+
+function updateSupportPlage(pid,idx,k,pi,f,v){
+  var r=getSubForSupport(pid,idx);if(!r)return;
+  var s=r.sb.supportsSupp[k];
+  if(!s.plages||!s.plages.length)s.plages=[{debut:'',fin:''}];
+  s.plages[pi][f]=v;
+  saveData('vlep_missions_v3',state.missions);
+  render();
+}
+
+function addSupportPlage(pid,idx,k){
+  var r=getSubForSupport(pid,idx);if(!r)return;
+  var s=r.sb.supportsSupp[k];
+  if(!s.plages||!s.plages.length)s.plages=[{debut:'',fin:''}];
+  if(s.plages.length<10)s.plages.push({debut:'',fin:''});
+  saveData('vlep_missions_v3',state.missions);
+  render();
+}
+
+function removeSupportPlage(pid,idx,k,pi){
+  var r=getSubForSupport(pid,idx);if(!r)return;
+  var s=r.sb.supportsSupp[k];
+  if(s.plages&&s.plages.length>1)s.plages.splice(pi,1);
+  saveData('vlep_missions_v3',state.missions);
+  render();
+}
+
+// Même logique que updateAgentDataSynced : un support physique partagé garde des données communes
+function updateSupportAgentData(pid,idx,k,an,f,v){
+  var r=getSubForSupport(pid,idx);if(!r)return;
+  var s=r.sb.supportsSupp[k];
+  if(!s.agentData)s.agentData={};
+  var cibles=getCoPrelGroupMembers(r.sb,an);
+  if(cibles.length<2)cibles=[an];
+  cibles.forEach(function(n){
+    if(!s.agentData[n])s.agentData[n]={};
+    s.agentData[n][f]=v;
+  });
+  saveData('vlep_missions_v3',state.missions);
 }
 
 console.log('✓ Terrain chargé');

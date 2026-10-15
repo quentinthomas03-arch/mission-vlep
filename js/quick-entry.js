@@ -26,6 +26,7 @@ function renderQuickEntry(){
   h+='<div class="card"><h2>'+ICONS.list+' Informations</h2>';
   h+='<div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="quick-client" value="'+escapeHtml(q.clientSite)+'" placeholder="Ex: Entreprise ABC" onchange="state.quickMission.clientSite=this.value;"></div>';
   h+='<div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="quick-preleveur" value="'+escapeHtml(q.preleveur)+'" placeholder="Votre nom" onchange="state.quickMission.preleveur=this.value;"></div>';
+  h+='<div class="field"><label class="label">Type de débitmètre</label>'+renderDebitmetreTypeSelect('quick-debitmetre-type',q.debitmetreType||'','state.quickMission.debitmetreType=this.value;')+'</div>';
   h+='<div class="field"><label class="label">Débitmètre</label><input type="text" class="input" id="quick-debitmetre" value="'+escapeHtml(q.debitmetre)+'" placeholder="N° débitmètre" onchange="state.quickMission.debitmetre=this.value;"></div>';
   h+='</div>';
   
@@ -239,6 +240,7 @@ function createQuickMission(){
   m.clientSite=q.clientSite;
   m.preleveur=q.preleveur;
   m.debitmetre=q.debitmetre;
+  if(q.debitmetreType)m.debitmetreType=q.debitmetreType;
   m.gehs=q.gehs.filter(function(g){return g.name;}).map(function(g,i){
     return{id:g.id,num:i+1,name:g.name};
   });

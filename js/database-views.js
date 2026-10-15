@@ -3,7 +3,7 @@
 // Recherche terrain et consultation complète
 
 function renderDbTerrain(){
-  return'<div style="position:sticky;top:-16px;background:linear-gradient(135deg, #004d87 0%, #0066b3 60%, #1a8fd4 100%);margin:-16px -16px 0;padding:16px;z-index:10;"><button class="back-btn" style="color:white;" onclick="state.view=\'home\';render();">'+ICONS.arrowLeft+' Accueil</button><h1 style="color:white;margin:8px 0;">'+ICONS.search+' Base de données terrain</h1><div class="search-box"><span class="search-icon">'+ICONS.search+'</span><input type="text" class="search-input" id="db-search-input" placeholder="Rechercher par nom ou N° CAS..." oninput="updateDbResults();"></div></div><div id="results-count" style="color:white;font-size:13px;margin:12px 0;">Tapez pour rechercher</div><div id="agent-results"></div>';
+  return'<div class="sticky-header" style="padding-bottom:10px;"><button class="back-btn" onclick="state.view=\'home\';render();">'+ICONS.arrowLeft+' Accueil</button><h1 style="margin:4px 0 8px;">'+ICONS.search+' Base de données terrain</h1><div class="search-box"><span class="search-icon">'+ICONS.search+'</span><input type="text" class="search-input" id="db-search-input" placeholder="Rechercher par nom ou N° CAS..." oninput="updateDbResults();"></div></div><div id="results-count" style="color:var(--text-muted);font-size:12px;margin:10px 0;">Tapez pour rechercher</div><div id="agent-results"></div>';
 }
 
 function updateDbResults(){
@@ -13,10 +13,14 @@ function updateDbResults(){
   if(!i||!c||!r)return;
   var s=i.value.toLowerCase().trim();
   if(s.length<2){c.textContent='Tapez au moins 2 caractères';r.innerHTML='';return;}
+  // même ordre que les autres recherches (meilleurs résultats d'abord), ou recherche par n° CAS
   var f=state.agentsDB.filter(function(a){
-    var n=(a['Agent chimique']||'').toLowerCase();
-    var cs=(a['N° CAS']||'').toLowerCase();
-    return n.indexOf(s)!==-1||cs.indexOf(s)!==-1;
+    return rangAgent(a['Agent chimique'],s)>=0||(a['N° CAS']||'').toLowerCase().indexOf(s)!==-1;
+  });
+  f.sort(function(x,y){
+    var rx=rangAgent(x['Agent chimique'],s),ry=rangAgent(y['Agent chimique'],s);
+    if(rx<0)rx=9;if(ry<0)ry=9;
+    return rx-ry||(x['Agent chimique']||'').length-(y['Agent chimique']||'').length;
   });
   c.textContent=f.length+' agent(s) trouvé(s)';
   var h='';
@@ -82,6 +86,8 @@ function importDB(){
     }
     state.agentsDB=db;
     saveData('vlep_database',db);
+    // base intégrée en vigueur au moment de l'import (voir loadData)
+    try{localStorage.setItem('vlep_database_base',typeof BUILTIN_DB_VERSION!=='undefined'?BUILTIN_DB_VERSION:'');}catch(e){}
     state.showModal=null;
     alert(''+ICONS.check+' '+db.length+' agents importés !');
     render();
@@ -89,7 +95,7 @@ function importDB(){
 }
 
 loadData();
-restoreTimers();
+// chronos CT : restoreCTTimers() (timers.js, appelé au démarrage)
 
 
 console.log('✓ Database views chargé');

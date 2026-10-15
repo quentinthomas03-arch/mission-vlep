@@ -214,7 +214,7 @@ function createRegSheet(m,prels){
   aoa.push(['Volume prélevé','']);
   
   // Ligne 44 : Vérification débit
-  aoa.push(['Volume prélevé avec pompe - Vérification du débit','']);
+  aoa.push(['Volume prélevé avec pompe - Vérification du débit avec débitmètre massique','']);
   
   // Lignes 45-46 : Débits initial et final (ou vitesses si tachymètre)
   var row45=['débit initial pompe (L/min) / vitesse initiale (tr/min)',''];
@@ -225,9 +225,10 @@ function createRegSheet(m,prels){
     var ad=prels[i].sub.agentData?prels[i].sub.agentData[prels[i].agent]:null;
     var isTachy=isTachymetreAgent(prels[i].agent);
     if(isTachy)hasAnyTachy=true;
-    row45.push(ad&&ad.debitInitial?ad.debitInitial:'');
+    var dansMassique=isTachy||getDebitmetreType(m)==='massique';
+    row45.push(dansMassique&&ad&&ad.debitInitial?ad.debitInitial:'');
     row45.push('');
-    row46.push(ad&&ad.debitFinal?ad.debitFinal:'');
+    row46.push(dansMassique&&ad&&ad.debitFinal?ad.debitFinal:'');
     row46.push('');
     row46b.push(isTachy&&ad&&ad.debitRef?ad.debitRef:'');
     row46b.push('');
@@ -248,15 +249,8 @@ function createRegSheet(m,prels){
   aoa.push(row47);
   aoa.push(row48);
   
-  // Lignes 49-56 : Vérification DLS (vides)
-  for(var lnum=49;lnum<=56;lnum++){
-    var rowEmpty=['',''];
-    for(var i=0;i<prels.length;i++){
-      rowEmpty.push('');
-      rowEmpty.push('');
-    }
-    aoa.push(rowEmpty);
-  }
+  // Lignes 49-56 : Vérification avec débitmètre à lame de savon ou à piston
+  buildDlsRows(m,prels).forEach(function(r){aoa.push(r);});
   
   // Ligne 57 : Résultats labo
   aoa.push(['Résultats du laboratoire d\'analyse','']);
@@ -342,7 +336,7 @@ function createRegSheet(m,prels){
   // Ligne 81 : Référence témoin (blanc)
   var row81=["référence du témoin",''];
   for(var i=0;i<prels.length;i++){
-    var blancRef=getBlancForAgent(m,prels[i].agent);
+    var blancRef=getBlancForAgent(m,prels[i].agent,prels[i].sub.date);
     row81.push(blancRef);
     row81.push('');
   }
@@ -631,7 +625,7 @@ function createNonRegSheet(m,prels){
   aoa.push(row53);
   
   // Ligne 54 : Vérification débit
-  aoa.push(['Volume prélevé avec pompe - Vérification du débit','']);
+  aoa.push(['Volume prélevé avec pompe - Vérification du débit avec débitmètre massique','']);
   
   // Lignes 55-56 : Débits initial et final (ou vitesses si tachymètre)
   var row55=['débit initial pompe (L/min) / vitesse initiale (tr/min)',''];
@@ -642,9 +636,10 @@ function createNonRegSheet(m,prels){
     var ad=prels[i].sub.agentData?prels[i].sub.agentData[prels[i].agent]:null;
     var isTachy=isTachymetreAgent(prels[i].agent);
     if(isTachy)hasAnyTachyCT=true;
-    row55.push(ad&&ad.debitInitial?ad.debitInitial:'');
+    var dansMassique=isTachy||getDebitmetreType(m)==='massique';
+    row55.push(dansMassique&&ad&&ad.debitInitial?ad.debitInitial:'');
     row55.push('');
-    row56.push(ad&&ad.debitFinal?ad.debitFinal:'');
+    row56.push(dansMassique&&ad&&ad.debitFinal?ad.debitFinal:'');
     row56.push('');
     row56b.push(isTachy&&ad&&ad.debitRef?ad.debitRef:'');
     row56b.push('');
@@ -653,8 +648,17 @@ function createNonRegSheet(m,prels){
   aoa.push(row56);
   if(hasAnyTachyCT)aoa.push(row56b);
   
-  // Lignes 57-73 : débit moyen, volume, vérification DLS, résultats labo (vides)
-  for(var lnum=57;lnum<=73;lnum++){
+  // Lignes 57-58 : débit moyen, volume (vides) ; 59-66 : vérification DLS ; 67-73 : résultats labo (vides)
+  for(var lnum=57;lnum<=58;lnum++){
+    var rowEmpty=['',''];
+    for(var i=0;i<prels.length;i++){
+      rowEmpty.push('');
+      rowEmpty.push('');
+    }
+    aoa.push(rowEmpty);
+  }
+  buildDlsRows(m,prels).forEach(function(r){aoa.push(r);});
+  for(var lnum=67;lnum<=73;lnum++){
     var rowEmpty=['',''];
     for(var i=0;i<prels.length;i++){
       rowEmpty.push('');
@@ -741,7 +745,7 @@ function createNonRegSheet(m,prels){
   // Ligne 92 : Référence témoin
   var row92=["référence du témoin",''];
   for(var i=0;i<prels.length;i++){
-    var blancRef=getBlancForAgent(m,prels[i].agent);
+    var blancRef=getBlancForAgent(m,prels[i].agent,prels[i].sub.date);
     row92.push(blancRef);
     row92.push('');
   }
@@ -808,29 +812,59 @@ function createNonRegSheet(m,prels){
   return ws;
 }
 
-// Fonction helper pour récupérer les conditions ambiantes d'un sous-prélèvement
-function getConditionsForPrel(m,subPrel){
-  if(!m.conditionsAmbiantes||m.conditionsAmbiantes.length===0)return null;
-  // Matcher par date si possible
-  if(subPrel.date){
-    for(var i=0;i<m.conditionsAmbiantes.length;i++){
-      if(m.conditionsAmbiantes[i].date===subPrel.date)return m.conditionsAmbiantes[i];
+// Bloc « Vérification du débit avec débitmètre à lame de savon ou à piston » (8 lignes,
+// libellés de la feuille de calcul). Débits saisis seulement si la mission utilise ce type
+// de débitmètre (jamais pour un tachymètre) ; les valeurs corrigées sont calculées par la feuille.
+function buildDlsRows(m,prels){
+  var labels=['Volume prélevé avec pompe - Vérification du débit avec débitmètre à lame de savon ou à piston',
+    'débit initial de la pompe (L/min)','débit initial corrigé (L/min)','débit final de la pompe (L/min)',
+    'débit final corrigé (L/min)','débit moyen de la pompe (L/min)','volume prélevé corrigé (L)','Volume prélevé (L)'];
+  var piston=getDebitmetreType(m)==='piston';
+  return labels.map(function(lab,li){
+    var row=[lab,''];
+    if(li===0)return row;
+    for(var i=0;i<prels.length;i++){
+      var v='';
+      if(piston&&(li===1||li===3)&&!isTachymetreAgent(prels[i].agent)){
+        var ad=prels[i].sub.agentData?prels[i].sub.agentData[prels[i].agent]:null;
+        v=ad?(li===1?ad.debitInitial:ad.debitFinal)||'':'';
+      }
+      row.push(v);
+      row.push('');
     }
-  }
-  // Fallback: première condition
-  return m.conditionsAmbiantes[0];
+    return row;
+  });
 }
 
-// Fonction helper pour récupérer la référence du blanc pour un agent
-function getBlancForAgent(m,agentName){
-  if(!m.blancs||m.blancs.length===0)return '';
-  for(var i=0;i<m.blancs.length;i++){
-    var b=m.blancs[i];
-    if(b.agents&&b.agents.indexOf(agentName)!==-1){
-      return b.ref||'';
-    }
+// Fonction helper pour récupérer les conditions ambiantes d'un sous-prélèvement
+function getConditionsForPrel(m,subPrel){
+  if(!m.conditionsAmbiantes||m.conditionsAmbiantes.length===0||!subPrel.date)return null;
+  // Uniquement les conditions du jour du prélèvement : jamais celles d'un autre jour
+  for(var i=0;i<m.conditionsAmbiantes.length;i++){
+    if(m.conditionsAmbiantes[i].date===subPrel.date)return m.conditionsAmbiantes[i];
   }
-  return '';
+  return null;
+}
+
+// Blanc terrain d'un agent pour un jour donné :
+// 1) blanc de l'agent pris le jour même ; 2) blanc de l'agent sans date ;
+// 3) blanc unique de l'agent sur la mission (un blanc pour toute la campagne).
+// Plusieurs blancs, tous d'autres jours : aucun (on ne devine pas).
+function findBlancForAgent(m,agentName,date){
+  if(!m.blancs||m.blancs.length===0)return null;
+  var duJour=null,sansDate=null,tous=[];
+  m.blancs.forEach(function(b){
+    if(!b.agents||b.agents.indexOf(agentName)===-1)return;
+    tous.push(b);
+    if(date&&b.date===date&&!duJour)duJour=b;
+    if(!b.date&&!sansDate)sansDate=b;
+  });
+  return duJour||sansDate||(tous.length===1?tous[0]:null);
+}
+
+function getBlancForAgent(m,agentName,date){
+  var b=findBlancForAgent(m,agentName,date);
+  return b?(b.ref||''):'';
 }
 
 
@@ -890,7 +924,7 @@ function createEchantillonsSheet(m, regPrels, nonRegPrels){
       aoa.push([
         ref,                           // Nom de l'échantillon (ref blanc, valeur originale)
         date,                          // Date (JJ/MM/AAAA)
-        '',                            // Numéro de lot (vide)
+        b.lot || '',                   // Numéro de lot
         'Blanc',                       // Type
         'Standard (J0+9)',             // Priorité
         'Air des lieux de Travail'     // Matrice
@@ -926,230 +960,6 @@ function formatDateFR(dateStr){
   // Si déjà au bon format ou autre, retourner tel quel
   return dateStr;
 }
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// TIMER CT - Chronomètre pour prélèvements Court Terme
-// © 2025 Quentin THOMAS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// Ajouter au state initial (dans la fonction d'initialisation)
-// state.timers = {}; // { prelId_subIdx: { startTime, elapsed, interval } }
-
-function startCTTimer(prelId, subIdx){
-  var key = prelId + '_' + subIdx;
-  
-  // Si déjà un timer en cours, l'arrêter
-  if(state.timers && state.timers[key] && state.timers[key].interval){
-    clearInterval(state.timers[key].interval);
-  }
-  
-  if(!state.timers) state.timers = {};
-  
-  // Démarrer le timer
-  var startTime = Date.now();
-  state.timers[key] = {
-    startTime: startTime,
-    elapsed: 0,
-    interval: setInterval(function(){
-      updateTimerDisplay(key);
-    }, 1000)
-  };
-  
-  // Persister le timer
-  saveTimers();
-  
-  // Remplir l'heure de début automatiquement
-  var now = new Date();
-  var heureDebut = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-  
-  var m = getCurrentMission();
-  if(!m) return;
-  
-  var prel = m.prelevements.find(function(p){ return p.id === prelId; });
-  if(!prel) return;
-  
-  var sub = prel.subPrelevements[subIdx];
-  if(!sub) return;
-  
-  if(!sub.plages || sub.plages.length === 0){
-    sub.plages = [{debut: '', fin: ''}];
-  }
-  
-  // Trouver la première plage vide
-  var plageIdx = -1;
-  for(var i = 0; i < sub.plages.length; i++){
-    if(!sub.plages[i].debut){
-      plageIdx = i;
-      break;
-    }
-  }
-  
-  if(plageIdx === -1){
-    // Toutes les plages sont remplies, ajouter une nouvelle
-    sub.plages.push({debut: heureDebut, fin: ''});
-  } else {
-    sub.plages[plageIdx].debut = heureDebut;
-  }
-  
-  saveData('vlep_missions_v3', state.missions);
-  render();
-}
-
-function stopCTTimer(prelId, subIdx){
-  var key = prelId + '_' + subIdx;
-  
-  if(!state.timers || !state.timers[key]) return;
-  
-  // Arrêter le timer
-  if(state.timers[key].interval){
-    clearInterval(state.timers[key].interval);
-  }
-  
-  // Remplir l'heure de fin automatiquement
-  var now = new Date();
-  var heureFin = String(now.getHours()).padStart(2, '0') + ':' + String(now.getMinutes()).padStart(2, '0');
-  
-  var m = getCurrentMission();
-  if(!m) return;
-  
-  var prel = m.prelevements.find(function(p){ return p.id === prelId; });
-  if(!prel) return;
-  
-  var sub = prel.subPrelevements[subIdx];
-  if(!sub) return;
-  
-  // Trouver la dernière plage avec un début mais sans fin
-  var plageIdx = -1;
-  for(var i = sub.plages.length - 1; i >= 0; i--){
-    if(sub.plages[i].debut && !sub.plages[i].fin){
-      plageIdx = i;
-      break;
-    }
-  }
-  
-  if(plageIdx !== -1){
-    sub.plages[plageIdx].fin = heureFin;
-  }
-  
-  // Nettoyer le timer
-  delete state.timers[key];
-  saveTimers();
-  
-  saveData('vlep_missions_v3', state.missions);
-  render();
-}
-
-// Persistence des timers
-function saveTimers(){
-  var data={};
-  for(var key in state.timers){
-    if(state.timers[key]&&state.timers[key].startTime){
-      data[key]={startTime:state.timers[key].startTime};
-    }
-  }
-  try{localStorage.setItem('vlep_timers',JSON.stringify(data));}catch(e){}
-}
-
-function restoreTimers(){
-  try{
-    var data=JSON.parse(localStorage.getItem('vlep_timers')||'{}');
-    for(var key in data){
-      if(data[key].startTime){
-        state.timers[key]={
-          startTime:data[key].startTime,
-          elapsed:Math.floor((Date.now()-data[key].startTime)/1000),
-          interval:setInterval((function(k){return function(){updateTimerDisplay(k);};})(key),1000)
-        };
-      }
-    }
-  }catch(e){}
-}
-
-function updateTimerDisplay(key){
-  if(!state.timers || !state.timers[key]) return;
-  
-  var timer = state.timers[key];
-  var elapsed = Math.floor((Date.now() - timer.startTime) / 1000);
-  timer.elapsed = elapsed;
-  
-  // Mettre à jour l'affichage
-  var element = document.getElementById('timer-display-' + key);
-  if(element){
-    var minutes = Math.floor(elapsed / 60);
-    var seconds = elapsed % 60;
-    element.textContent = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
-    
-    // Alerte à 15 minutes
-    if(elapsed === 900){ // 15 minutes
-      element.style.color = '#ef4444';
-      element.style.fontWeight = 'bold';
-      // Vibration (3 pulses longues)
-      try {
-        if(navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]);
-      } catch(e){}
-      // Son
-      try {
-        var audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIGWe77einTxELTqXh8LljHAU7k9r0x3ImBSh+zPLaizsIFWS56+qnUBEKTKPh8rpmHgU+m9z0zHUpBSh/zfPaizsIFWO46uunThELTaTi8bplHgU8mtr0zHYrBSh+zfPbiTsIFWS46uunUBEKTKPh8r1pHgU/nN301XcsBSh/zfPbiTsIFWS46+ymURAKTKPi8bxmHgU9mtr0zHYrBSh/zfPbizsIFWS46+ymUhELTKTi8bxmHgU9mtr0zHYrBSh/zfPbiTwIFWO46+ymUhAKTKPi8b1nHgU/m9301HgrBSh/zfPbiTsIFWS46+ymURAKTKPh8rxnHgU+m9v00nYpBSh/zPPbiTsIFWO46uunUBEKTKPh8rxnHgU+m9z00nYqBSh/zPPaiTsIFWS46+ymUhEKTKPi8r1oHgU/nNz0z3cpBSh/zfPaiTsIFWS46+ymUhELTKPi8r1oHgU+m9z00nYpBSh/zfPbiTsIFWO46+ymUhEKTKPi8r1pHgU/nN301HcpBSh/zfPaiTsIFWS56+ymUhAKTKPi8r1pHgU+m9301HgrBSiAzfPbiTsIFWO46+ymUhELTKPi8r1pHgU/nN301XcsBSiAzfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9z01HYpBSh/zfPaiTsIFWS46+ymUhEKTKPi8r1pHgVAm9z01XcsBSh/zfPaiTsIFWS46+ymURAKTKPi8r1pHgU+m9301HYpBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU/nN301XcsBSh/zfPaiTsIFWS46+ymUhAKTKPi8r1pHgU+m9z00nYpBSh/zfPaiTsIFWS46+ymUhEKTKPi8r1pHgU/nN301XcsBSh/zfPaiTsIFWS46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHgU+m9301HYrBSh/zfPaiTsIFWO46+ymUhEKTKPi8r1pHg==');
-        audio.play();
-      } catch(e){}
-    }
-    // Rappel vibration à 14min (1 min avant)
-    if(elapsed === 840){
-      try {
-        if(navigator.vibrate) navigator.vibrate([300, 100, 300]);
-      } catch(e){}
-    }
-  }
-}
-
-function getTimerDisplay(prelId, subIdx){
-  var key = prelId + '_' + subIdx;
-  
-  if(!state.timers || !state.timers[key]){
-    return '';
-  }
-  
-  var elapsed = state.timers[key].elapsed || 0;
-  var minutes = Math.floor(elapsed / 60);
-  var seconds = elapsed % 60;
-  var timeStr = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
-  
-  var color = elapsed >= 900 ? '#ef4444' : '#0066b3';
-  
-  return '<div style="background:#f0f7fc;border:2px solid '+color+';border-radius:8px;padding:12px;margin:8px 0;text-align:center;"><div style="font-size:11px;color:#64748b;margin-bottom:4px;">⏱️ Chronomètre CT</div><div id="timer-display-'+key+'" style="font-size:32px;font-weight:bold;color:'+color+';font-family:monospace;">'+timeStr+'</div><button class="btn btn-danger" style="margin-top:8px;" onclick="stopCTTimer('+prelId+','+subIdx+');">⏹️ Arrêter</button></div>';
-}
-
-function isTimerRunning(prelId, subIdx){
-  var key = prelId + '_' + subIdx;
-  return state.timers && state.timers[key] && state.timers[key].interval;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Gestion des timers en arrière-plan (iOS/Android)
-// © 2025 Quentin THOMAS
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// Quand l'app revient au premier plan, mettre à jour tous les timers actifs
-document.addEventListener('visibilitychange', function() {
-  if (!document.hidden && state.timers) {
-    // L'app revient au premier plan
-    console.log('[Timers] App revenue au premier plan, mise à jour des timers...');
-    
-    // Mettre à jour l'affichage de tous les timers actifs
-    for (var key in state.timers) {
-      if (state.timers[key] && state.timers[key].startTime) {
-        updateTimerDisplay(key);
-      }
-    }
-  }
-});
-
-// Au chargement, restaurer les timers depuis localStorage
-if (typeof restoreTimers === 'function') {
-  restoreTimers();
-}
-
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1201,7 +1011,7 @@ function buildSupportColumns(m,prels,groupAllPerSub){
         gid=e.agent; // agent seul = support à un seul polluant
       }
     }
-    var key=e.prel.id+'#'+e.subIdx+'#'+gid;
+    var key=e.prel.id+'#'+e.subIdx+'#'+(e.sub.supportNum||1)+'#'+gid; // un support fractionné = sa propre colonne
     if(!groups[key]){
       groups[key]={prel:e.prel,sub:sb,subIdx:e.subIdx,gehNum:e.gehNum,gehName:e.gehName,type:e.type,agentNames:[]};
       order.push(key);
@@ -1229,9 +1039,12 @@ function buildSupportColumns(m,prels,groupAllPerSub){
       humiditeI:cond&&cond.humiditeI?cond.humiditeI:'',humiditeF:cond&&cond.humiditeF?cond.humiditeF:'',
       debitInitial:ad&&ad.debitInitial?ad.debitInitial:'',debitFinal:ad&&ad.debitFinal?ad.debitFinal:'',
       debitRef:ad&&ad.debitRef?ad.debitRef:'',
+      dureeExpo:(function(){var x=dureeExpositionMin(g.prel,sb);return x===null?'':x/1440;})(),
+      debitPiston:!isTachy&&getDebitmetreType(m)==='piston',
       refEchantillon:ad&&ad.refEchantillon?ad.refEchantillon:'',
       typeVlep:g.type,
-      blancRef:(typeof getBlancForAgent==='function')?getBlancForAgent(m,firstAgent):'',
+      blancRef:(typeof getBlancForAgent==='function')?getBlancForAgent(m,firstAgent,sb.date):'',
+      blancLot:(function(){var b=findBlancForAgent(m,firstAgent,sb.date);return b&&b.lot?b.lot:'';})(),
       agents:g.agentNames.map(function(n){return {name:n};})
     };
   });
@@ -1279,6 +1092,7 @@ function createTubeRegMultiSheet(m,columns){
   topFill[8]=function(c){return c.numPompe;};
   topFill[9]=function(c){return c.debitmetre;};
   topFill[10]=function(c){return c.supportNature;};
+  topFill[11]=function(c){return c.blancLot;}; // n° de lot des tubes = lot du blanc terrain associé
   topFill[14]=function(c){return c.date;};
   for(var j=0;j<10;j++){
     (function(j){
@@ -1286,6 +1100,7 @@ function createTubeRegMultiSheet(m,columns){
       topFill[16+2*j]=function(c){return c.plages[j]&&c.plages[j].fin?c.plages[j].fin:'';};
     })(j);
   }
+  topFill[36]=function(c){return c.dureeExpo;}; // durée d'exposition (h:min) - VLEP 8h
   topFill[39]=function(c){return c.epiType;};
   topFill[41]=function(c){return c.epiDuree;};
   topFill[43]=function(c){return c.tempI;};
@@ -1294,8 +1109,10 @@ function createTubeRegMultiSheet(m,columns){
   topFill[47]=function(c){return c.pressionF;};
   topFill[49]=function(c){return c.humiditeI;};
   topFill[50]=function(c){return c.humiditeF;};
-  topFill[55]=function(c){return c.debitInitial;};
-  topFill[56]=function(c){return c.debitFinal;};
+  topFill[55]=function(c){return c.debitPiston?'':c.debitInitial;};
+  topFill[56]=function(c){return c.debitPiston?'':c.debitFinal;};
+  topFill[60]=function(c){return c.debitPiston?c.debitInitial:'';};
+  topFill[62]=function(c){return c.debitPiston?c.debitFinal:'';};
   topFill[69]=function(c){return c.refEchantillon;};
   pushStatic(TUBE_TOP,topFill);
 
@@ -1389,6 +1206,7 @@ function createCassetteRegMultiSheet(m,columns){
       topFill[14+2*j]=function(c){return c.plages[j]&&c.plages[j].fin?c.plages[j].fin:'';};
     })(j);
   }
+  topFill[34]=function(c){return c.dureeExpo;}; // durée d'exposition (h:min) - VLEP 8h
   topFill[37]=function(c){return c.epiType;};
   topFill[39]=function(c){return c.epiDuree;};
   topFill[41]=function(c){return c.tempI;};
@@ -1397,8 +1215,10 @@ function createCassetteRegMultiSheet(m,columns){
   topFill[45]=function(c){return c.pressionF;};
   topFill[47]=function(c){return c.humiditeI;};
   topFill[48]=function(c){return c.humiditeF;};
-  topFill[53]=function(c){return c.debitInitial;};
-  topFill[54]=function(c){return c.debitFinal;};
+  topFill[53]=function(c){return c.debitPiston?'':c.debitInitial;};
+  topFill[54]=function(c){return c.debitPiston?'':c.debitFinal;};
+  topFill[58]=function(c){return c.debitPiston?c.debitInitial:'';};
+  topFill[60]=function(c){return c.debitPiston?c.debitFinal:'';};
   topFill[67]=function(c){return c.refEchantillon;};
   pushStatic(CASS_TOP,topFill);
 

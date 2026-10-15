@@ -285,7 +285,69 @@ function startDictationSession(prelId, subIdx, key) {
 // TIMERS CT
 // ===================================================
 
+// L'heure de départ est sauvegardée (localStorage) : le chrono survit à un
+// rechargement, une mise en veille ou une fermeture de l'appli, et le temps
+// écoulé est toujours recalculé depuis l'heure de départ.
 var ctTimers = {};
+var CT_TIMERS_KEY = 'vlep_timers';
+var CT_DUREE_MS = 15 * 60 * 1000;
+
+function saveCTTimers() {
+  var data = {};
+  for (var key in ctTimers) {
+    data[key] = { prelId: ctTimers[key].prelId, subIdx: ctTimers[key].subIdx, startTime: ctTimers[key].startTime };
+  }
+  try { localStorage.setItem(CT_TIMERS_KEY, JSON.stringify(data)); } catch (e) {}
+}
+
+function tickCTTimer(key) {
+  var t = ctTimers[key];
+  if (!t) return;
+  t.elapsed = Date.now() - t.startTime;
+  var el = document.getElementById('ct-timer-' + key);
+  if (el) el.textContent = formatCTTime(t.elapsed);
+  // Alertes vibrantes : 1 min avant puis à 15 min (une seule fois chacune)
+  if (!t.alerte14 && t.elapsed >= CT_DUREE_MS - 60000) {
+    t.alerte14 = true;
+    try { if (navigator.vibrate) navigator.vibrate([300, 100, 300]); } catch (e) {}
+  }
+  if (!t.alerte15 && t.elapsed >= CT_DUREE_MS) {
+    t.alerte15 = true;
+    try { if (navigator.vibrate) navigator.vibrate([500, 200, 500, 200, 1000]); } catch (e) {}
+    // Pas de render() ici : il ferait perdre la saisie en cours ; la boîte passe au rouge au prochain affichage
+    if (el) el.style.color = '#ef4444';
+  }
+}
+
+function runCTTimer(prelId, subIdx, startTime) {
+  var key = prelId + '_' + subIdx;
+  var elapsed = Date.now() - startTime;
+  ctTimers[key] = {
+    prelId: prelId,
+    subIdx: subIdx,
+    startTime: startTime,
+    elapsed: elapsed,
+    // Un chrono restauré déjà au-delà du seuil ne revibre pas
+    alerte14: elapsed >= CT_DUREE_MS - 60000,
+    alerte15: elapsed >= CT_DUREE_MS,
+    interval: setInterval(function() { tickCTTimer(key); }, 1000)
+  };
+}
+
+function restoreCTTimers() {
+  try {
+    var data = JSON.parse(localStorage.getItem(CT_TIMERS_KEY) || '{}');
+    for (var key in data) {
+      var d = data[key];
+      if (d && d.startTime && d.prelId !== undefined) runCTTimer(d.prelId, d.subIdx, d.startTime);
+    }
+  } catch (e) {}
+}
+
+// Au retour au premier plan, rafraîchir l'affichage sans attendre la seconde suivante
+document.addEventListener('visibilitychange', function() {
+  if (!document.hidden) for (var key in ctTimers) tickCTTimer(key);
+});
 
 // Retourne l'heure courante au format HH:MM
 function getCurrentTimeHHMM() {
@@ -317,20 +379,8 @@ function startCTTimer(prelId, subIdx) {
     }
   }
 
-  ctTimers[key] = {
-    prelId: prelId,
-    subIdx: subIdx,
-    startTime: Date.now(),
-    elapsed: 0,
-    interval: null
-  };
-
-  var t = ctTimers[key];
-  t.interval = setInterval(function() {
-    t.elapsed = Date.now() - t.startTime;
-    var el = document.getElementById('ct-timer-' + key);
-    if (el) el.textContent = formatCTTime(t.elapsed);
-  }, 1000);
+  runCTTimer(prelId, subIdx, Date.now());
+  saveCTTimers();
 
   render();
 }
@@ -340,6 +390,7 @@ function stopCTTimer(prelId, subIdx) {
   if (!ctTimers[key]) return;
   clearInterval(ctTimers[key].interval);
   delete ctTimers[key];
+  saveCTTimers();
 
   // Auto-remplir l'heure de fin dans la dernière plage
   var heureFin = getCurrentTimeHHMM();
@@ -393,5 +444,7 @@ function getTimerDisplay(prelId, subIdx) {
     '</div>'
   ].join('');
 }
+
+restoreCTTimers();
 
 console.log('✓ Timers chargé');

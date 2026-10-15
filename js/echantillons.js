@@ -51,13 +51,13 @@ function renderListeEchantillons(){
   if(!m.blancs)m.blancs=[];
   
   var h='<button class="back-btn" onclick="state.view=\'terrain-mission\';render();">'+ICONS.arrowLeft+' Mission</button><div class="card"><h2>'+ICONS.list+' Liste échantillons</h2><p class="subtitle">'+escapeHtml(m.clientSite)+'</p></div>';
-  h+='<div class="row mb-12"><button class="btn btn-success" onclick="state.showModal=\'addBlanc\';state.blancAgentSearch=\'\';state.blancAgents=[];render();">+ Blanc terrain</button><button class="btn btn-primary" onclick="exportExcel();">'+ICONS.download+' Export Excel</button><button class="btn btn-primary" onclick="exportActiviteWord();" style="background:#0f4c81;">'+ICONS.download+' Export Activité Word</button></div>';
+  h+='<div class="row mb-12"><button class="btn btn-gray" onclick="state.showModal=\'addBlanc\';state.blancAgentSearch=\'\';state.blancAgents=[];if(!state.blancDate)state.blancDate=getTodayDate();render();">+ Blanc terrain</button>'+(typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true?'<button class="btn btn-primary" onclick="exportFeuilleCalcul();">'+ICONS.sheet+' Feuille de calcul</button>':'')+'</div><div class="row mb-12"><button class="btn btn-gray btn-small" onclick="exportActiviteWord();">'+ICONS.fileText+' Activité (Word)</button><button class="btn btn-gray btn-small" onclick="exportExcel();">'+ICONS.download+' Ancien export Excel</button></div>';
   h+='<div class="row mb-12"><span style="font-size:13px;margin-right:8px;">Trier par :</span><button class="btn btn-small '+(state.echantillonSort==='date'?'btn-blue':'btn-gray')+'" onclick="state.echantillonSort=\'date\';render();">Date</button><button class="btn btn-small '+(state.echantillonSort==='agent'?'btn-blue':'btn-gray')+'" onclick="state.echantillonSort=\'agent\';render();">Agent</button></div>';
   
   // FIX #2: Regrouper par référence échantillon
   var byRef={};
   m.prelevements.forEach(function(p){
-    p.subPrelevements.forEach(function(sb){
+    p.subPrelevements.reduce(function(acc,s0){return acc.concat(expandSubSupports(s0));},[]).forEach(function(sb){
       p.agents.forEach(function(a){
         var d=sb.agentData?sb.agentData[a.name]:null;
         if(d&&d.refEchantillon){
@@ -73,8 +73,13 @@ function renderListeEchantillons(){
   });
   
   // Blancs
-  m.blancs.forEach(function(b){
+  m.blancs.forEach(function(b,bi){
     var ref=b.ref;
+    // Blanc sans référence (ancienne saisie, import) : ligne à part, jamais fusionné avec un autre
+    if(!ref||!String(ref).trim()){
+      byRef['_blanc_sans_ref_'+bi]={ref:'(sans réf.)',agents:b.agents.map(function(an){return {name:an,code:getCodeAnalytique(getAgentFromDB(an))};}),date:b.date||'',type:'Blanc',isBlanc:true};
+      return;
+    }
     if(!byRef[ref]){
       byRef[ref]={ref:ref,agents:[],date:b.date||'',type:'Blanc',isBlanc:true};
     }
@@ -112,7 +117,7 @@ function renderListeEchantillons(){
   if(m.blancs.length>0){
     h+='<div class="section-title mt-12">Blancs terrain ('+m.blancs.length+')</div>';
     m.blancs.forEach(function(b,i){
-      h+='<div class="card" style="padding:10px;background:#fef3c7;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>'+escapeHtml(b.ref)+'</strong><div style="font-size:12px;color:#666;">'+escapeHtml(b.agents.join(', '))+' • '+escapeHtml(b.date||'Sans date')+'</div></div><button class="btn btn-danger btn-small" onclick="deleteBlanc('+i+');">'+ICONS.trash+'</button></div></div>';
+      h+='<div class="card" style="padding:10px;background:#fef3c7;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>'+escapeHtml(b.ref||'(sans réf.)')+'</strong><div style="font-size:12px;color:#666;">'+escapeHtml(b.agents.join(', '))+' • '+escapeHtml(b.date||'Sans date')+(b.lot?' • Lot '+escapeHtml(b.lot):'')+'</div></div><button class="btn btn-danger btn-small" onclick="deleteBlanc('+i+');">'+ICONS.trash+'</button></div></div>';
     });
   }
   
@@ -125,6 +130,7 @@ function renderAddBlancModal(){
   var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>+ Blanc terrain</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div>';
   h+='<div class="field"><label class="label">Référence échantillon *</label><input type="text" class="input" id="blanc-ref" placeholder="Ex: BT-001" value="'+escapeHtml(state.blancRef||'')+'" oninput="state.blancRef=this.value;"></div>';
   h+='<div class="field"><label class="label">Date</label><input type="date" class="input" id="blanc-date" value="'+(state.blancDate||'')+'" oninput="state.blancDate=this.value;"></div>';
+  h+='<div class="field"><label class="label">N° de lot</label><input type="text" class="input" id="blanc-lot" placeholder="Lot des supports" value="'+escapeHtml(state.blancLot||'')+'" oninput="state.blancLot=this.value;"></div>';
   h+='<div class="field"><label class="label">Agent(s) chimique(s)</label><input type="text" class="input" id="blanc-agent-search" placeholder="Rechercher..." value="'+escapeHtml(state.blancAgentSearch||'')+'" oninput="handleBlancAgentSearch(this.value);"></div>';
   h+='<div id="blanc-search-results">';
   if(state.blancAgentSearch&&state.blancAgentSearch.length>=2){
@@ -223,12 +229,13 @@ function saveBlanc(){
   if(!state.blancAgents||state.blancAgents.length===0){alert('Sélectionnez au moins un agent');return;}
   var m=getCurrentMission();if(!m)return;
   if(!m.blancs)m.blancs=[];
-  m.blancs.push({ref:ref,date:date,agents:state.blancAgents.slice()});
+  m.blancs.push({ref:ref,date:date,lot:(state.blancLot||'').trim(),agents:state.blancAgents.slice()});
   saveData('vlep_missions_v3',state.missions);
   state.showModal=null;
   state.blancAgents=[];
   state.blancRef='';
   state.blancDate='';
+  state.blancLot='';
   render();
 }
 
@@ -257,7 +264,8 @@ function exportExcel(){
   var nonRegPrels=[];
   
   m.prelevements.forEach(function(p){
-    p.subPrelevements.forEach(function(sb,si){
+    p.subPrelevements.forEach(function(sb0,si){
+      expandSubSupports(sb0).forEach(function(sb){
       p.agents.forEach(function(a){
         var prelData={
           prel:p,
@@ -275,6 +283,7 @@ function exportExcel(){
         }else{
           nonRegPrels.push(prelData);
         }
+      });
       });
     });
   });

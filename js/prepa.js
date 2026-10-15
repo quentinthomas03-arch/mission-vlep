@@ -5,20 +5,22 @@
 function renderHome(){
   var mp=state.missions.filter(function(m){return m.status==='prepa';}).length;
   var mt=state.missions.filter(function(m){return m.status==='validee'||m.status==='encours';}).length;
-  var h='<div class="card"><h1>'+ICONS.flask+' VLEP Mission</h1></div>';
+  var h='<div class="card"><h1>'+ICONS.flask+' VLEP Mission</h1><p class="subtitle">Contrôle des valeurs limites d’exposition professionnelle</p></div>';
+  h+=renderNouveautesCard();
+  var row=function(onclick,icon,label,sub,count){
+    return '<div class="nav-item" onclick="'+onclick+'"><div class="nav-icon">'+icon+'</div><div class="nav-label">'+label+'<div class="nav-sub">'+sub+'</div></div>'+(count?'<div class="nav-count">'+count+'</div>':'')+ICONS.chevronRight+'</div>';
+  };
   h+='<div class="nav-menu">';
-  h+='<div class="nav-item" onclick="state.view=\'terrain-list\';render();"><div class="nav-icon green">'+ICONS.clipboard+'</div><div class="nav-label">Saisie terrain</div>';
-  if(mt>0)h+='<div class="nav-count">'+mt+'</div>';
+  h+=row('state.view=\'terrain-list\';render();',ICONS.clipboard,'Saisie terrain','Missions prêtes, saisie rapide',mt);
+  h+=row('state.view=\'prepa-list\';render();',ICONS.building,'Préparation mission','GEH, agents, affectations',mp);
+  h+='</div><div class="nav-menu">';
+  h+=row('state.showModal=\'importChoice\';render();',ICONS.upload,'Importer une mission','Fichier .json reçu par e-mail',0);
+  h+=row('state.view=\'db-terrain\';render();',ICONS.search,'Base de données','Agents, méthodes, débits',state.agentsDB.length);
   h+='</div>';
-  h+='<div class="nav-item" onclick="state.view=\'prepa-list\';render();"><div class="nav-icon">'+ICONS.building+'</div><div class="nav-label">Préparation mission</div>';
-  if(mp>0)h+='<div class="nav-count">'+mp+'</div>';
-  h+='</div>';
-  h+='<div class="nav-item" onclick="state.showModal=\'importChoice\';render();"><div class="nav-icon" style="background:linear-gradient(135deg,#0891b2,#06b6d4);">'+ICONS.upload+'</div><div class="nav-label">Importer une mission</div></div>';
-  h+='<div class="nav-item" onclick="state.view=\'db-terrain\';render();"><div class="nav-icon orange">'+ICONS.search+'</div><div class="nav-label">Base de données</div><div class="nav-count">'+state.agentsDB.length+'</div></div></div>';
   h+='<input type="file" id="import-mission-input" accept=".json" style="display:none;" onchange="handleImportMission(event);">';
   if(state.showModal==='importChoice'){state.showModal=null;triggerImportMission();}
-  h+='<div style="margin-top:12px;text-align:center;"><button class="btn btn-gray" onclick="state.view=\'tutoriel\';render();">🎓 Tutoriel — Guide d\'utilisation</button></div>';
-  h+='<div class="version-info">Version 1.0 © 2025 Quentin THOMAS</div>';
+  h+='<div class="home-tabbar"><button class="home-tab-btn" onclick="state.view=\'tutoriel\';render();">'+ICONS.book+'<span>Guide</span></button></div>';
+  h+='<div class="version-info">Version '+APP_VERSION+' © 2025 Quentin THOMAS</div>';
   return h;
 }
 
@@ -42,9 +44,9 @@ function renderMissionCard(m){
   var pc=countPrelevements(m);
   var h='<div class="mission-card mission-card-'+m.status+'"><div class="mission-title">'+escapeHtml(m.clientSite||'Sans nom')+'<span class="status-badge status-'+m.status+'">'+(m.status==='prepa'?'Prépa':'Validée')+'</span></div>';
   h+='<div class="mission-info">'+gc+' GEH · '+ac+' agents · '+pc+' prél.</div><div class="mission-actions">';
-  h+='<button class="btn btn-gray btn-small" onclick="openMission('+m.id+');">'+ICONS.edit+'</button>';
-  h+='<button class="btn btn-blue btn-small" onclick="copyMission('+m.id+');">'+ICONS.copy+'</button>';
-  if(m.status==='prepa')h+='<button class="btn btn-success btn-small" onclick="validateMission('+m.id+');">'+ICONS.check+' Valider</button>';
+  h+='<button class="btn btn-gray btn-small" onclick="openMission('+m.id+');">'+ICONS.edit+' Ouvrir</button>';
+  h+='<button class="btn btn-gray btn-small" onclick="copyMission('+m.id+');" aria-label="Dupliquer">'+ICONS.copy+'</button>';
+  if(m.status==='prepa')h+='<button class="btn btn-primary btn-small" onclick="validateMission('+m.id+');">'+ICONS.check+' Valider</button>';
   else h+='<button class="btn btn-primary btn-small" onclick="goToTerrain('+m.id+');">'+ICONS.play+' Terrain</button>';
   h+='</div></div>';
   return h;
@@ -163,11 +165,11 @@ function renderPrepaMission(){
   var step1=gc>0;var step2=ac>0;var step3=pc>0;
   h+='<div class="info-box mt-12"><p><strong>Étapes de préparation :</strong></p><p>'+(step1?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 1. Définir les GEH ('+(gc||'aucun')+')</p><p>'+(step2?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 2. Sélectionner les agents ('+(ac||'aucun')+')</p><p>'+(step3?'<span style="color:var(--accent);display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>':'<span style="opacity:0.3;display:inline-flex;width:14px;height:14px;vertical-align:middle;">'+ICONS.check+'</span>')+' 3. Affecter agents / GEH ('+(pc||'aucun')+' prél.)</p></div>';
   h+='<div class="nav-menu"><div class="nav-item" onclick="state.view=\'prepa-geh\';render();"><div class="nav-icon">'+ICONS.folder+'</div><div class="nav-label">1. GEH</div><div class="nav-count">'+gc+'</div></div><div class="nav-item" onclick="state.view=\'prepa-agents\';state.searchText=\'\';render();"><div class="nav-icon green">'+ICONS.beaker+'</div><div class="nav-label">2. Agents chimiques</div><div class="nav-count">'+ac+'</div></div></div>';
-  if(ac>0&&gc>0)h+='<button class="btn btn-orange" onclick="state.view=\'prepa-affectations\';render();">'+ICONS.link+' 3. Affecter agents aux GEH</button>';
+  if(ac>0&&gc>0)h+='<button class="btn btn-blue" onclick="state.view=\'prepa-affectations\';render();">'+ICONS.link+' 3. Affecter agents aux GEH</button>';
   h+='<div class="info-box info-box-success mt-12"><p><strong>Récap :</strong> '+gc+' GEH · '+ac+' agents · '+pc+' prélèvements</p></div>';
   h+='<div class="row">';
   if(m.status==='prepa'){
-    if(pc>0)h+='<button class="btn btn-success" onclick="validateMission('+m.id+');">'+ICONS.check+' Valider ('+pc+')</button>';
+    if(pc>0)h+='<button class="btn btn-primary" onclick="validateMission('+m.id+');">'+ICONS.check+' Valider ('+pc+')</button>';
     else h+='<button class="btn btn-gray" disabled>'+ICONS.check+' Valider</button>';
   }else{
     h+='<button class="btn btn-primary" onclick="goToTerrain('+m.id+');">'+ICONS.play+' Terrain</button>';
@@ -175,16 +177,18 @@ function renderPrepaMission(){
   }
   h+='<button class="btn btn-danger btn-icon" onclick="deleteMission('+m.id+');">'+ICONS.trash+'</button>';
   h+='</div>';
-  h+='<div class="row mt-8"><button class="btn btn-gray" onclick="exportMissionJSON('+m.id+');">'+ICONS.download+' Export JSON</button></div>';
+  h+=renderMissionFileButtons(m);
   if(state._returnToTerrain)h+='<button class="btn btn-primary mt-8" onclick="returnToTerrain();">'+ICONS.check+' Retour au terrain</button>';
-  if(m.status==='prepa')h+='<button class="btn btn-primary mt-8" onclick="state.showModal=\'prepaAuto\';state.prepaAutoData=null;render();" style="background:linear-gradient(135deg,var(--purple),#a78bfa);">'+ICONS.zap+' Prépa automatique (devis)</button>';
+  if(m.status==='prepa')h+='<button class="btn btn-gray mt-8" onclick="state.showModal=\'prepaAuto\';state.prepaAutoData=null;render();">'+ICONS.zap+' Prépa automatique (devis)</button>';
+  if(typeof renderVeoliaPrepa==='function'&&typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true)h+=renderVeoliaPrepa(m);
+  if(typeof renderScolaDossierPrepa==='function'&&typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true)h+=renderScolaDossierPrepa(m);
   if(state.showModal==='editInfo')h+=renderEditInfoModal(m);
   if(state.showModal==='prepaAuto')h+=renderPrepaAutoModal(m);
   return h;
 }
 
 function renderEditInfoModal(m){
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Infos mission</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="edit-clientsite" value="'+escapeHtml(m.clientSite)+'" placeholder="Ex: Entreprise ABC - Usine Nord"></div><div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="edit-preleveur" value="'+escapeHtml(m.preleveur)+'"></div><div class="field"><label class="label">Débitmètre</label><input type="text" inputmode="numeric" class="input" id="edit-debitmetre" value="'+escapeHtml(m.debitmetre)+'"></div><div class="field"><label class="label">Tachymètre</label><input type="text" inputmode="numeric" class="input" id="edit-tachymetre" placeholder="N° tachymètre (si utilisé)" value="'+escapeHtml(m.tachymetre||'')+'"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="saveEditInfo();">Enregistrer</button></div></div></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Infos mission</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="edit-clientsite" value="'+escapeHtml(m.clientSite)+'" placeholder="Ex: Entreprise ABC - Usine Nord"></div><div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="edit-preleveur" value="'+escapeHtml(m.preleveur)+'"></div><div class="field"><label class="label">Type de débitmètre</label>'+renderDebitmetreTypeSelect('edit-debitmetre-type',m.debitmetreType||'')+'</div><div class="field"><label class="label">Débitmètre</label><input type="text" inputmode="numeric" class="input" id="edit-debitmetre" value="'+escapeHtml(m.debitmetre)+'"></div><div class="field"><label class="label">Tachymètre</label><input type="text" inputmode="numeric" class="input" id="edit-tachymetre" placeholder="N° tachymètre (si utilisé)" value="'+escapeHtml(m.tachymetre||'')+'"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="saveEditInfo();">Enregistrer</button></div></div></div>';
   return h;
 }
 
@@ -194,6 +198,8 @@ function saveEditInfo(){
   var pr=document.getElementById('edit-preleveur');
   var db=document.getElementById('edit-debitmetre');
   var ta=document.getElementById('edit-tachymetre');
+  var dt=document.getElementById('edit-debitmetre-type');
+  if(dt&&dt.value)m.debitmetreType=dt.value;
   if(cs)m.clientSite=cs.value.trim();
   if(pr)m.preleveur=pr.value.trim();
   if(db)m.debitmetre=db.value.trim();
@@ -249,21 +255,21 @@ function renderPrepaAutoModal(m){
     h+='<div class="section-title mt-12">Aperçu</div>';
     
     // GEH détectés
-    h+='<div class="card" style="padding:10px;"><div style="font-weight:700;font-size:13px;margin-bottom:6px;">'+ICONS.folder+' '+p.gehs.length+' GEH détectés</div>';
+    h+='<div class="card" style="padding:10px;"><div style="font-weight:700;font-size:13px;margin-bottom:6px;"><span class="svg-icon">'+ICONS.folder+'</span> '+p.gehs.length+' GEH détectés</div>';
     p.gehs.forEach(function(g){
       h+='<div style="font-size:12px;color:var(--text-muted);padding:2px 0;">'+g.num+'. '+escapeHtml(g.name)+'</div>';
     });
     h+='</div>';
     
     // Agents et affectations
-    h+='<div class="card" style="padding:10px;"><div style="font-weight:700;font-size:13px;margin-bottom:6px;">'+ICONS.beaker+' '+p.agents.length+' agent(s) chimique(s)</div>';
+    h+='<div class="card" style="padding:10px;"><div style="font-weight:700;font-size:13px;margin-bottom:6px;"><span class="svg-icon">'+ICONS.beaker+'</span> '+p.agents.length+' agent(s) chimique(s)</div>';
     p.rows.forEach(function(r){
       var regLabel=r.isReg?'<span style="color:#047857;font-size:10px;font-weight:700;"> REG</span>':'<span style="color:#b45309;font-size:10px;font-weight:700;"> NR</span>';
       h+='<div style="background:#f8fafc;border-radius:6px;padding:8px;margin-bottom:6px;border-left:3px solid var(--primary);">';
       r.agentNames.forEach(function(an){
         h+='<div style="font-size:12px;font-weight:600;">'+escapeHtml(an)+'</div>';
       });
-      h+='<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">'+r.type+regLabel+'  ?? '+r.gehNums.length+' GEH ? '+(r.isReg?'3':'1')+' = '+(r.gehNums.length*(r.isReg?3:1))+' sous-prél.</div>';
+      h+='<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">'+r.type+regLabel+' · '+r.gehNums.length+' GEH × '+(r.isReg?'3':'1')+' = '+(r.gehNums.length*(r.isReg?3:1))+' sous-prél.</div>';
       h+='</div>';
     });
     h+='</div>';
@@ -271,7 +277,7 @@ function renderPrepaAutoModal(m){
     // Résumé
     var totalPrel=0;
     p.rows.forEach(function(r){totalPrel+=r.gehNums.length*(r.isReg?3:1);});
-    h+='<div class="info-box info-box-success"><p><strong>Total :</strong> '+p.gehs.length+' GEH ? '+p.agents.length+' agents ? '+totalPrel+' sous-prélèvements</p></div>';
+    h+='<div class="info-box info-box-success"><p><strong>Total :</strong> '+p.gehs.length+' GEH · '+p.agents.length+' agents · '+totalPrel+' sous-prélèvements</p></div>';
     
     // Avertissements agents non trouvés dans la DB
     var notInDB=[];
@@ -706,7 +712,7 @@ function renderPrepaAgents(){
     var c=getAgentColor(m,a.name);
     var h8=hasVLEP8h(a.name)||a.isManual;
     var hc=hasVLEPCT(a.name)||a.isManual;
-    h+='<div class="agent-item"><div class="agent-color" style="background:'+c+';"></div><div class="agent-name">'+escapeHtml(a.name)+(a.isManual?' <small>(manuel)</small>':'')+'</div><div class="agent-badges"><span class="agent-badge agent-badge-8h '+(a.is8h?'active':'')+'" onclick="toggleAgent8h('+i+');">8h</span><span class="agent-badge agent-badge-ct '+(a.isCT?'active':'')+'" onclick="toggleAgentCT('+i+');">CT</span></div><button class="agent-delete" onclick="removeAgent('+i+');">'+ICONS.trash+'</button></div>';
+    h+='<div class="agent-item"><div class="agent-color" style="background:'+c+';"></div><div class="agent-name">'+escapeHtml(a.name)+(a.isManual?' <small>(manuel)</small>':'')+(typeof consigneSansLabo==='function'&&consigneSansLabo(a.name)?' <small style="color:#dc2626;font-weight:600;">⚠️ aucun laboratoire ne l’analyse</small>':'')+'</div><div class="agent-badges"><span class="agent-badge agent-badge-8h '+(a.is8h?'active':'')+'" onclick="toggleAgent8h('+i+');">8h</span><span class="agent-badge agent-badge-ct '+(a.isCT?'active':'')+'" onclick="toggleAgentCT('+i+');">CT</span></div><button class="agent-delete" onclick="removeAgent('+i+');">'+ICONS.trash+'</button></div>';
   });
   if(state.showModal==='addManual')h+=renderAddManualModal();
   return h;
@@ -762,11 +768,33 @@ function addAgentFromSearch(n){
   render();
 }
 
+// Recherche d'agents : sans accents, plusieurs mots possibles, et les meilleurs résultats d'abord
+// (nom exact, puis nom qui commence par la saisie, puis un mot qui commence par la saisie, puis le reste ;
+// à rang égal, le nom le plus court). Ainsi « éthanol » sort avant « 2-butoxyéthanol » ou « diéthanolamine ».
+function normRecherche(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();}
+function rangAgent(nom,saisie){
+  var n=normRecherche(nom),s=normRecherche(saisie);
+  if(!s)return -1;
+  var mots=s.split(' ');
+  if(!mots.every(function(w){return n.indexOf(w)!==-1;}))return -1;
+  if(n===s)return 0;
+  if(n.indexOf(s)===0)return 1;
+  var p=n.indexOf(s);
+  while(p>0){
+    if(!/[a-z0-9]/.test(n.charAt(p-1)))return 2; // un mot commence par la saisie
+    p=n.indexOf(s,p+1);
+  }
+  return 3;
+}
 function searchAgentsDB(t){
-  var s=t.toLowerCase();
-  return state.agentsDB.filter(function(a){
-    return(a['Agent chimique']||'').toLowerCase().indexOf(s)!==-1;
-  }).map(function(a){return a['Agent chimique'];});
+  var res=[];
+  state.agentsDB.forEach(function(a){
+    var nom=a['Agent chimique']||'';
+    var r=rangAgent(nom,t);
+    if(r>=0)res.push({nom:nom,r:r});
+  });
+  res.sort(function(x,y){return x.r-y.r||x.nom.length-y.nom.length||x.nom.localeCompare(y.nom);});
+  return res.map(function(x){return x.nom;});
 }
 
 function addAgent(n){
@@ -949,18 +977,18 @@ console.log('? Prépa chargé');
 // ═══════════════════════════════════════════════════════════
 function renderTutoriel(){
   var h='<button class="back-btn" onclick="state.view=\'home\';render();">'+ICONS.arrowLeft+' Accueil</button>';
-  h+='<div class="card" style="border-left:4px solid #0066b3;">';
-  h+='<h1 style="color:#0066b3;">🎓 Guide d\'utilisation</h1>';
+  h+='<div class="card">';
+  h+='<h1>'+ICONS.book+' Guide d\'utilisation</h1>';
   h+='<p class="subtitle">VLEP Mission — Workflow complet</p>';
   h+='</div>';
 
   var sections=[
     {
-      num:'1',color:'#0066b3',title:'Préparation (au bureau)',
+      num:'1',color:'#0082DE',title:'Préparation (au bureau)',
       steps:[
         {t:'Créer une mission',d:'Accueil → Préparation mission → Nouvelle mission. Saisissez le client/site, le préleveur et le numéro de débitmètre.'},
         {t:'Ajouter les GEH',d:'Dans la mission → GEH → Ajouter. Donnez un numéro et un intitulé à chaque Groupe d\'Exposition Homogène.'},
-        {t:'Ajouter les agents chimiques',d:'Agents → Rechercher dans la base de données (459 agents). Cochez 8h et/ou CT selon le type de prélèvement.'},
+        {t:'Ajouter les agents chimiques',d:'Agents → Rechercher dans la base de données. Cochez 8h et/ou CT selon le type de prélèvement.'},
         {t:'Créer les affectations',d:'Affectations → Pour chaque agent, sélectionnez les GEH concernés. Choisissez Réglementaire ou Non-réglementaire.'},
         {t:'Valider la mission',d:'Bouton Valider → L\'appli génère automatiquement tous les prélèvements. La mission passe en statut Validée.'}
       ]
@@ -985,21 +1013,21 @@ function renderTutoriel(){
       ]
     },
     {
-      num:'4',color:'#7c3aed',title:'Export Excel (vers la macro)',
+      num:'4',color:'#005499',title:'Feuille de calcul',
       steps:[
-        {t:'Accès',d:'Mission terrain → Liste échantillons → Export Excel.'},
-        {t:'Contenu de l\'export',d:'Feuille REG : prélèvements réglementaires. Feuille NON REG : prélèvements non-réglementaires. Feuille Échantillons : récapitulatif.'},
-        {t:'Copier dans la macro',d:'Ouvrir le fichier Excel exporté. Copier-coller chaque section dans les cellules bleues de la macro accréditée de la société. Les EPI et FPA sont pré-remplis pour que le VLOOKUP fonctionne automatiquement.'},
-        {t:'Résultats labo',d:'Les résultats d\'analyse sont à saisir directement dans la macro (cellules dédiées non gérées par l\'appli).'}
+        {t:'Accès',d:'Mission terrain → bouton Feuille de calcul, en haut de la mission (aussi dans Liste échantillons).'},
+        {t:'Contenu',d:'L\'appli remplit directement la feuille de calcul : un onglet par GEH, analyseurs et onglet Acquisition, Eurofins, en-tête Scol@. Plus de copier-coller.'},
+        {t:'Ouvrir le fichier',d:'Ouvrir le fichier .xlsm et activer les macros : les calculs se font à l\'ouverture.'},
+        {t:'Résultats labo',d:'Les résultats d\'analyse sont à saisir dans la feuille de calcul, comme avant.'}
       ]
     },
     {
-      num:'5',color:'#0891b2',title:'Fonctions utiles',
+      num:'5',color:'#00ACE8',title:'Fonctions utiles',
       steps:[
         {t:'Bouton J-1',d:'Copie automatiquement la valeur du prélèvement précédent (opérateur, n° pompe). Évite la ressaisie sur plusieurs jours.'},
         {t:'Fusion intelligente',d:'Regroupe automatiquement les prélèvements du même opérateur sur plusieurs jours en un seul prélèvement multi-jours.'},
-        {t:'Base de données',d:'Accueil → Base de données. Recherche parmi 459 agents chimiques avec tous les paramètres : débit, support, conservation, VLEP.'},
-        {t:'Import/Export JSON',d:'Partager une mission entre appareils via le bouton Partager (QR code ou fichier JSON).'},
+        {t:'Base de données',d:'Accueil → Base de données. Recherche parmi tous les agents chimiques avec tous les paramètres : débit, support, conservation, VLEP.'},
+        {t:'Import/Export JSON',d:'Partager une mission entre appareils : menu ⋯ de la mission → Envoyer par e-mail ou Enregistrer (.json).'},
         {t:'Installation PWA',d:'Sur Android Chrome : menu → Ajouter à l\'écran d\'accueil. Sur iOS Safari : partager → Sur l\'écran d\'accueil. L\'appli fonctionne ensuite hors ligne.'}
       ]
     }
@@ -1017,5 +1045,6 @@ function renderTutoriel(){
   });
 
   h+='<div style="text-align:center;margin-top:20px;margin-bottom:8px;color:#94a3b8;font-size:11px;">VLEP Mission v1.0 © 2025 Quentin THOMAS</div>';
+  h+=renderNouveautesHistorique();
   return h;
 }

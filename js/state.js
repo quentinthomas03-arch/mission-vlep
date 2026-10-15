@@ -111,6 +111,13 @@ function loadData(){
   try{
     var m=localStorage.getItem('vlep_missions_v3');
     var d=localStorage.getItem('vlep_database');
+    // Base collée à la main (Importer) : abandonnée dès que l'appli embarque une base plus récente
+    // que celle qu'elle avait au moment de l'import, sinon le technicien ne recevrait jamais les mises à jour
+    var versionBase=(typeof BUILTIN_DB_VERSION!=='undefined')?BUILTIN_DB_VERSION:'';
+    if(d&&localStorage.getItem('vlep_database_base')!==versionBase){
+      localStorage.removeItem('vlep_database');
+      d=null;
+    }
     if(m)state.missions=JSON.parse(m);
     if(d)state.agentsDB=JSON.parse(d);
     else state.agentsDB=JSON.parse(JSON.stringify(BUILTIN_DB));
@@ -196,6 +203,73 @@ function hasVLEPCT(n){
   if(!a || !a['VLEP CT (mg/m3)']) return false;
   var v=String(a['VLEP CT (mg/m3)']).trim();
   return v!=='' && v!=='-';
+}
+
+// === TYPE DE DÉBITMÈTRE ===
+// Détermine le bloc de vérification du débit rempli à l'export (feuille de calcul) :
+// « débitmètre massique » ou « débitmètre à lame de savon ou à piston ».
+// Mission sans type choisi (anciennes missions) : massique, comme avant.
+var DEBITMETRE_TYPES=[
+  {value:'massique',label:'Massique'},
+  {value:'piston',label:'Lame de savon / piston'}
+];
+
+function getDebitmetreType(m){
+  return (m&&m.debitmetreType==='piston')?'piston':'massique';
+}
+
+function renderDebitmetreTypeSelect(id,value,onchange){
+  var h='<select class="input" id="'+id+'"'+(onchange?' onchange="'+onchange+'"':'')+'>';
+  if(!value)h+='<option value="" selected>Type à choisir…</option>';
+  DEBITMETRE_TYPES.forEach(function(t){
+    h+='<option value="'+t.value+'"'+(value===t.value?' selected':'')+'>'+t.label+'</option>';
+  });
+  return h+'</select>';
+}
+
+// === MULTI-SUPPORTS (prélèvement fractionné, ex. 3 x 2 h sur 3 supports) ===
+// Le support n°1 reste porté par le sous-prélèvement lui-même (sb.plages, sb.agentData) ;
+// les supports suivants sont dans sb.supportsSupp = [{plages:[...], agentData:{agent:{...}}}].
+function getSupportsSupp(sb){
+  return (sb&&sb.supportsSupp)||[];
+}
+
+// Pour les exports : un sous-prélèvement « virtuel » par support (mêmes opérateur, date, EPI…,
+// plages et données agents propres au support). supportNum vaut 1 pour le support d'origine.
+function expandSubSupports(sb){
+  var ex=getSupportsSupp(sb);
+  if(!ex.length)return [sb];
+  var out=[Object.assign({},sb,{supportNum:1,nbSupports:ex.length+1})];
+  ex.forEach(function(s,k){
+    out.push(Object.assign({},sb,{plages:s.plages||[],agentData:s.agentData||{},supportNum:k+2,nbSupports:ex.length+1}));
+  });
+  return out;
+}
+
+// === DURÉES ===
+// Durée de prélèvement en minutes, tous supports confondus (plages débutées et finies)
+function dureePrelevementMin(sb){
+  var mn=0;
+  expandSubSupports(sb).forEach(function(s){
+    (s.plages||[]).forEach(function(pl){
+      var d=/^(\d{1,2}):(\d{2})/.exec(pl.debut||''),f=/^(\d{1,2}):(\d{2})/.exec(pl.fin||'');
+      if(d&&f){var x=(+f[1]*60+ +f[2])-(+d[1]*60+ +d[2]);if(x>0)mn+=x;}
+    });
+  });
+  return mn;
+}
+
+// Durée d'exposition (minutes) : saisie pour un 8h (sb.dureeExpo « HH:MM ») ;
+// pour un court-terme, c'est la durée du prélèvement. null si inconnue.
+function dureeExpositionMin(p,sb){
+  if(p&&p.type==='CT'){var d=dureePrelevementMin(sb);return d>0?d:null;}
+  var m=/^(\d{1,2}):(\d{2})$/.exec(String(sb.dureeExpo||'').trim());
+  return m?(+m[1]*60+ +m[2]):null;
+}
+
+function formatHeuresMinutes(mn){
+  if(mn===null||mn===undefined)return '';
+  return Math.floor(mn/60)+'h'+(mn%60<10?'0':'')+(mn%60);
 }
 
 // === CRÉATION MISSION ===
