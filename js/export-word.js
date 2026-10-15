@@ -233,6 +233,7 @@ function buildActiviteDoc(m) {
 // Lignes du tableau d'activité, par GEH ayant des prélèvements (annexe « Description des tâches » du rapport)
 // [{ gehNum, gehNom, gehName, rows: [{ operateur, date, heures, duree, agents, vlep, epi, taches, ventEnv, ventGen, ventCapt }] }]
 function activiteParGeh(m) {
+  if (typeof missionRealisee === 'function') m = missionRealisee(m);
   var gehMap = {};
   var gehOrder = [];
 

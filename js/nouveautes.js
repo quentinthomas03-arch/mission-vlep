@@ -6,10 +6,18 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.26';
+var APP_VERSION = '2.28';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.28', date: '15/10/2026', items: [
+    'Missions protégées : l’appli demande au navigateur de garder ses données de façon permanente (Safari sur iPhone peut sinon effacer les données d’un site peu ouvert).'
+  ] },
+  { version: '2.27', date: '15/10/2026', items: [
+    'Saisie : bouton « Non réalisé » pour un prélèvement prévu mais pas fait (pas d’exposition ce jour-là…). Il sort du compteur de la mission, de la feuille de calcul, du rapport et de la liste des échantillons ; l’observation peut en donner la raison. « Annuler » le remet à faire.',
+    'Agent ajouté à la main : si la base le connaît au même nom (accents ou majuscules près, ex. « epichlorhydrine »), l’appli propose sa fiche (support, méthode, VLEP). Les missions déjà saisies sont reprises de la même façon à l’export.',
+    'Modèle de la feuille de calcul et trame du rapport chargés en arrière-plan à l’ouverture, puis gardés : exports plus rapides, surtout en 4G.'
+  ] },
   { version: '2.26', date: '15/10/2026', items: [
     'Bouton « Rapport Word » en haut de la mission, à côté de « Feuille de calcul » : il ouvre un écran à part avec les données du rapport et du dossier Scol@ (retirées de la préparation) et le bouton de génération.',
     'Export de la feuille de calcul de nouveau rapide (la v2.21 réécrivait tous les onglets du classeur) ; bandeau « en cours » pendant la génération.',

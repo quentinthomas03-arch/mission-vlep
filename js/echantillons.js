@@ -57,7 +57,7 @@ function renderListeEchantillons(){
   // FIX #2: Regrouper par référence échantillon
   var byRef={};
   m.prelevements.forEach(function(p){
-    p.subPrelevements.reduce(function(acc,s0){return acc.concat(expandSubSupports(s0));},[]).forEach(function(sb){
+    p.subPrelevements.filter(function(s0){return !s0.nonRealise;}).reduce(function(acc,s0){return acc.concat(expandSubSupports(s0));},[]).forEach(function(sb){
       p.agents.forEach(function(a){
         var d=sb.agentData?sb.agentData[a.name]:null;
         if(d&&d.refEchantillon){

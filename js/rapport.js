@@ -244,11 +244,16 @@ function rapportAgenceChoisir(id) {
 var RAPPORT_TRAME_URL = 'modele/trame-rapport-vlep.docx';
 var D_ = function () { return DocxMoteur; };
 
+// trame gardée en mémoire : téléchargée une fois (en arrière-plan à l'ouverture), pas à chaque rapport
+var _rapportTrame = null;
 function rapportChargerTrame() {
-  return fetch(RAPPORT_TRAME_URL).then(function (r) {
+  if (_rapportTrame) return _rapportTrame;
+  _rapportTrame = fetch(RAPPORT_TRAME_URL).then(function (r) {
     if (!r.ok) throw new Error('Trame de rapport introuvable dans l’appli (' + RAPPORT_TRAME_URL + ').');
     return r.arrayBuffer();
   });
+  _rapportTrame.catch(function () { _rapportTrame = null; });
+  return _rapportTrame;
 }
 
 // Macro AutoNew de la trame (module AutoNew, Sub MAIN), traduite telle quelle. Stratégie toujours décochée.
@@ -767,6 +772,7 @@ function rapportReglages(doc) {
 // Rapport : renvoie { blob, filename, resultats }. donneesFeuille (facultatif) : feuille de calcul complétée et
 // enregistrée par Excel ; ses tableaux de résultats sont alors placés dans le rapport (rapport-resultats.js).
 function construireRapport(m, donneesTrame, type, donneesFeuille) {
+  if (typeof missionRealisee === 'function') m = missionRealisee(m);
   var I = rapportInfos(m), resume = null;
   return DocxMoteur.Document.charger(donneesTrame).then(function (doc) {
     rapportAppliquerMacro(doc, I.r);

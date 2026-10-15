@@ -867,6 +867,8 @@ function addManualAgent(){
   if(!n){alert('Saisissez un nom');return;}
   var m=getCurrentMission();
   if(!m||m.agents.some(function(a){return a.name===n;})){alert('Agent déjà ajouté');return;}
+  var b=nomAgentManuel(n);
+  if(b){state.showModal=null;addAgent(b);return;}
   m.agents.push({name:n,is8h:true,isCT:true,isManual:true});
   saveData('vlep_missions_v3',state.missions);
   state.showModal=null;

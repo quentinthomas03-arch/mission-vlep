@@ -525,11 +525,16 @@ function fcRemplirEurofins(s, lignes) {
 
 // ---------- Point d'entrée ----------
 
+// Modèle gardé en mémoire : téléchargé une fois (en arrière-plan à l'ouverture), pas à chaque export
+var _fcModele = null;
 function fcChargerModele() {
-  return fetch(FC_MODELE_URL).then(function (r) {
+  if (_fcModele) return _fcModele;
+  _fcModele = fetch(FC_MODELE_URL).then(function (r) {
     if (!r.ok) throw new Error('Modèle de feuille de calcul introuvable dans l’appli (' + FC_MODELE_URL + ').');
     return r.arrayBuffer();
   });
+  _fcModele.catch(function () { _fcModele = null; }); // échec (hors réseau…) : nouvel essai au prochain export
+  return _fcModele;
 }
 
 // Onglets modèles laissés vierges (« Tube Reg », « Cassette (séq) »…) : masqués à l'ouverture, comme les macros
@@ -548,6 +553,7 @@ function fcMasquerModeles(wb, analyseursRemplis) {
 
 // Construit la feuille de calcul remplie ; renvoie {blob, filename, onglets, alertes}
 function construireFeuilleCalcul(m, donneesModele) {
+  if (typeof missionRealisee === 'function') m = missionRealisee(m);
   var plan = fcPlan(m);
   if (!plan.onglets.length) return Promise.reject(new Error('Aucun prélèvement exportable dans cette mission.'));
   return XlsmMoteur.Classeur.charger(donneesModele).then(function (wb) {
@@ -629,6 +635,8 @@ function fcVerifierModele() {
     .then(function (ok) {
       FC_MODELE_DISPO = !!ok;
       if (FC_MODELE_DISPO && typeof render === 'function') render();
+      // chargement d'avance (modèle, trame du rapport), après l'affichage de l'appli
+      if (FC_MODELE_DISPO) setTimeout(function () { fcChargerModele().catch(function () {}); if (typeof rapportChargerTrame === 'function') rapportChargerTrame().catch(function () {}); }, 2000);
     });
 }
 if (typeof window !== 'undefined' && typeof fetch === 'function' && typeof document !== 'undefined' && document.readyState !== undefined) fcVerifierModele();

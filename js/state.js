@@ -197,6 +197,31 @@ function nbPrelPrevu(gaf,type){
 }
 var JUSTIF_NB_DEFAUT='Prélèvement unique prévu par la stratégie de prélèvement.';
 
+// Agent de la base au même nom, aux accents, majuscules, espaces et apostrophes près (« epichlorhydrine »)
+function agentBaseProche(n){
+  var k=function(x){return String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[’']/g,"'").replace(/\s+/g,' ').trim();};
+  var c=k(n);
+  if(!c||getAgentFromDB(n))return null;
+  for(var i=0;i<state.agentsDB.length;i++)if(k(state.agentsDB[i]['Agent chimique'])===c)return state.agentsDB[i]['Agent chimique'];
+  return null;
+}
+// Ajout manuel : si la base connaît l'agent, le technicien peut prendre sa fiche (support, méthode, VLEP)
+function nomAgentManuel(n){
+  var b=agentBaseProche(n);
+  return b&&confirm('« '+b+' » existe dans la base (support, méthode, VLEP).\n\nOK : utiliser l’agent de la base\nAnnuler : garder « '+n+' » saisi à la main')?b:null;
+}
+
+// Copie de la mission sans les prélèvements marqués « non réalisé » (exports : feuille de calcul, rapport, activité)
+// (agent saisi à la main ayant une fiche de la base au même nom, aux accents près : nom de la base, partout dans la copie)
+function missionRealisee(m){
+  var j=JSON.stringify(m);
+  (m.agents||[]).forEach(function(a){var b=agentBaseProche(a.name);if(b)j=j.split(JSON.stringify(a.name)).join(JSON.stringify(b));});
+  var c=JSON.parse(j);
+  c.prelevements=(c.prelevements||[]).map(function(p){p.subPrelevements=(p.subPrelevements||[]).filter(function(s){return !s.nonRealise;});return p;})
+    .filter(function(p){return p.subPrelevements.length;});
+  return c;
+}
+
 function getAgentFromDB(n){
   for(var i=0;i<state.agentsDB.length;i++){
     if(state.agentsDB[i]['Agent chimique']===n)return state.agentsDB[i];

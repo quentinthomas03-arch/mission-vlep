@@ -177,6 +177,8 @@ function addQuickManualAgent(){
   if(!name){alert('Saisissez un nom');return;}
   var q=state.quickMission;
   if(q.agents.some(function(a){return a.name===name;})){alert('Agent déjà ajouté');return;}
+  var b=nomAgentManuel(name);
+  if(b&&!q.agents.some(function(a){return a.name===b;})){q.agents.push({name:b,is8h:hasVLEP8h(b),isCT:hasVLEPCT(b),isReg:true,gehs:{}});state.showModal=null;render();return;}
   q.agents.push({name:name,is8h:true,isCT:true,isReg:true,isManual:true,gehs:{}});
   state.showModal=null;
   render();

@@ -9,7 +9,7 @@ function renderTerrainList(){
   if(ml.length===0)h+='<div class="empty-state"><div class="empty-state-icon">'+ICONS.list+'</div><p>Aucune mission validée</p><p style="font-size:13px;margin-top:8px;">Validez d\'abord une mission dans Préparation</p></div>';
   else ml.forEach(function(m){
     var t=0,d=0;
-    m.prelevements.forEach(function(p){p.subPrelevements.forEach(function(s){t++;if(s.completed)d++;});});
+    m.prelevements.forEach(function(p){p.subPrelevements.forEach(function(s){if(s.nonRealise)return;t++;if(s.completed)d++;});});
     var pct=t>0?Math.round(d/t*100):0;
     h+='<div class="mission-card mission-card-'+m.status+'" onclick="goToTerrain('+m.id+');"><div class="mission-title">'+escapeHtml(m.clientSite||'Sans nom')+'<span class="status-badge status-'+m.status+'">'+(m.status==='validee'?'Prête':(m.status==='encours'?'En cours':'Terminée'))+'</span></div><div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;"></div></div><div class="progress-text">'+d+'/'+t+' prélèvements ('+pct+'%)</div></div>';
   });
@@ -30,7 +30,7 @@ function renderTerrainMission(){
   m.gehs.filter(function(g){return g.name;}).forEach(function(g){
     var ps=byGeh[g.id]||[];
     var dc=0,tc=0;
-    ps.forEach(function(p){p.subPrelevements.forEach(function(s){tc++;if(s.completed)dc++;});});
+    ps.forEach(function(p){p.subPrelevements.forEach(function(s){if(s.nonRealise)return;tc++;if(s.completed)dc++;});});
     var isOpen=state.expandedGeh[g.id];
     h+='<div class="accordion"><div class="accordion-header '+(isOpen?'open':'')+'" onclick="toggleGehAccordion('+g.id+');"><span class="accordion-icon">'+ICONS.chevronRight+'</span><span class="accordion-title">'+g.num+'. '+escapeHtml(g.name)+'</span><span class="accordion-count">'+dc+'/'+tc+'</span><button class="btn btn-danger btn-icon" aria-label="Supprimer le GEH" onclick="event.stopPropagation();deleteGehTerrain('+g.id+');">'+ICONS.trash+'</button><div class="accordion-progress'+(tc&&dc===tc?' done':'')+'"><span style="width:'+(tc?Math.round(dc/tc*100):0)+'%;"></span></div></div><div class="accordion-body '+(isOpen?'open':'')+'">';
     if(ps.length===0){
@@ -38,7 +38,7 @@ function renderTerrainMission(){
     }else{
       ps.forEach(function(p){
         var anyDone=p.subPrelevements.some(function(s){return s.completed;});
-        var allDone=p.subPrelevements.every(function(s){return s.completed;});
+        var allDone=p.subPrelevements.every(function(s){return s.completed||s.nonRealise;});
         var mc=p.agents&&p.agents[0]?p.agents[0].color:'#3b82f6';
         var isSelected=state.selectedForFusion.indexOf(p.id)!==-1;
         var agentNames=p.agents&&p.agents.length>0?p.agents.map(function(a){return escapeHtml(a.name);}).join(' + '):'Agent inconnu';
@@ -89,7 +89,7 @@ function missionRingSvg(done,total){
 // En-tête de mission : infos, avancement, feuille de calcul et échantillons, le reste dans « ⋯ »
 function renderMissionHead(m){
   var t=0,d=0,dates=[];
-  m.prelevements.forEach(function(p){p.subPrelevements.forEach(function(s){t++;if(s.completed)d++;if(s.date)dates.push(s.date);});});
+  m.prelevements.forEach(function(p){p.subPrelevements.forEach(function(s){if(s.nonRealise)return;t++;if(s.completed)d++;if(s.date)dates.push(s.date);});});
   dates.sort();
   var fr=function(x){return x?x.slice(8,10)+'/'+x.slice(5,7)+'/'+x.slice(0,4):'';};
   var periode=dates.length?(dates[0]===dates[dates.length-1]?fr(dates[0]):fr(dates[0])+' → '+fr(dates[dates.length-1])):'';
@@ -890,7 +890,7 @@ function renderTerrainPrel(){
     h+='<div class="tabs">';
     for(var t=0;t<p.subPrelevements.length;t++){
       var sb=p.subPrelevements[t];
-      h+='<button class="tab '+(state.activeSubIndex===t?'active':'')+'" onclick="state.activeSubIndex='+t+';state.lastDayIndex='+t+';render();">Prél '+(t+1)+(sb.completed?' ✓':'')+'</button>';
+      h+='<button class="tab '+(state.activeSubIndex===t?'active':'')+'" onclick="state.activeSubIndex='+t+';state.lastDayIndex='+t+';render();">Prél '+(t+1)+(sb.completed?' ✓':(sb.nonRealise?' ✗':''))+'</button>';
     }
     h+='</div>';
   }
@@ -1161,19 +1161,26 @@ function renderSubPrelForm(p,sb,idx){
   // Scol@ : tâche, métier, type de procédé (listes Scol@), repris dans le bloc Scol@ de la feuille de calcul
   h+=renderScolaChamps(p,sb,idx);
 
+  // Prélèvement prévu mais pas fait (pas d'exposition ce jour-là…) : sorti des compteurs et des exports
+  if(sb.nonRealise){
+    h+='<div class="info-box info-box-warning" style="margin-top:8px;"><p><strong>Prélèvement non réalisé</strong></p><p style="font-size:12px;">Hors compteurs, feuille de calcul et rapport. L’observation peut en donner la raison.</p></div>';
+    h+='<button class="btn btn-gray" onclick="toggleSubNonRealise('+p.id+','+idx+');">Annuler : prélèvement à réaliser</button></div>';
+    return h;
+  }
   // Bouton Valider : grisé + pastille ⓘ si champs manquants
   if(sb.completed){
     h+='<button class="btn btn-success" onclick="toggleSubComplete('+p.id+','+idx+');">✓ Complété - Modifier</button></div>';
   }else{
     var missing=getMissingFields(p,sb);
     if(missing.length===0){
-      h+='<button class="btn btn-success" onclick="toggleSubComplete('+p.id+','+idx+');">✓ Valider</button></div>';
+      h+='<button class="btn btn-success" onclick="toggleSubComplete('+p.id+','+idx+');">✓ Valider</button>';
     }else{
       h+='<div style="display:flex;gap:6px;align-items:stretch;">';
       h+='<button class="btn btn-gray" style="flex:1;opacity:0.7;cursor:not-allowed;" disabled>✓ Valider ('+missing.length+' manquant'+(missing.length>1?'s':'')+')</button>';
       h+='<button class="btn btn-small" style="background:#f59e0b;color:white;border:none;padding:0 14px;font-size:16px;font-weight:700;border-radius:8px;" onclick="showMissingFieldsModal('+p.id+','+idx+');" title="Voir les champs manquants">ⓘ</button>';
-      h+='</div></div>';
+      h+='</div>';
     }
+    h+='<button class="btn btn-gray btn-small" style="margin-top:6px;" onclick="toggleSubNonRealise('+p.id+','+idx+');">Non réalisé (pas fait ce jour-là)</button></div>';
   }
   return h;
 }
@@ -1506,9 +1513,21 @@ function toggleSubComplete(pid,idx){
   }
 }
 
+function toggleSubNonRealise(pid,idx){
+  var m=getCurrentMission();if(!m)return;
+  var p=m.prelevements.find(function(x){return x.id===pid;});
+  if(!p)return;
+  var sb=p.subPrelevements[idx];
+  sb.nonRealise=!sb.nonRealise;
+  if(sb.nonRealise)sb.completed=false;
+  updateMissionStatus(m);
+  saveData('vlep_missions_v3',state.missions);
+  render();
+}
+
 function updateMissionStatus(m){
   var t=0,d=0;
-  m.prelevements.forEach(function(p){p.subPrelevements.forEach(function(s){t++;if(s.completed)d++;});});
+  m.prelevements.forEach(function(p){p.subPrelevements.forEach(function(s){if(s.nonRealise)return;t++;if(s.completed)d++;});});
   if(d===0)m.status='validee';
   else if(d===t)m.status='terminee';
   else m.status='encours';

@@ -39,6 +39,13 @@ setTimeout(function(){
   }
 },1800);
 
+// Stockage persistant : sans lui, Safari (iPhone) peut effacer les données d'un site peu ouvert, missions comprises
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persisted().then(function (deja) {
+    if (!deja) return navigator.storage.persist();
+  }).then(function (ok) { if (ok !== undefined) console.log('[Stockage] persistant : ' + ok); }).catch(function () {});
+}
+
 // ═══════════════════════════════════════════════════════════
 // PWA - Service Worker Registration & Update Management
 // ═══════════════════════════════════════════════════════════
