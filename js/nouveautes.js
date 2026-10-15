@@ -14,6 +14,7 @@ var NOUVEAUTES = [
     'Feuille de calcul : les onglets modèles non remplis sont masqués à l’ouverture, le premier onglet GEH s’affiche directement.',
     'Statut réglementaire tiré de la base (VLEP contraignante ou indicative), indépendamment du nombre de prélèvements : un devis à 1 prélèvement reste réglementaire si l’agent l’est. Le nombre (×3, ×1, ×2) se règle dans les affectations ; avec moins de 3 prélèvements, une justification est demandée sur le terrain et reprise dans le commentaire de la feuille de calcul.',
     'L’ancien export Excel est retiré (remplacé par la feuille de calcul). L’export Word se trouve dans le menu ⋯ de la mission.',
+    'Macros bloquées à l’ouverture de la feuille (« Risque de sécurité ») : clic droit sur le fichier › Propriétés › cocher « Débloquer » › OK, puis rouvrir. Rappelé après chaque export et dans le Guide.',
     'Retour en préparation après le début de la saisie (Modifier la mission, ← Prépa) : revalider garde tout ce qui a été saisi et n’ajoute que les nouveaux prélèvements. Un prélèvement déjà saisi dont le GEH ou l’agent a été retiré n’est supprimé qu’après confirmation.'
   ] },
   { version: '2.20', date: '15/10/2026', items: [

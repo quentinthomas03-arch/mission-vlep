@@ -1081,7 +1081,7 @@ function renderTutoriel(){
       steps:[
         {t:'Accès',d:'Mission terrain → bouton Feuille de calcul, en haut de la mission (aussi dans Liste échantillons).'},
         {t:'Contenu',d:'L\'appli remplit directement la feuille de calcul : un onglet par GEH, analyseurs et onglet Acquisition, Eurofins, en-tête Scol@. Plus de copier-coller.'},
-        {t:'Ouvrir le fichier',d:'Ouvrir le fichier .xlsm et activer les macros : les calculs se font à l\'ouverture.'},
+        {t:'Ouvrir le fichier',d:'Ouvrir le fichier .xlsm et activer les macros : les calculs se font à l\'ouverture. Si Excel affiche « Risque de sécurité » (macros bloquées parce que le fichier vient d\'internet) : fermer Excel, clic droit sur le fichier › Propriétés › cocher « Débloquer » en bas › OK, puis rouvrir.'},
         {t:'Résultats labo',d:'Les résultats d\'analyse sont à saisir dans la feuille de calcul, comme avant.'}
       ]
     },

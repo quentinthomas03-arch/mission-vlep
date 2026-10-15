@@ -599,7 +599,8 @@ function exportFeuilleCalcul() {
   fcChargerModele().then(function (data) { return construireFeuilleCalcul(m, data); }).then(function (r) {
     downloadBlob(r.blob, r.filename);
     var msg = 'Feuille de calcul générée : ' + r.filename + '\n\nOnglets créés :\n- ' + r.onglets.join('\n- ') +
-      '\n\nÀ compléter dans Excel : durée d’exposition, résultats du laboratoire.';
+      '\n\nÀ compléter dans Excel : résultats du laboratoire.' +
+      '\n\nSi Excel affiche « Risque de sécurité » (macros bloquées) : fermer Excel, clic droit sur le fichier › Propriétés › cocher « Débloquer » en bas › OK, puis rouvrir.';
     if (r.alertes.length) msg += '\n\nÀ vérifier :\n- ' + r.alertes.join('\n- ');
     alert(msg);
   }).catch(function (e) { alert('Export impossible :\n\n' + e.message); });
