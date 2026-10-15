@@ -594,18 +594,30 @@ function construireFeuilleCalcul(m, donneesModele) {
   });
 }
 
+// Bandeau « en cours » pendant une génération (quelques secondes sur téléphone)
+function afficherAttente(msg) {
+  var el = document.getElementById('attente-generation');
+  if (!msg) { if (el) el.remove(); return; }
+  if (!el) { el = document.createElement('div'); el.id = 'attente-generation'; document.body.appendChild(el); }
+  el.style.cssText = 'position:fixed;left:50%;bottom:24px;transform:translateX(-50%);z-index:9999;background:#0f172a;color:#fff;padding:12px 18px;border-radius:12px;font-size:14px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25);max-width:90vw;text-align:center;';
+  el.textContent = msg;
+}
+
 function exportFeuilleCalcul() {
   var m = getCurrentMission();
   if (!m) { alert('Aucune mission'); return; }
   if (typeof JSZip === 'undefined' || typeof XlsmMoteur === 'undefined') { alert('Bibliothèque de génération absente.'); return; }
-  fcChargerModele().then(function (data) { return construireFeuilleCalcul(m, data); }).then(function (r) {
+  afficherAttente('Feuille de calcul en cours…');
+  // laisse le bandeau s'afficher avant le calcul
+  new Promise(function (ok) { setTimeout(ok, 50); }).then(fcChargerModele).then(function (data) { return construireFeuilleCalcul(m, data); }).then(function (r) {
+    afficherAttente(null);
     downloadBlob(r.blob, r.filename);
     var msg = 'Feuille de calcul générée : ' + r.filename + '\n\nOnglets créés :\n- ' + r.onglets.join('\n- ') +
       '\n\nÀ compléter dans Excel : résultats du laboratoire.' +
       '\n\nSi Excel affiche « Risque de sécurité » (macros bloquées) : fermer Excel, clic droit sur le fichier › Propriétés › cocher « Débloquer » en bas › OK, puis rouvrir.';
     if (r.alertes.length) msg += '\n\nÀ vérifier :\n- ' + r.alertes.join('\n- ');
     alert(msg);
-  }).catch(function (e) { alert('Export impossible :\n\n' + e.message); });
+  }).catch(function (e) { afficherAttente(null); alert('Export impossible :\n\n' + e.message); });
 }
 
 // Le modèle n'est pas publié partout (dépôt public sans le modèle) : les fonctions qui en dépendent

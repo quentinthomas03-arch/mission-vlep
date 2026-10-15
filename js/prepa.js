@@ -231,8 +231,6 @@ function renderPrepaMission(){
   if(state._returnToTerrain)h+='<button class="btn btn-primary mt-8" onclick="returnToTerrain();">'+ICONS.check+' Retour au terrain</button>';
   if(m.status==='prepa')h+='<button class="btn btn-gray mt-8" onclick="state.showModal=\'prepaAuto\';state.prepaAutoData=null;render();">'+ICONS.zap+' Prépa automatique (devis)</button>';
   if(typeof renderVeoliaPrepa==='function'&&typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true)h+=renderVeoliaPrepa(m);
-  if(typeof renderScolaDossierPrepa==='function'&&typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true)h+=renderScolaDossierPrepa(m);
-  if(typeof renderRapportPrepa==='function')h+=renderRapportPrepa(m);
   if(state.showModal==='editInfo')h+=renderEditInfoModal(m);
   if(state.showModal==='prepaAuto')h+=renderPrepaAutoModal(m);
   return h;

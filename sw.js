@@ -1,8 +1,8 @@
 // sw.js - Service Worker
 // © 2025 Quentin THOMAS
 
-const CACHE_NAME = 'vlep-mission-v2.25';
-const VERSION = '2.25'; // Incrémenter à chaque mise à jour
+const CACHE_NAME = 'vlep-mission-v2.26';
+const VERSION = '2.26'; // Incrémenter à chaque mise à jour
 const urlsToCache = [
   './',
   './index.html',
@@ -56,7 +56,8 @@ self.addEventListener('install', function(event) {
         // Si l'un échoue (absent, mal nommé), il est ignoré au lieu de faire échouer
         // TOUTE la mise en cache (ce qui casserait le fonctionnement hors-ligne).
         return Promise.all(urlsToCache.map(function(url) {
-          return cache.add(url).catch(function(err) {
+          // cache: reload : jamais la copie du cache HTTP du navigateur (sinon anciens fichiers après une mise à jour)
+          return cache.add(new Request(url, { cache: 'reload' })).catch(function(err) {
             console.warn('[SW] Fichier ignoré (non mis en cache):', url, err);
           });
         }));
@@ -108,7 +109,9 @@ self.addEventListener('fetch', function(event) {
   // Seules les requêtes GET passent par le cache (la vérification du modèle se fait en HEAD)
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    fetch(event.request)
+    // no-cache : le navigateur revérifie auprès du serveur au lieu de resservir sa copie (GitHub Pages : 10 min)
+    // (une navigation ne peut pas être recopiée avec des options : requête refaite d'après son adresse)
+    fetch(event.request.mode === 'navigate' ? new Request(event.request.url, { cache: 'no-cache' }) : new Request(event.request, { cache: 'no-cache' }))
       .then(function(response) {
         // Si la requête réseau réussit, mettre en cache
         if (response && response.status === 200) {

@@ -6,10 +6,15 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.25';
+var APP_VERSION = '2.26';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.26', date: '15/10/2026', items: [
+    'Bouton « Rapport Word » en haut de la mission, à côté de « Feuille de calcul » : il ouvre un écran à part avec les données du rapport et du dossier Scol@ (retirées de la préparation) et le bouton de génération.',
+    'Export de la feuille de calcul de nouveau rapide (la v2.21 réécrivait tous les onglets du classeur) ; bandeau « en cours » pendant la génération.',
+    'Mise à jour de l’appli : les fichiers sont revérifiés auprès du serveur, une nouvelle version n’est plus masquée par d’anciens fichiers gardés par le navigateur.'
+  ] },
   { version: '2.25', date: '15/10/2026', items: [
     'Rapport Word comparé à un rapport réellement rendu (Bruker 2026) et rapproché de lui :',
     'Rapport réunissant 1ère campagne et contrôle périodique : dans la carte « Rapport », choix de la partie de chaque GEH (ou de chaque agent) ; résultats et EPI y sont placés. Les écarts (contrat, stratégie) restent rédigés par le technicien.',

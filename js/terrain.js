@@ -101,12 +101,12 @@ function renderMissionHead(m){
   h+='</div>'+(t?missionRingSvg(d,t):'')+'</div><div class="mission-head-body"><div class="mission-actions">';
   var fc=typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true;
   if(fc)h+='<button class="btn btn-primary btn-small" onclick="state.missionMenuOpen=false;exportFeuilleCalcul();">'+ICONS.sheet+' Feuille de calcul</button>';
+  h+='<button class="btn btn-primary btn-small" onclick="state.missionMenuOpen=false;state.view=\'rapport-donnees\';render();window.scrollTo(0,0);">'+ICONS.fileText+' Rapport Word</button>';
   h+='<button class="btn '+(fc?'btn-gray':'btn-primary')+' btn-small" onclick="state.missionMenuOpen=false;state.view=\'liste-echantillons\';render();">'+ICONS.list+' Échantillons</button>';
   h+='<button class="btn btn-gray btn-small mission-more-btn'+(state.missionMenuOpen?' active':'')+'" aria-label="Plus d’actions" onclick="state.missionMenuOpen=!state.missionMenuOpen;render();">'+ICONS.more+'</button></div>';
   if(state.missionMenuOpen){
     var item=function(onclick,icon,label,cls){return '<button type="button" class="menu-row'+(cls?' '+cls:'')+'" onclick="state.missionMenuOpen=false;'+onclick+'">'+icon+'<span>'+label+'</span></button>';};
     h+='<div class="mission-menu">'+
-      item('render();exportRapportWord();',ICONS.fileText,'Rapport Word (pré-rempli depuis la trame)')+
       item('render();sendMissionByMail('+m.id+');',ICONS.mail,'Envoyer la mission par e-mail')+
       item('render();exportMissionJSON('+m.id+');',ICONS.download,'Enregistrer la mission (.json)')+
       item('render();exportActiviteWord();',ICONS.fileText,'Activité (Word)')+

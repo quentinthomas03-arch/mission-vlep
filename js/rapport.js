@@ -1,7 +1,7 @@
 // rapport.js - Rapport Word pré-rempli depuis la trame « Contrôle des VLEP - Modèle de rapport »
 // © 2025 Quentin THOMAS
 //
-// Étape 1 : carte « Rapport » de la préparation. Elle reprend le formulaire de la macro AutoNew de la trame
+// Étape 1 : carte « Rapport » de l'écran Rapport Word (hors préparation). Elle reprend le formulaire de la macro AutoNew de la trame
 // (agence, type de rapport, catégories d'agents), choisi par le technicien, plus les champs de couverture
 // (chrono, contrat, interlocuteur, rédacteur, valideur) et le choix « mesures à poste fixe ».
 // La partie stratégie de la trame n'est pas proposée : elle ne relève pas d'une appli de mesure.
@@ -201,6 +201,18 @@ function renderRapportPrepa(m) {
   h += '</div></div><div class="field" style="margin-bottom:0;"><label class="label">Autres mesures</label><div class="row">';
   h += puce(r.posteFixe, 'rapportMaj(\'posteFixe\',' + (r.posteFixe ? 'false' : 'true') + ');render();', 'Mesures à poste fixe (hors accréditation)');
   h += '</div></div></div>';
+  return h;
+}
+
+// Écran « Rapport Word » (hors préparation) : données Scol@ du dossier, carte Rapport, puis génération
+function renderRapportDonnees() {
+  var m = getCurrentMission();
+  if (!m) { state.view = 'terrain-list'; return renderTerrainList(); }
+  var h = '<button class="back-btn" onclick="state.view=\'terrain-mission\';render();">' + ICONS.arrowLeft + ' Mission</button>';
+  h += '<div class="card"><h1>' + ICONS.fileText + ' Rapport Word</h1><p class="subtitle">Données du rapport et du dossier Scol@, à part de la préparation de la mission.</p>';
+  h += '<button class="btn btn-primary" style="margin-bottom:0;" onclick="exportRapportWord();">' + ICONS.fileText + ' Générer le rapport Word</button></div>';
+  if (typeof renderScolaDossierPrepa === 'function' && typeof FC_MODELE_DISPO !== 'undefined' && FC_MODELE_DISPO === true) h += renderScolaDossierPrepa(m);
+  h += renderRapportPrepa(m);
   return h;
 }
 
@@ -787,7 +799,7 @@ function exportRapportWord() {
   if (!m) { alert('Aucune mission'); return; }
   var r = rapportDonnees(m), t = r.types || {};
   if (!Object.keys(t).some(function (k) { return t[k]; })) {
-    if (!confirm('Aucun type de rapport choisi dans la carte « Rapport » de la préparation (campagne, contrôle périodique…). Générer quand même ?')) return;
+    if (!confirm('Aucun type de rapport choisi dans la carte « Rapport » ci-dessous (campagne, contrôle périodique…). Générer quand même ?')) return;
   }
   if (!confirm('Joindre la feuille de calcul complétée (résultats du laboratoire saisis, fichier enregistré dans Excel) ?\n\nOK : choisir le fichier .xlsm, les tableaux de résultats seront repris.\nAnnuler : rapport sans les résultats.')) { rapportGenerer(m, null); return; }
   var inp = document.createElement('input');
@@ -803,7 +815,9 @@ function exportRapportWord() {
 }
 
 function rapportGenerer(m, feuille, nomFeuille) {
+  if (typeof afficherAttente === 'function') afficherAttente('Rapport Word en cours…');
   rapportChargerTrame().then(function (data) { return construireRapport(m, data, 'blob', feuille); }).then(function (res) {
+    if (typeof afficherAttente === 'function') afficherAttente(null);
     downloadBlob(res.blob, res.filename);
     var msg = 'Rapport généré : ' + res.filename + '\n\nÀ l’ouverture, Word propose de mettre à jour les champs (sommaire, numéros d’annexes) : répondre Oui.';
     var r = res.resultats;
@@ -813,7 +827,7 @@ function rapportGenerer(m, feuille, nomFeuille) {
       msg += '\n\nÀ compléter : conclusion, commentaires, annexe du diagnostic U.';
     } else msg += '\n\nÀ compléter : résultats (feuille de calcul), conclusion, commentaires.';
     alert(msg);
-  }).catch(function (e) { alert('Rapport impossible :\n\n' + e.message); });
+  }).catch(function (e) { if (typeof afficherAttente === 'function') afficherAttente(null); alert('Rapport impossible :\n\n' + e.message); });
 }
 
 console.log('✓ Rapport chargé');

@@ -18,6 +18,7 @@ function render(){
     case'db-terrain':h=renderDbTerrain();break;
     case'db-full':h=renderDbFull();break;
     case'liste-echantillons':h=renderListeEchantillons();break;
+    case'rapport-donnees':h=renderRapportDonnees();break;
     case'quick-entry':h=renderQuickEntry();break;
     case'tutoriel':h=renderTutoriel();break;
     default:h=renderHome();
@@ -126,7 +127,7 @@ window.addEventListener('popstate', function(event) {
     } else {
       state.view = 'terrain-mission';
     }
-  } else if (state.view === 'conditions' || state.view === 'liste-echantillons') {
+  } else if (state.view === 'conditions' || state.view === 'liste-echantillons' || state.view === 'rapport-donnees') {
     // Depuis conditions ou échantillons, retour à terrain-mission
     state.view = 'terrain-mission';
   } else if (state.view.startsWith('db-') || state.view === 'quick-entry') {

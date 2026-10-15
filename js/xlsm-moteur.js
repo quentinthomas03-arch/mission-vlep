@@ -534,6 +534,8 @@
   Classeur.prototype.activerOnglet = function (nom) {
     var self = this, ordre = this._ordre(), idx = ordre.indexOf(nom);
     if (idx === -1) return Promise.resolve();
+    // seuls l'onglet actif d'origine (activeTab) et le nouveau portent tabSelected : inutile de décompresser les autres
+    var vue = /<workbookView\b([^>]*?)\/>/.exec(this.workbookXml), ancien = ordre[+((vue && getAttr(vue[1], 'activeTab')) || 0)];
     this.workbookXml = this.workbookXml.replace(/<workbookView\b([^>]*?)\/>/, function (all, a) {
       return '<workbookView' + setAttr(setAttr(a, 'firstSheet', null), 'activeTab', String(idx)) + '/>';
     });
@@ -543,9 +545,11 @@
     };
     return Promise.all(ordre.map(function (n) {
       if (self.sheets[n]) { self.sheets[n].head = fix(self.sheets[n].head, n === nom); return null; }
+      if (n !== nom && n !== ancien) return null;
       var p = self.paths[n];
       if (!p || !self.zip.file(p)) return null;
-      return self.zip.file(p).async('string').then(function (x) { self.zip.file(p, fix(x, n === nom)); });
+      // réécrit seulement s'il change : un onglet réécrit est recompressé par generer (export bien plus lent)
+      return self.zip.file(p).async('string').then(function (x) { var y = fix(x, n === nom); if (y !== x) self.zip.file(p, y); });
     }));
   };
 

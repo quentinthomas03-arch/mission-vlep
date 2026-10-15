@@ -3,7 +3,7 @@
 //
 // Le fichier XML envoyé à Scol@ commence par le dossier : site géographique accrédité (SOCOTEC57A…), année,
 // n° de dossier, observations et établissement (SIRET, code postal, effectif, NAF en découlent dans la feuille).
-// L'appli les saisit en préparation et remplit l'onglet Scol@. Les listes (sites accrédités, établissements
+// L'appli les saisit dans l'écran Rapport Word et remplit l'onglet Scol@. Les listes (sites accrédités, établissements
 // connus de Scol@) sont lues dans le modèle au moment voulu : aucun nom de client dans le code de l'appli.
 
 var SCOLA_SITE_KEY = 'vlep_scola_site';
