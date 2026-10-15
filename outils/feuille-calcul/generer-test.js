@@ -25,7 +25,7 @@ ctx.window = ctx; ctx.self = ctx;
 vm.createContext(ctx);
 const charger = f => vm.runInContext(fs.readFileSync(path.join(racine, f), 'utf8'), ctx, { filename: f });
 ctx.JSZip = require(path.join(racine, 'js', 'jszip.min.js'));
-['js/database.js', 'js/state.js', 'js/terrain.js', 'js/export-excel.js', 'js/xlsm-moteur.js', 'js/feuille-calcul.js'].forEach(charger);
+['js/database.js', 'js/state.js', 'js/terrain.js', 'js/echantillons.js', 'js/xlsm-moteur.js', 'js/feuille-calcul.js'].forEach(charger);
 vm.runInContext('state.agentsDB = JSON.parse(JSON.stringify(BUILTIN_DB));', ctx);
 
 // Mission de test : Tube Reg (J1-J3), Cassette non Reg, Tube Reg (multi), 8h fractionné (séq), CIP10 silice Reg

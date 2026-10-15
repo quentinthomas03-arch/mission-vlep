@@ -16,7 +16,7 @@ const ctx = {
 ctx.window = ctx;
 vm.createContext(ctx);
 ctx.JSZip = require(path.join(racine, 'js', 'jszip.min.js'));
-['js/database.js', 'js/state.js', 'js/terrain.js', 'js/export-excel.js', 'js/xlsm-moteur.js', 'js/feuille-calcul.js', 'js/veolia.js']
+['js/database.js', 'js/state.js', 'js/terrain.js', 'js/echantillons.js', 'js/xlsm-moteur.js', 'js/feuille-calcul.js', 'js/veolia.js']
   .forEach(f => vm.runInContext(fs.readFileSync(path.join(racine, f), 'utf8'), ctx, { filename: f }));
 vm.runInContext('state.agentsDB = JSON.parse(JSON.stringify(BUILTIN_DB));', ctx);
 if (!site) { console.error('Indiquer le site Véolia (3e argument).'); process.exit(1); }

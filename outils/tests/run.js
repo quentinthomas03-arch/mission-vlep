@@ -23,7 +23,7 @@ const ctx = {
 ctx.window = ctx;
 vm.createContext(ctx);
 ctx.JSZip = require(path.join(racine, 'js', 'jszip.min.js'));
-['js/icons.js', 'js/database.js', 'js/scola-listes.js', 'js/state.js', 'js/prepa.js', 'js/terrain.js', 'js/consignes-agents.js', 'js/releves-analyseur.js', 'js/export-excel.js', 'js/xlsm-moteur.js', 'js/feuille-calcul.js', 'js/veolia.js', 'js/scola-dossier.js', 'js/nouveautes.js']
+['js/icons.js', 'js/database.js', 'js/scola-listes.js', 'js/state.js', 'js/prepa.js', 'js/terrain.js', 'js/consignes-agents.js', 'js/releves-analyseur.js', 'js/echantillons.js', 'js/xlsm-moteur.js', 'js/feuille-calcul.js', 'js/veolia.js', 'js/scola-dossier.js', 'js/export-word.js', 'js/docx-moteur.js', 'js/rapport.js', 'js/rapport-resultats.js', 'js/nouveautes.js']
   .forEach(f => vm.runInContext(fs.readFileSync(path.join(racine, f), 'utf8'), ctx, { filename: f }));
 vm.runInContext('state.agentsDB = JSON.parse(JSON.stringify(BUILTIN_DB));', ctx);
 vm.runInContext(`var _gen = XlsmMoteur.Classeur.prototype.generer; XlsmMoteur.Classeur.prototype.generer = function(t){ return _gen.call(this, t === 'blob' ? 'nodebuffer' : t); };`, ctx);
@@ -119,6 +119,60 @@ egal('débit incomplet : pas de contrôle', G.checkDebitMoyen(hf, '8h', '2', '')
   vrai('menu ⋯ : e-mail, .json, Word, fusions, GEH, modifier, supprimer', ['sendMissionByMail', 'exportMissionJSON', 'exportActiviteWord', 'showSmartFusionModal', 'startFusionMode', 'addGehTerrain', 'editMissionFromTerrain', 'deleteMissionTerrain'].every(x => h2.indexOf(x) !== -1));
   G.state.missionMenuOpen = false;
 }
+{
+  const db = G.state.agentsDB;
+  const reg = db.find(a => a['VLEP Reglementaire contraignante'] === 'X')['Agent chimique'];
+  const nonReg = db.find(a => !a['VLEP Reglementaire contraignante'] && !a['VLEP Reglementaire Indicative'])['Agent chimique'];
+  egal('statut réglementaire lu dans la base (contraignante / ni l’une ni l’autre)', [G.agentEstReglementaire(reg), G.agentEstReglementaire(nonReg)], [true, false]);
+  egal('nombre prévu : devis sinon 3 en réglementaire, 1 sinon', [G.nbPrelPrevu({ isReg8h: true, nb8h: 1 }, '8h'), G.nbPrelPrevu({ isReg8h: true }, '8h'), G.nbPrelPrevu({ isRegCT: false }, 'CT')], [1, 3, 1]);
+  const mg = { gehs: [{ id: 7, num: 1, name: 'G' }], agentColors: {}, agents: [{ name: reg }], affectations: {} };
+  mg.affectations[reg] = { gehs: { 7: { has8h: true, hasCT: false, isReg8h: true, nb8h: 1 } } };
+  G.generatePrelevements(mg);
+  const p1 = mg.prelevements[0];
+  egal('réglementaire à 1 prélèvement : reste réglementaire, 1 sous-prélèvement, justification préremplie', [p1.isReglementaire, p1.subPrelevements.length, p1.justifNb], [true, 1, G.JUSTIF_NB_DEFAUT]);
+}
+{
+  const ag = G.state.agentsDB[0]['Agent chimique'];
+  const mr = { gehs: [{ id: 1, num: 1, name: 'A' }], agentColors: {}, agents: [{ name: ag }], affectations: {} };
+  mr.affectations[ag] = { gehs: { 1: { has8h: true, hasCT: false, isReg8h: true } } };
+  G.generatePrelevements(mr);
+  const p0 = mr.prelevements[0];
+  p0.subPrelevements[0].operateur = 'QT'; p0.subPrelevements[0].agentData[ag].refEchantillon = 'R-1';
+  // retour en préparation : nouveau GEH affecté, puis revalidation
+  mr.gehs.push({ id: 2, num: 2, name: 'B' });
+  mr.affectations[ag].gehs[2] = { has8h: true, hasCT: false, isReg8h: true };
+  const retires = G.generatePrelevements(mr);
+  egal('revalidation : saisie gardée, nouveau GEH ajouté, rien à retirer', [mr.prelevements.length, mr.prelevements[0] === p0, p0.subPrelevements[0].agentData[ag].refEchantillon, retires.length], [2, true, 'R-1', 0]);
+  // GEH 1 supprimé alors qu'il est saisi : signalé avant suppression ; GEH 2 vierge retiré sans question
+  mr.gehs = [{ id: 3, num: 3, name: 'C' }];
+  const r2 = G.generatePrelevements(mr);
+  egal('revalidation : prélèvement saisi sans GEH signalé, vierge retiré', [r2.length, r2[0] === p0, mr.prelevements.length], [1, true, 0]);
+}
+{
+  const mr = { id: 1, rapport: { types: { campagne1: true }, categories: {}, posteFixe: true, chrono: 'C-1' } };
+  const h = G.renderRapportPrepa(mr);
+  vrai('carte Rapport : chrono, agences de la trame, types et catégories, poste fixe', /C-1/.test(h) && G.RAPPORT_AGENCES.length === 7 && G.RAPPORT_AGENCES.every(a => h.indexOf(a.nom) !== -1) && /1ère campagne/.test(h) && /Silice cristalline/.test(h) && /poste fixe/.test(h));
+  vrai('carte Rapport : pas de case stratégie (hors appli de mesure)', !/rapportBascule\('types','strat/i.test(h) && /Référence du rapport de stratégie/.test(h));
+}
+{
+  // rapport réunissant 1ère campagne et contrôle périodique (Bruker 2026) : partie choisie par GEH × agent
+  const sbF = (o) => Object.assign({ completed: true, date: '2026-05-26', plages: [{ debut: '08:00', fin: '15:00' }] }, o);
+  const sbV = (o) => Object.assign({ completed: false, date: '', plages: [{ debut: '', fin: '' }], observations: '' }, o);
+  const mr = { id: 2, gehs: [{ id: 10, num: 3, name: 'Soudure TIG' }, { id: 20, num: 7, name: 'Peintre' }],
+    prelevements: [
+      { gehId: 10, type: '8h', isReglementaire: true, agents: [{ name: 'chrome VI et ses composés' }], subPrelevements: [sbF(), sbF(), sbF()] },
+      { gehId: 20, type: '8h', isReglementaire: true, agents: [{ name: 'o-xylène' }, { name: 'acétone' }], subPrelevements: [sbF(), sbV(), sbV()] },
+      { gehId: 20, type: 'CT', isReglementaire: false, agents: [{ name: 'acide sulfurique' }], subPrelevements: [sbV({ observations: 'Pas d’utilisation' })] }],
+    rapport: { types: { campagne1: true, periodique: true }, categories: {}, etapes: { '10|chrome VI et ses composés': 'ei' } } };
+  G.state.missions = [mr]; G.state.currentMissionId = 2;
+  egal('rapport : partie de chaque agent (choisie, sinon contrôle périodique)', [G.rapportEtape(mr, 10, 'chrome VI et ses composés'), G.rapportEtape(mr, 20, 'o-xylène'), G.rapportEtapeAgentFeuille(mr, 3, ['chrome VI et ses compo']), G.rapportEtapeAgentFeuille(mr, '7', ['o-xylène'])], ['ei', 'cp', 'ei', 'cp']);
+  vrai('carte Rapport : choix de la partie par agent affiché', /Partie du rapport de chaque agent/.test(G.renderRapportPrepa(mr)));
+  egal('rapport : période de mission en toutes lettres', [G.rapportPeriode('2026-05-26', '2026-05-28'), G.rapportPeriode('2026-05-30', '2026-06-02'), G.rapportPeriode('2026-06-01', '2026-06-01')], ['du 26 au 28 mai 2026', 'du 30 mai au 2 juin 2026', '1er juin 2026']);
+  egal('rapport : texte EPI comme la trame', [G.rapportEpiTexte('FFP3'), G.rapportEpiTexte('masque complet P3'), G.rapportEpiTexte('TH3')], ['un demi-masque filtrant de type FFP3', 'un masque complet P3', 'un appareil filtrant à ventilation assistée avec cagoule ou casque de type TH3']);
+  vrai('rapport : agent saisi sans accent retrouvé dans la base', !!G.rapportAgentDB('epichlorhydrine'));
+}
+egal('résultats : formats Excel affichés à la française', [G.rrFormater(98.2210432, '0.00'), G.rrFormater(0.20462, '0.0%'), G.rrFormater(0.000123, '0.0E+00'), G.rrFormater(1234.5, '#,##0.0'), G.rrFormater(46197, 'dd/mm/yy'), G.rrFormater(46197, 'dd/mm/yyyy'), G.rrFormater(0.5, 'h:mm'), G.rrFormater(12.2776304, 'General'), G.rrFormater(600, '0.00000')],
+  ['98,22', '20,5\u00a0%', '1,2E-04', '1\u00a0234,5', '24/06/26', '24/06/2026', '12:00', '12,2776304', '600,00000']);
 egal('débit : virgule ou point, même résultat', G.checkDebitMoyen(hf, '8h', '1.9', '1.92').moy, G.checkDebitMoyen(hf, '8h', '1,9', '1,92').moy);
 egal('variation de débit : virgule ou point', G.calcDebitVariation('0.1', '0.104'), G.calcDebitVariation('0,1', '0,104'));
 {
@@ -291,6 +345,51 @@ async function finDeBout() {
   const sc = await wb.onglet('Scol@');
   egal('Scol@ dossier : site, année, n° de dossier, observations, établissement', [sc.text('I9'), sc.text('I13'), sc.text('I17'), sc.text('I21'), sc.text('J33')], [listes.sites[0].code, '2026', 'DOSSIER-TEST', '/', listes.etablissements[0].nom]);
   vrai('calcChain retiré', !wb.zip.file('xl/calcChain.xml'));
+
+  // ---------- Poste fixe : type de prélèvement de l'onglet non réglementaire ----------
+  {
+    const agT = G.state.agentsDB.find(a => /tube/i.test(a['Support de prélèvement'] || '') && !/silice|fibre/i.test(a['Agent chimique']))['Agent chimique'];
+    const sbx = (pf, op) => ({ operateur: op, posteFixe: pf, date: '2026-10-15', plages: [{ debut: '08:00', fin: '12:00' }], agentData: { [agT]: { numPompe: '1', debitInitial: '0,1', debitFinal: '0,1', refEchantillon: op } } });
+    G.__mpf = { clientSite: 'PF', preleveur: 'QT', gehs: [{ id: 1, num: 1, name: 'Zone' }], conditionsAmbiantes: [], blancs: [],
+      prelevements: [{ id: 1, gehId: 1, type: '8h', isReglementaire: false, agents: [{ name: agT }], subPrelevements: [sbx(true, 'PF quai'), sbx(false, 'Opérateur B')] }] };
+    const rpf = await vm.runInContext('construireFeuilleCalcul(__mpf, __data)', ctx);
+    const wpf = await M.Classeur.charger(rpf.blob, ctx.JSZip);
+    const npf = Object.keys(wpf.paths).filter(n => /^GEH 1 - Tube/.test(n))[0], spf = await wpf.onglet(npf);
+    const rT = Object.keys(spf.rows).map(Number).find(r => spf.text('A' + r) === 'type de prélèvement');
+    egal('poste fixe : type de prélèvement « à poste fixe » / « individuel » (opérateur par défaut)', [spf.text('C' + rT), spf.text('E' + rT)], ['à poste fixe', 'individuel']);
+  }
+
+  // ---------- Rapport Word pré-rempli (trame) ----------
+  {
+    const trame = fs.readFileSync(path.join(racine, 'modele', 'trame-rapport-vlep.docx'));
+    const ag1 = G.state.agentsDB.find(a => a['VLEP Reglementaire contraignante'] === 'X' && /tube/i.test(a['Support de prélèvement'] || ''))['Agent chimique'];
+    const ag2 = G.state.agentsDB.find(a => !a['VLEP Reglementaire contraignante'] && !a['VLEP Reglementaire Indicative'] && a['N° CAS'])['Agent chimique'];
+    G.__mr = { clientSite: 'Client', preleveur: 'QT', scolaDossier: 'DOSSIER-1', gehs: [{ id: 1, num: 1, name: 'Peintres' }],
+      rapport: { chrono: 'CHRONO-9', contrat: 'CONTRAT-7', interlocuteur: 'M. X', redacteur: 'R', valideur: 'V', agence: 'woippy', types: { campagne1: true, periodique: true }, categories: { contraignantes: true, admises: true }, posteFixe: true },
+      prelevements: [
+        { id: 1, gehId: 1, type: '8h', isReglementaire: true, agents: [{ name: ag1 }], subPrelevements: [{ operateur: 'A', date: '2026-10-15', plages: [{ debut: '08:00', fin: '12:00' }], epiType: 'FFP3', agentData: {} }] },
+        { id: 2, gehId: 1, type: '8h', isReglementaire: false, agents: [{ name: ag2 }], subPrelevements: [{ operateur: 'A', date: '2026-10-15', plages: [{ debut: '08:00', fin: '12:00' }], agentData: {} }] }] };
+    G.__trame = trame;
+    const rr = await vm.runInContext('construireRapport(__mr, __trame, "nodebuffer")', ctx);
+    const doc = await G.DocxMoteur.Document.charger(rr.blob);
+    const X = G.DocxMoteur, paras = X.trouverTous(doc.corps(), 'w:p').map(p => X.texte(p).replace(/\s+/g, ' ').trim());
+    vrai('rapport : titre selon les cases (contrôle périodique et 1ère campagne)', paras.includes('Rapport (contrôle périodique et première campagne de mesures)'));
+    vrai('rapport : chrono, n° d’affaire, contrat, période, agence', paras.includes('CHRONO-9') && paras.some(t => /d’affaire: DOSSIER-1/i.test(t)) && paras.some(t => /contrat référencé CONTRAT-7/.test(t)) && paras.some(t => /réalisée le 15 octobre 2026/i.test(t)) && paras.some(t => /Grand est Mesures/.test(t)));
+    vrai('rapport : partie stratégie et 2ème campagne retirées comme par la macro', !paras.some(t => /établie sous accréditation par/.test(t)) && !paras.some(t => /^Si 2ème campagne/.test(t)));
+    const tAcc = X.ancetre(doc.signet('Tableau_accréditations').debut, 'w:tbl'), lAcc = tAcc.kids.filter(k => k.name === 'w:tr').map(tr => X.texte(tr.kids.filter(k => k.name === 'w:tc')[0]).trim());
+    egal('rapport : tableau des accréditations = agents de la mission', lAcc.slice(2), [ag1, ag2]);
+    vrai('rapport : consignes « copier/coller le tableau » retirées', !paras.some(t => /Copier\/coller le tableau établi/.test(t)));
+    vrai('rapport : EPI par GEH (FFP3, FPA 10)', paras.some(t => /GEH 1 « Peintres » portent un demi-masque filtrant de type FFP3/.test(t)) && paras.some(t => /égal à 10\. Ce coefficient/.test(t)));
+    vrai('rapport : annexe des tâches remplie', paras.some(t => /^GEH 1 : Peintres/.test(t)));
+    vrai('rapport : partie poste fixe dans les commentaires', paras.includes('Mesures à poste fixe (hors accréditation)'));
+    const pied = doc.pieds().map(a => X.texte(a)).join(' ');
+    vrai('rapport : n° d’affaire et chrono en pied de page', /DOSSIER-1/.test(pied) && /N° chrono\s*:\s*CHRONO-9/.test(pied));
+    const st = X.serialiser(doc.arbres['word/settings.xml']);
+    vrai('rapport : protection formulaires retirée, champs mis à jour à l’ouverture', !/documentProtection/.test(st) && /w:updateFields w:val="true"/.test(st));
+    // feuille de calcul exportée par l'appli mais jamais ouverte dans Excel : aucune valeur calculée, résultats signalés absents
+    const rr2 = await vm.runInContext('construireRapport(__mr, __trame, "nodebuffer", __data)', ctx);
+    vrai('rapport : feuille sans valeurs calculées signalée (résultats absents)', rr2.resultats && rr2.resultats.alertes.length === 1 && /Aucun résultat/.test(rr2.resultats.alertes[0]));
+  }
   vrai('recalcul à l\'ouverture', /fullCalcOnLoad="1"/.test(wb.workbookXml));
   for (const nom of ['GEH 1 - Tube Reg', 'GEH 2 - Tube (séq)', 'Eurofins']) vrai('XML bien formé : ' + nom, bienForme(await wb.zip.file(wb.paths[nom]).async('string')));
 
