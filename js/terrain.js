@@ -106,6 +106,7 @@ function renderMissionHead(m){
   if(state.missionMenuOpen){
     var item=function(onclick,icon,label,cls){return '<button type="button" class="menu-row'+(cls?' '+cls:'')+'" onclick="state.missionMenuOpen=false;'+onclick+'">'+icon+'<span>'+label+'</span></button>';};
     h+='<div class="mission-menu">'+
+      item('render();exportRapportWord();',ICONS.fileText,'Rapport Word (pré-rempli depuis la trame)')+
       item('render();sendMissionByMail('+m.id+');',ICONS.mail,'Envoyer la mission par e-mail')+
       item('render();exportMissionJSON('+m.id+');',ICONS.download,'Enregistrer la mission (.json)')+
       item('render();exportActiviteWord();',ICONS.fileText,'Activité (Word)')+
@@ -914,9 +915,13 @@ function renderSubPrelForm(p,sb,idx){
   var h='<div class="card">';
   
   // Opérateur avec bouton copier J-1
-  h+='<div class="field"><div class="field-header"><label class="label">Opérateur / Point fixe</label>';
+  // Opérateur par défaut ; « Poste fixe » donne « à poste fixe » en type de prélèvement dans la feuille de calcul
+  h+='<div class="field"><div class="field-header"><label class="label">'+(sb.posteFixe?'Poste fixe':'Opérateur')+'</label>';
   if(canCopyFromPrevious)h+='<button class="copy-btn" onclick="copyFromPrevious('+p.id+','+idx+',\'operateur\');">'+ICONS.list+' J-1</button>';
-  h+='</div><input type="text" class="input" value="'+escapeHtml(sb.operateur||'')+'" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'operateur\',this.value);"></div>';
+  h+='</div><div class="row" style="margin-bottom:6px;">';
+  h+='<button type="button" class="btn btn-small '+(!sb.posteFixe?'btn-primary':'btn-gray')+'" style="margin:0;" onclick="updateSubFieldWithAutoDate('+p.id+','+idx+',\'posteFixe\',false);render();">Opérateur</button>';
+  h+='<button type="button" class="btn btn-small '+(sb.posteFixe?'btn-primary':'btn-gray')+'" style="margin:0;" onclick="updateSubFieldWithAutoDate('+p.id+','+idx+',\'posteFixe\',true);render();">Poste fixe</button></div>';
+  h+='<input type="text" class="input" value="'+escapeHtml(sb.operateur||'')+'" placeholder="'+(sb.posteFixe?'Emplacement du poste fixe':'Nom de l’opérateur')+'" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'operateur\',this.value);"></div>';
   
   // Date
   h+='<div class="field"><label class="label">Date</label><input type="date" class="input" value="'+(sb.date||'')+'" onchange="updateSubField('+p.id+','+idx+',\'date\',this.value);"></div>';

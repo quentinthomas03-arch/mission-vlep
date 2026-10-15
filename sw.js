@@ -1,8 +1,8 @@
 // sw.js - Service Worker
 // © 2025 Quentin THOMAS
 
-const CACHE_NAME = 'vlep-mission-v2.21';
-const VERSION = '2.21'; // Incrémenter à chaque mise à jour
+const CACHE_NAME = 'vlep-mission-v2.25';
+const VERSION = '2.25'; // Incrémenter à chaque mise à jour
 const urlsToCache = [
   './',
   './index.html',
@@ -26,10 +26,14 @@ const urlsToCache = [
   './js/echantillons.js',
   './js/jszip.min.js',
   './js/xlsm-moteur.js',
+  './js/docx-moteur.js',
   './js/feuille-calcul.js',
   './js/veolia.js',
   './js/scola-dossier.js',
+  './js/rapport.js',
+  './js/rapport-resultats.js',
   './modele/feuille-calcul-vlep.xlsm',
+  './modele/trame-rapport-vlep.docx',
   './js/database-views.js',
   './js/quick-entry.js',
   './js/import-export.js',

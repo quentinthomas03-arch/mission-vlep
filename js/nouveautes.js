@@ -6,10 +6,28 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.21';
+var APP_VERSION = '2.25';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.25', date: '15/10/2026', items: [
+    'Rapport Word comparé à un rapport réellement rendu (Bruker 2026) et rapproché de lui :',
+    'Rapport réunissant 1ère campagne et contrôle périodique : dans la carte « Rapport », choix de la partie de chaque GEH (ou de chaque agent) ; résultats et EPI y sont placés. Les écarts (contrat, stratégie) restent rédigés par le technicien.',
+    'EPI : « Sans objet. » quand aucun EPI n’est porté dans la partie ; texte comme la trame (« un demi-masque filtrant de type FFP3 »).',
+    'Stratégie (1ère campagne) : auteur et référence du rapport de stratégie saisis dans la carte « Rapport ».',
+    'Annexe des tâches : prélèvements réalisés seulement, ordre chronologique, prélèvements simultanés réunis, cellules identiques fusionnées, horaires « 09h07 – 09h22 », durées « 15 min ».',
+    'Divers : période « du 26 au 28 mai 2026 », laboratoires sans doublon, agents classés par ordre alphabétique, agent saisi sans accent retrouvé dans la base, phrase du périmètre sur les VLEP non réglementaires remplie, onglet modèle rempli sans être renommé repris.'
+  ] },
+  { version: '2.24', date: '15/10/2026', items: [
+    'Saisie : choix « Opérateur » (par défaut) ou « Poste fixe » pour chaque prélèvement ; la feuille de calcul reçoit le type de prélèvement (« individuel » ou « à poste fixe »).',
+    'Rapport Word : en joignant la feuille de calcul complétée (résultats du laboratoire saisis, enregistrée dans Excel), les résultats sont placés automatiquement : blocs RESULTATS dans « Résultats des mesures » (réglementaire, hors arrêté), postes fixes sous leur texte dans les commentaires, détail de chaque onglet dans l’annexe des résultats détaillés. Images de la feuille comme avec la macro « Extraire résultats » (valeurs d’Excel, non modifiables), plus de copier-coller.'
+  ] },
+  { version: '2.23', date: '15/10/2026', items: [
+    'Rapport Word pré-rempli depuis la trame (menu ⋯ de la mission) : les parties sont retenues selon les choix de la carte « Rapport », comme le formulaire de la trame ; couverture, n° chrono et n° d’affaire en pied de page, identification de l’entreprise, tableau des accréditations et annexe des méthodes (base de données), équipes et laboratoire, EPI et FPA par GEH, annexe de description des tâches et partie poste fixe sont remplis. Restent à compléter : résultats, conclusion, commentaires.'
+  ] },
+  { version: '2.22', date: '15/10/2026', items: [
+    'Préparation : nouvelle carte « Rapport » (n° chrono, contrat, interlocuteur, rédacteur, valideur, agence retenue pour les missions suivantes, type de rapport, agents contrôlés, mesures à poste fixe). Ces choix serviront au rapport Word pré-rempli, en préparation.'
+  ] },
   { version: '2.21', date: '15/10/2026', items: [
     'Feuille de calcul : les onglets modèles non remplis sont masqués à l’ouverture, le premier onglet GEH s’affiche directement.',
     'Statut réglementaire tiré de la base (VLEP contraignante ou indicative), indépendamment du nombre de prélèvements : un devis à 1 prélèvement reste réglementaire si l’agent l’est. Le nombre (×3, ×1, ×2) se règle dans les affectations ; avec moins de 3 prélèvements, une justification est demandée sur le terrain et reprise dans le commentaire de la feuille de calcul.',

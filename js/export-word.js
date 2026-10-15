@@ -193,13 +193,52 @@ function buildActiviteDoc(m) {
     });
   }
 
-  // === Construire les données par GEH ===
+  var gehsWithData = activiteParGeh(m);
+
+  // === Construire le document ===
+  var docChildren = [];
+
+  gehsWithData.forEach(function(geh, idx) {
+    docChildren.push(gehTitle(geh.gehName));
+    docChildren.push(buildTable(geh.rows));
+    // Saut de page entre les GEH (sauf après le dernier)
+    if (idx < gehsWithData.length - 1) {
+      docChildren.push(new D.Paragraph({ children: [new D.PageBreak()] }));
+    }
+  });
+
+  if (docChildren.length === 0) {
+    docChildren.push(new D.Paragraph({
+      children: [new D.TextRun({ text: 'Aucun prélèvement enregistré.', size: 20, font: 'Arial' })]
+    }));
+  }
+
+  return new D.Document({
+    sections: [{
+      properties: {
+        page: {
+          size: {
+            width: 11906,
+            height: 16838,
+            orientation: PageOrientation.LANDSCAPE
+          },
+          margin: { top: 1417, right: 1417, bottom: 1417, left: 1417 }
+        }
+      },
+      children: docChildren
+    }]
+  });
+}
+
+// Lignes du tableau d'activité, par GEH ayant des prélèvements (annexe « Description des tâches » du rapport)
+// [{ gehNum, gehNom, gehName, rows: [{ operateur, date, heures, duree, agents, vlep, epi, taches, ventEnv, ventGen, ventCapt }] }]
+function activiteParGeh(m) {
   var gehMap = {};
   var gehOrder = [];
 
   m.gehs.forEach(function(g) {
     if (!g.name) return;
-    gehMap[g.id] = { gehName: g.num + ' - ' + g.name, rows: [] };
+    gehMap[g.id] = { gehNum: g.num, gehNom: g.name, gehName: g.num + ' - ' + g.name, rows: [] };
     gehOrder.push(g.id);
   });
 
@@ -273,7 +312,7 @@ function buildActiviteDoc(m) {
       }
 
       gehMap[gehId].rows.push({
-        operateur: sb.operateur || '',
+        operateur: (sb.operateur || '').trim(),
         date:      dateStr,
         heures:    plagesStr,
         duree:     dureeStr,
@@ -283,48 +322,17 @@ function buildActiviteDoc(m) {
         taches:    taches,
         ventEnv:   ventEnvStr,
         ventGen:   ventGenStr,
-        ventCapt:  ventCaptStr
+        ventCapt:  ventCaptStr,
+        // pour le rapport : réalisé ou seulement prévu, tri chronologique
+        fait:      typeof rapportSbFait === 'function' ? rapportSbFait(sb) : !!sb.completed,
+        dateIso:   sb.date || '',
+        debut:     (toutesPlages.filter(function(pl) { return pl.debut; })[0] || {}).debut || '',
+        dureeMin:  dureeExpositionMin(p, sb)
       });
     });
   });
 
-  // === Construire le document ===
-  var docChildren = [];
-  var gehsWithData = gehOrder.filter(function(id) {
-    return gehMap[id] && gehMap[id].rows.length > 0;
-  });
-
-  gehsWithData.forEach(function(id, idx) {
-    var geh = gehMap[id];
-    docChildren.push(gehTitle(geh.gehName));
-    docChildren.push(buildTable(geh.rows));
-    // Saut de page entre les GEH (sauf après le dernier)
-    if (idx < gehsWithData.length - 1) {
-      docChildren.push(new D.Paragraph({ children: [new D.PageBreak()] }));
-    }
-  });
-
-  if (docChildren.length === 0) {
-    docChildren.push(new D.Paragraph({
-      children: [new D.TextRun({ text: 'Aucun prélèvement enregistré.', size: 20, font: 'Arial' })]
-    }));
-  }
-
-  return new D.Document({
-    sections: [{
-      properties: {
-        page: {
-          size: {
-            width: 11906,
-            height: 16838,
-            orientation: PageOrientation.LANDSCAPE
-          },
-          margin: { top: 1417, right: 1417, bottom: 1417, left: 1417 }
-        }
-      },
-      children: docChildren
-    }]
-  });
+  return gehOrder.map(function(id) { return gehMap[id]; }).filter(function(g) { return g && g.rows.length > 0; });
 }
 
 console.log('✓ Export Word chargé');

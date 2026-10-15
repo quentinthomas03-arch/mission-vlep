@@ -190,6 +190,8 @@ function fcRemplirColonne(s, R, col, ctx) {
   var regionHaut = R.resultats || 9999;
 
   set(f(eg('opérateur'), { col: 'A' }), sb.operateur || '');
+  // onglets non réglementaires : « individuel » (opérateur, par défaut) ou « à poste fixe »
+  set(f(eg('type de prélèvement'), { col: 'A' }), sb.posteFixe ? 'à poste fixe' : 'individuel');
   // onglet Véolia : agent et support viennent du protocole du site
   if (!ctx.protocole && (agents.length === 1 || /CIP10 silice/.test(ctx.modele))) {
     set(f(eg('agent chimique'), { col: 'A', avant: regionHaut }), /CIP10 silice/.test(ctx.modele) ? 'silice cristalline' : an);
