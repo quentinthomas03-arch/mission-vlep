@@ -6,10 +6,18 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.31';
+var APP_VERSION = '2.33';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.33', date: '16/10/2026', items: [
+    'Feuille de calcul, onglets hors arrêté : le GEH (« 3 - Soudure TIG ») est écrit dans la ligne « Prélèvement n° », repris dans le tableau RESULTATS et donc dans le rapport.'
+  ] },
+  { version: '2.32', date: '16/10/2026', items: [
+    'Feuille de calcul vérifiée champ par champ contre la feuille Bruker remplie à la main : toutes les saisies et tous les calculs (durées, débits, volumes, VLEP, FPA) concordent, aucune formule du modèle n’est écrasée.',
+    'Date de prélèvement écrite en vraie date Excel (jj/mm/aa du modèle) au lieu d’un texte.',
+    'Alerte à l’export si le type de débitmètre (massique ou piston / lame de savon) n’est pas choisi dans les infos de la mission : les débits et le volume en dépendent.'
+  ] },
   { version: '2.31', date: '16/10/2026', items: [
     'Feuille de calcul : sur les onglets créés par l’appli, l’agent chimique et le type d’EPI se choisissent de nouveau dans la liste (liste déroulante de la cellule ; le double-clic du modèle reste réservé aux onglets d’origine, sa macro ne pouvant pas être recopiée).'
   ] },

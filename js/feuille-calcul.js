@@ -206,7 +206,8 @@ function fcRemplirColonne(s, R, col, ctx) {
   }
   if (!ctx.protocole) set(f(eg('nature et marque'), { col: 'B' }), ag ? (ag['Support de prélèvement'] || '') : '');
   if (ctx.blanc && ctx.blanc.lot) set(f(eg('n° de lot'), { col: 'B' }), ctx.blanc.lot);
-  set(f(eg('date de prélèvement'), { col: 'A', avant: regionHaut }), formatDateFR(sb.date) || '');
+  // vraie date Excel (format jj/mm/aa du modèle), pas un texte
+  set(f(eg('date de prélèvement'), { col: 'A', avant: regionHaut }), fcDateExcel(sb.date));
 
   // Supports : 1 seul (onglet normal) ou empilés (séq, « C2-P1 »…)
   var supports = ctx.seq ? expandSubSupports(sb) : [sb];
@@ -478,6 +479,12 @@ function fcRemplirOnglet(s, o, m) {
   if (R.site) s.set('C' + R.site, m.clientSite || '');
   fcDebitmetre(s, R, m);
   if (o.reg && R.geh) o.series.forEach(function (se, bi) { s.set(C(3 + bi * 6) + R.geh, o.geh.num + ' - ' + (o.geh.name || '')); });
+  // onglets non Reg (pas de ligne GEH) : le GEH dans la première ligne « Prélèvement n° » (numéro automatique du
+  // modèle remplacé), comme les techniciens le font ; les lignes « Prélèvement n° » suivantes la reprennent (=C7…)
+  if (!o.reg) {
+    var rPrel = Object.keys(s.rows).map(Number).sort(function (a, b) { return a - b; }).filter(function (r) { return /^Prélèvement n°$/.test(s.text('A' + r).trim()); })[0];
+    if (rPrel) cols.forEach(function (c) { s.set(C(3 + c.idx) + rPrel, o.geh.num + ' - ' + (o.geh.name || '')); });
+  }
   cols.forEach(function (c) {
     fcRemplirColonne(s, R, C(3 + c.idx), {
       m: m, p: c.serie.p, geh: o.geh, sb: c.sb, agents: c.serie.agents, modele: o.modele, seq: o.seq, type: c.serie.p.type,
@@ -584,6 +591,8 @@ function fcMasquerModeles(wb, analyseursRemplis) {
 function construireFeuilleCalcul(m, donneesModele) {
   if (typeof missionRealisee === 'function') m = missionRealisee(m);
   var plan = fcPlan(m);
+  // type de débitmètre non choisi (Infos mission) : massique par défaut, comme avant, mais signalé
+  if (!m.debitmetreType) plan.alertes.push('Type de débitmètre non choisi (Infos mission) : « massique » retenu. Si c’est un débitmètre à piston ou à lame de savon, le choisir et regénérer (débits et volumes en dépendent).');
   if (!plan.onglets.length) return Promise.reject(new Error('Aucun prélèvement exportable dans cette mission.'));
   return XlsmMoteur.Classeur.charger(donneesModele).then(function (wb) {
     var pris = {}; Object.keys(wb.paths).forEach(function (n) { pris[n] = true; });
