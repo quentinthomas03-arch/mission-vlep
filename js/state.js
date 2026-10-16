@@ -217,7 +217,7 @@ function missionRealisee(m){
   var j=JSON.stringify(m);
   (m.agents||[]).forEach(function(a){var b=agentBaseProche(a.name);if(b)j=j.split(JSON.stringify(a.name)).join(JSON.stringify(b));});
   var c=JSON.parse(j);
-  c.prelevements=(c.prelevements||[]).map(function(p){p.subPrelevements=(p.subPrelevements||[]).filter(function(s){return !s.nonRealise;});return p;})
+  c.prelevements=(c.prelevements||[]).map(function(p){p.nbPrevus=(p.subPrelevements||[]).length;p.subPrelevements=(p.subPrelevements||[]).filter(function(s){return !s.nonRealise;});return p;})
     .filter(function(p){return p.subPrelevements.length;});
   return c;
 }

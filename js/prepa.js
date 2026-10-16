@@ -1052,48 +1052,62 @@ function renderTutoriel(){
       num:'1',color:'#0082DE',title:'Préparation (au bureau)',
       steps:[
         {t:'Créer une mission',d:'Accueil → Préparation mission → Nouvelle mission. Saisissez le client/site, le préleveur et le numéro de débitmètre.'},
+        {t:'Prépa automatique (devis)',d:'Bouton Prépa automatique : coller le tableau du devis depuis Excel (et la liste des GEH), l\'appli crée GEH, agents, affectations et nombre de prélèvements.'},
         {t:'Ajouter les GEH',d:'Dans la mission → GEH → Ajouter. Donnez un numéro et un intitulé à chaque Groupe d\'Exposition Homogène.'},
-        {t:'Ajouter les agents chimiques',d:'Agents → Rechercher dans la base de données. Cochez 8h et/ou CT selon le type de prélèvement.'},
-        {t:'Créer les affectations',d:'Affectations → Pour chaque agent, sélectionnez les GEH concernés. Choisissez Réglementaire ou Non-réglementaire.'},
-        {t:'Valider la mission',d:'Bouton Valider → L\'appli génère automatiquement tous les prélèvements. La mission passe en statut Validée.'}
+        {t:'Ajouter les agents chimiques',d:'Agents → Rechercher dans la base de données. Un agent ajouté à la main que la base connaît au même nom (accents ou majuscules près) est proposé avec sa fiche (support, méthode, VLEP).'},
+        {t:'Créer les affectations',d:'Affectations → pour chaque agent, les GEH concernés. Le statut réglementaire vient de la base (VLEP contraignante ou indicative). Le nombre de prélèvements (×3, ×1, ×2) se règle sur chaque affectation ; à moins de 3 en réglementaire, une justification est demandée sur le terrain.'},
+        {t:'Valider la mission',d:'Bouton Valider → l\'appli génère les prélèvements. Repasser en préparation pour modifier GEH ou agents garde la saisie terrain déjà faite.'}
       ]
     },
     {
       num:'2',color:'#16a34a',title:'Terrain (sur site)',
       steps:[
-        {t:'Ouvrir la mission',d:'Accueil → Saisie terrain → sélectionner la mission validée.'},
-        {t:'Saisir les données de prélèvement',d:'Cliquer sur un prélèvement → Onglet du sous-prélèvement concerné. Saisir : opérateur, date, n° pompe, débits initial/final, plages horaires. Le clavier numérique natif du téléphone s\'ouvre automatiquement sur les champs chiffrés.'},
-        {t:'EPI respiratoire',d:'Sélectionner sans objet / FFP3 / TH3 / Autre. Si EPI : saisir la durée de port en minutes.'},
-        {t:'Plages horaires',d:'Ajouter autant de plages que nécessaire (début → fin). La durée totale se calcule automatiquement.'},
-        {t:'Valider le prélèvement',d:'Bouton ✓ Valider en bas de chaque prélèvement. Un ✓ apparaît dans l\'onglet quand c\'est complété.'},
-        {t:'Co-prélèvement (même support)',d:'Plusieurs agents sur le même support physique : bouton 🔗 Même support à côté d\'un agent, cocher ceux concernés, valider. Par défaut le groupement est propagé sur tous les sous-prélèvements (J1/J2/J3). Un badge 🎯 signale automatiquement les agents ayant même Code support et Code prétraitement en base. Bouton Délier pour retirer un agent du groupe (propagé aussi).'}
+        {t:'Ouvrir la mission',d:'Accueil → Saisie terrain → sélectionner la mission. En haut : Feuille de calcul, Rapport Word, Échantillons et le menu ⋯ (activité Word, envoi par e-mail, .json, fusion, ajout de GEH…).'},
+        {t:'Saisir un prélèvement',d:'Cliquer sur un prélèvement → onglet du jour. Opérateur, date, n° de pompe, débits initial/final (virgule ou point), plages horaires. Le clavier numérique s\'ouvre sur les champs chiffrés.'},
+        {t:'Opérateur ou poste fixe',d:'Prélèvement « Opérateur » par défaut ; toucher « Poste fixe » pour une mesure d\'ambiance. La feuille de calcul et le rapport le reprennent.'},
+        {t:'Durée d\'exposition (8h)',d:'À saisir pour les prélèvements 8h : elle est reprise dans la feuille de calcul et l\'annexe des tâches du rapport.'},
+        {t:'EPI respiratoire',d:'Choisir l\'EPI dans la liste (FFP3, demi-masque avec filtre, TH3…) et la durée de port en minutes. Le FPA vient de la liste.'},
+        {t:'Ventilation et Scol@',d:'Environnement, ventilation générale, captage localisé, puis tâche, métier et type de procédé Scol@ (repris dans la feuille de calcul).'},
+        {t:'Valider le prélèvement',d:'Bouton ✓ Valider en bas. Un ✓ apparaît dans l\'onglet.'},
+        {t:'Prélèvement non réalisé',d:'Prévu mais pas fait (pas d\'exposition ce jour-là…) : bouton « Non réalisé ». L\'onglet affiche ✗ ; le prélèvement sort du compteur, de la feuille de calcul, du rapport et des échantillons. L\'observation peut en donner la raison. « Annuler » le remet à faire.'},
+        {t:'Co-prélèvement (même support)',d:'Plusieurs agents sur le même support : bouton 🔗 Même support, cocher les agents, valider (propagé à tous les jours). Un badge 🎯 signale les agents de même support en base. Bouton Délier pour en retirer un.'}
       ]
     },
     {
-      num:'3',color:'#ea580c',title:'Conditions ambiantes',
+      num:'3',color:'#ea580c',title:'Conditions ambiantes et échantillons',
       steps:[
-        {t:'Accès',d:'Dans la vue mission terrain → bouton Conditions ambiantes.'},
-        {t:'Saisir les mesures',d:'Température, pression atmosphérique et humidité relative — initial et final pour chaque jour. Le clavier numérique natif s\'ouvre au clic sur chaque champ.'},
-        {t:'Fréquence',d:'Une entrée par jour de prélèvement. Cliquer + Ajouter condition pour chaque nouvelle journée.'}
+        {t:'Conditions ambiantes',d:'Mission terrain → Conditions ambiantes : température, pression et humidité, initial et final, une entrée par jour.'},
+        {t:'Échantillons et blancs',d:'Bouton Échantillons : liste des références par agent avec code analytique, ajout des blancs terrain.'}
       ]
     },
     {
       num:'4',color:'#005499',title:'Feuille de calcul',
       steps:[
-        {t:'Accès',d:'Mission terrain → bouton Feuille de calcul, en haut de la mission (aussi dans Liste échantillons).'},
-        {t:'Contenu',d:'L\'appli remplit directement la feuille de calcul : un onglet par GEH, analyseurs et onglet Acquisition, Eurofins, en-tête Scol@. Plus de copier-coller.'},
-        {t:'Ouvrir le fichier',d:'Ouvrir le fichier .xlsm et activer les macros : les calculs se font à l\'ouverture. Si Excel affiche « Risque de sécurité » (macros bloquées parce que le fichier vient d\'internet) : fermer Excel, clic droit sur le fichier › Propriétés › cocher « Débloquer » en bas › OK, puis rouvrir.'},
-        {t:'Résultats labo',d:'Les résultats d\'analyse sont à saisir dans la feuille de calcul, comme avant.'}
+        {t:'Générer',d:'Mission terrain → Feuille de calcul. Un bandeau « en cours » s\'affiche quelques secondes. Le modèle est chargé d\'avance à l\'ouverture de l\'appli.'},
+        {t:'Contenu',d:'Un onglet par GEH et par support, analyseurs et onglet Acquisition, demande d\'analyse Eurofins, en-tête Scol@. Les onglets modèles vides sont masqués, le premier GEH est affiché.'},
+        {t:'Ouvrir le fichier',d:'Ouvrir le .xlsm et activer les macros. Si Excel affiche « Risque de sécurité » : fermer Excel, clic droit sur le fichier › Propriétés › cocher « Débloquer » › OK, puis rouvrir.'},
+        {t:'Résultats labo',d:'Saisir les résultats d\'analyse dans la feuille de calcul, puis l\'enregistrer dans Excel (indispensable pour le rapport Word).'}
       ]
     },
     {
-      num:'5',color:'#00ACE8',title:'Fonctions utiles',
+      num:'5',color:'#7c3aed',title:'Rapport Word (au bureau)',
       steps:[
-        {t:'Bouton J-1',d:'Copie automatiquement la valeur du prélèvement précédent (opérateur, n° pompe). Évite la ressaisie sur plusieurs jours.'},
-        {t:'Fusion intelligente',d:'Regroupe automatiquement les prélèvements du même opérateur sur plusieurs jours en un seul prélèvement multi-jours.'},
-        {t:'Base de données',d:'Accueil → Base de données. Recherche parmi tous les agents chimiques avec tous les paramètres : débit, support, conservation, VLEP.'},
+        {t:'Ouvrir l\'écran Rapport Word',d:'Mission terrain → Rapport Word. L\'écran regroupe les données du dossier Scol@ (n° de dossier, établissement, site accrédité) et la carte Rapport, à part de la préparation.'},
+        {t:'Carte Rapport',d:'Chrono, contrat, interlocuteur, rédacteur, valideur, agence ; type de rapport (campagne, contrôle périodique…) et agents contrôlés, comme le formulaire de la trame. En 1ère campagne : auteur et référence du rapport de stratégie.'},
+        {t:'Campagne et contrôle périodique ensemble',d:'Si les deux sont cochés, choisir la partie de chaque GEH (ou de chaque agent) : résultats et EPI y sont placés.'},
+        {t:'Générer',d:'Bouton « Générer le rapport Word », puis joindre la feuille de calcul complétée et enregistrée dans Excel : les tableaux de résultats sont placés en images (réglementaire, hors arrêté, poste fixe, annexe des résultats détaillés).'},
+        {t:'Ce qui est rempli',d:'Couverture, pieds de page (n° d\'affaire, chrono), période de mission, laboratoires, tableaux des accréditations et des méthodes, EPI par GEH (« Sans objet » sinon), annexe des tâches (prélèvements réalisés, ordre chronologique).'},
+        {t:'Ce qui reste au technicien',d:'Écarts (contrat, stratégie), conclusion, commentaires, annexe du diagnostic U, rapport du laboratoire. À l\'ouverture, Word propose de mettre à jour les champs : répondre Oui.'}
+      ]
+    },
+    {
+      num:'6',color:'#00ACE8',title:'Fonctions utiles',
+      steps:[
+        {t:'Bouton J-1',d:'Copie la valeur du prélèvement de la veille (opérateur, durée d\'exposition). Évite la ressaisie sur plusieurs jours.'},
+        {t:'Fusion intelligente',d:'Regroupe les prélèvements du même opérateur sur plusieurs jours en un seul prélèvement multi-jours.'},
+        {t:'Base de données',d:'Accueil → Base de données : tous les agents avec débit, support, conservation, VLEP et consignes.'},
         {t:'Import/Export JSON',d:'Partager une mission entre appareils : menu ⋯ de la mission → Envoyer par e-mail ou Enregistrer (.json).'},
-        {t:'Installation PWA',d:'Sur Android Chrome : menu → Ajouter à l\'écran d\'accueil. Sur iOS Safari : partager → Sur l\'écran d\'accueil. L\'appli fonctionne ensuite hors ligne.'}
+        {t:'Installation et mises à jour',d:'Android Chrome : menu → Ajouter à l\'écran d\'accueil. iOS Safari : partager → Sur l\'écran d\'accueil (les missions y sont mieux protégées de l\'effacement). Une nouvelle version arrive au deuxième lancement ; la carte « Quoi de neuf » la présente.'}
       ]
     }
   ];

@@ -6,10 +6,19 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.28';
+var APP_VERSION = '2.31';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.31', date: '16/10/2026', items: [
+    'Feuille de calcul : sur les onglets créés par l’appli, l’agent chimique et le type d’EPI se choisissent de nouveau dans la liste (liste déroulante de la cellule ; le double-clic du modèle reste réservé aux onglets d’origine, sa macro ne pouvant pas être recopiée).'
+  ] },
+  { version: '2.30', date: '16/10/2026', items: [
+    'Feuille de calcul : l’activité saisie sur le terrain n’est plus écrite dans la case « commentaire ». Seule la justification d’un réglementaire prévu à moins de 3 prélèvements y reste. L’activité reste dans l’annexe des tâches du rapport Word.'
+  ] },
+  { version: '2.29', date: '16/10/2026', items: [
+    'Guide d’utilisation mis à jour : écran Rapport Word, prélèvement non réalisé, opérateur ou poste fixe, durée d’exposition, nombre de prélèvements par affectation, agent reconnu dans la base, installation et mises à jour.'
+  ] },
   { version: '2.28', date: '15/10/2026', items: [
     'Missions protégées : l’appli demande au navigateur de garder ses données de façon permanente (Safari sur iPhone peut sinon effacer les données d’un site peu ouvert).'
   ] },

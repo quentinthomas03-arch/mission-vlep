@@ -263,9 +263,10 @@ function fcRemplirColonne(s, R, col, ctx) {
   if (labo) set(f(eg('nom du laboratoire'), { col: 'A', formuleOk: true }), labo);
   set(f(eg('type de VLEP'), { col: 'A' }), ctx.type === 'CT' ? 'court-terme' : '8h');
   if (ctx.blanc && ctx.blanc.ref) set(f(eg('référence du témoin'), { col: 'A' }), ctx.blanc.ref);
-  // commentaire : observations, puis justification d'un réglementaire à moins de 3 prélèvements
-  var pc = ctx.p || {}, justif = pc.isReglementaire && (pc.subPrelevements || []).length < 3 ? pc.justifNb : '';
-  set(f(eg('commentaire'), { col: 'A' }), [sb.observations, justif].filter(Boolean).join(' – '));
+  // commentaire : seulement la justification d'un réglementaire prévu à moins de 3 prélèvements (l'activité saisie
+  // sur le terrain n'a pas sa place dans la feuille de calcul : elle va dans l'annexe des tâches du rapport)
+  var pc = ctx.p || {}, nbPrevus = pc.nbPrevus || (pc.subPrelevements || []).length;
+  if (pc.isReglementaire && nbPrevus < 3 && pc.justifNb) set(f(eg('commentaire'), { col: 'A' }), pc.justifNb);
 
   fcScola(s, R, col, ctx, supports);
 }
@@ -486,6 +487,34 @@ function fcRemplirOnglet(s, o, m) {
   return cols.length;
 }
 
+// Listes déroulantes des onglets créés par l'appli. Dans le modèle, un double-clic sur l'agent chimique ou le type
+// d'EPI ouvre la liste (macro Worksheet_BeforeDoubleClick de chaque onglet) ; un onglet recopié par l'appli n'a pas
+// ce module VBA (impossible à ajouter sans Excel). Même liste, en liste déroulante de cellule : Plage_SubstanceMonDevis
+// (agents) et Choix_FPA (EPI), sur les cellules saisies (sans formule) de la zone de saisie, au-dessus de RESULTATS.
+function fcListesDeroulantes(s) {
+  var lignes = Object.keys(s.rows).map(Number).sort(function (a, b) { return a - b; });
+  var fin = lignes.filter(function (r) { return s.text('A' + r).trim() === 'RESULTATS'; })[0] || Infinity;
+  var ajouts = [];
+  lignes.forEach(function (r) {
+    if (r >= fin) return;
+    var lib = s.text('A' + r).trim(), liste = /^agent chimique/i.test(lib) ? 'Plage_SubstanceMonDevis' : (/^type d'EPI$/i.test(lib) ? 'Choix_FPA' : null);
+    if (!liste) return;
+    var refs = Object.keys(s.rows[r].cells).map(Number).filter(function (c) { return c >= 3 && !/<f\b/.test(s.rows[r].cells[c].inner || ''); })
+      .sort(function (a, b) { return a - b; }).map(function (c) { return XlsmMoteur.colStr(c) + r; });
+    // showErrorMessage="0" : une valeur écrite par l'appli hors de la liste reste acceptée
+    if (refs.length) ajouts.push('<dataValidation type="list" allowBlank="1" showInputMessage="1" showErrorMessage="0" sqref="' + refs.join(' ') + '"><formula1>' + liste + '</formula1></dataValidation>');
+  });
+  if (!ajouts.length) return;
+  var m = /<dataValidations\b[^>]*count="(\d+)"[^>]*>/.exec(s.tail);
+  if (m) {
+    s.tail = s.tail.replace(m[0], m[0].replace('count="' + m[1] + '"', 'count="' + (+m[1] + ajouts.length) + '"')).replace('</dataValidations>', ajouts.join('') + '</dataValidations>');
+    return;
+  }
+  var bloc = '<dataValidations count="' + ajouts.length + '">' + ajouts.join('') + '</dataValidations>';
+  var apres = /<(hyperlinks|printOptions|pageMargins|pageSetup|headerFooter|drawing|legacyDrawing|tableParts|extLst)\b/.exec(s.tail);
+  s.tail = apres ? s.tail.slice(0, apres.index) + bloc + s.tail.slice(apres.index) : s.tail.replace('</worksheet>', bloc + '</worksheet>');
+}
+
 // ---------- Onglet Eurofins (macro « Listes des références échantillons ») ----------
 // Échantillons analysés par Eurofins (un par support, références dédoublonnées) puis blancs, avec le n° de lot.
 function fcListeEurofins(m) {
@@ -575,6 +604,7 @@ function construireFeuilleCalcul(m, donneesModele) {
         var nom = fcNomOnglet(o.geh, o.modele, pris);
         return wb.copierOnglet(o.modele, nom).then(function (s) {
           var n = fcRemplirOnglet(s, o, m);
+          fcListesDeroulantes(s);
           resume.push(nom + ' (' + n + ' prélèvement' + (n > 1 ? 's' : '') + ')');
         });
       });
