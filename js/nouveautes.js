@@ -6,10 +6,23 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.33';
+var APP_VERSION = '2.36';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.36', date: '21/10/2026', items: [
+    'N° de lot : les lots déjà saisis sur la mission sont proposés en liste (échantillon, blanc, lot en une fois) et le bouton J-1 reprend celui de la veille.',
+    'Feuille de calcul : alerte avant le téléchargement pour les échantillons sans blanc du même agent et du même lot (réf. du témoin vide), par agent et par lot.',
+    'Liste des échantillons : colonne « Blanc associé » à la place du code analytique (la commande au laboratoire se fait par l’onglet Eurofins de la feuille de calcul).'
+  ] },
+  { version: '2.35', date: '21/10/2026', items: [
+    'Blancs terrain : la réf. du blanc n’est reportée dans la feuille de calcul (« réf. du témoin ») que sur les échantillons du même agent chimique et du même n° de lot.',
+    'Champ « N° de lot » sous la réf. de chaque échantillon, avec le blanc associé affiché dessous ; le lot est repris dans la feuille de calcul et la demande d’analyse Eurofins.',
+    'Échantillons › « N° de lot… » : un lot saisi une fois s’applique à plusieurs échantillons et/ou blancs cochés (raccourcis : tout, sans lot, par agent). La liste des blancs indique sur combien d’échantillons chaque réf. sera reportée.'
+  ] },
+  { version: '2.34', date: '21/10/2026', items: [
+    'Guide d’utilisation refait : parcours en cinq étapes (préparation, terrain, feuille de calcul, rapport, outils), chaque point se déplie avec son chemin dans l’appli, recherche dans tout le guide et questions fréquentes.'
+  ] },
   { version: '2.33', date: '16/10/2026', items: [
     'Feuille de calcul, onglets hors arrêté : le GEH (« 3 - Soudure TIG ») est écrit dans la ligne « Prélèvement n° », repris dans le tableau RESULTATS et donc dans le rapport.'
   ] },

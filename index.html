@@ -368,7 +368,42 @@
     .splash-copy { position: absolute; bottom: 40px; font-size: 10px; color: rgba(255,255,255,0.55); letter-spacing: 0.5px; animation: splash-fade 0.6s ease 0.7s forwards; opacity: 0; }
     @keyframes splash-pop { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
     @keyframes splash-fade { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }
-</style>
+.blanc-pense-bete { margin: 4px 0 10px; padding: 8px 10px; border-left: 3px solid var(--primary); background: rgba(0,163,163,0.06); border-radius: 0 8px 8px 0; font-size: 12px; line-height: 1.45; color: #334155; }
+/* === Guide d'utilisation (js/guide.js) === */
+.guide-parcours { display: flex; gap: 4px; margin: 4px 0 10px; position: relative; }
+.guide-parcours::before { content: ''; position: absolute; left: 10%; right: 10%; top: 17px; height: 2px; background: var(--border-subtle); }
+.guide-etape { flex: 1; min-width: 0; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 4px 0; position: relative; font-family: inherit; }
+.guide-etape-num { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; background: var(--bg-card); color: var(--text-muted); border: 1.5px solid rgba(12,18,32,0.12); transition: all 0.2s; }
+.guide-etape-label { font-size: 11px; font-weight: 600; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.guide-etape.passee .guide-etape-num { color: var(--primary); border-color: var(--primary); }
+.guide-etape.active .guide-etape-num { background: var(--grad-btn); color: #fff; border-color: transparent; box-shadow: 0 4px 12px -2px rgba(20,212,194,0.45); }
+.guide-etape.active .guide-etape-label { color: var(--text-dark); }
+.guide-phase { padding: 14px; }
+.guide-phase-tete { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.guide-phase-quand { font-size: 11px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 0.4px; }
+.guide-phase-titre { font-size: 17px; font-weight: 700; color: var(--text-dark); margin-top: 2px; }
+.guide-liste { display: flex; flex-direction: column; border-top: 1px solid var(--border-subtle); }
+.section-title + .guide-liste { background: var(--bg-card); border-radius: 14px; border: 1px solid var(--border-subtle); padding: 0 12px; margin-bottom: 10px; }
+.guide-point { border-bottom: 1px solid var(--border-subtle); }
+.guide-point:last-child { border-bottom: none; }
+.guide-point-tete { width: 100%; display: flex; align-items: center; gap: 10px; padding: 12px 2px; background: none; border: none; cursor: pointer; text-align: left; font-family: inherit; color: var(--text-dark); }
+.guide-point-num { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--text-muted); min-width: 26px; }
+.guide-point-titre { flex: 1; font-size: 14px; font-weight: 600; }
+.guide-chevron { color: var(--text-muted); display: flex; transition: transform 0.2s; }
+.guide-chevron svg { width: 16px; height: 16px; }
+.guide-point.ouvert .guide-chevron { transform: rotate(90deg); color: var(--primary); }
+.guide-point-corps { padding: 0 2px 14px 38px; font-size: 13px; line-height: 1.55; color: #334155; }
+.guide-point-corps p { margin: 0; }
+.guide-chemin { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-bottom: 8px; font-size: 11px; }
+.guide-chemin span { background: var(--primary-pale); color: var(--primary-dark); padding: 2px 8px; border-radius: 6px; font-weight: 600; }
+.guide-chemin i { font-style: normal; color: var(--text-muted); }
+.guide-note { margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--primary); background: rgba(0,163,163,0.06); border-radius: 0 8px 8px 0; font-size: 12px; color: #334155; }
+.guide-point mark { background: rgba(20,212,194,0.3); color: inherit; border-radius: 3px; padding: 0 1px; }
+.guide-suite { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.guide-suite .btn { margin-bottom: 0; }
+.guide-vide { text-align: center; color: var(--text-muted); font-size: 13px; }
+
+  </style>
 </head>
 <body>
   <!-- SPLASH SCREEN -->
@@ -413,6 +448,7 @@
   <script src="js/import-export.js"></script>
   <script src="js/envoi-mail.js"></script>
   <script src="js/nouveautes.js"></script>
+  <script src="js/guide.js"></script>
   <script src="js/timers.js"></script>
   <script src="js/app.js"></script>
 

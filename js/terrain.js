@@ -1062,6 +1062,10 @@ function renderSubPrelForm(p,sb,idx){
       }
       
       h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'refEchantillon\',this.value);"></div>';
+      h+='<div class="multi-agent-row"><label>N° de lot';
+      if(canCopyFromPrevious)h+='<button class="copy-btn" onclick="copyAgentDataFromPrevious('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'lot\');">J-1</button>';
+      h+='</label><input type="text" list="lots-mission" autocomplete="off" value="'+escapeHtml(ad.lot||'')+'" placeholder="Lot du support" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'lot\',this.value);render();"></div>';
+      h+=infoBlancEchantillon(m,aname,sb.date,ad.lot);
       // consignes de la base (durées, volumes, rappels) pour cet agent
       if(typeof renderConsignesAgent==='function')(isLinked?grpOrdered.map(function(x){return x.name;}):[aname]).forEach(function(n){h+=renderConsignesAgent(m,p,sb,n);});
       h+='</div></div>';
@@ -1071,6 +1075,7 @@ function renderSubPrelForm(p,sb,idx){
 
   // Supports suivants (prélèvement 8h fractionné)
   h+=renderSupportsSupp(p,sb,idx);
+  h+=lotsDatalist(m);
 
   // Timer CT
   if(p.type==='CT'){
@@ -1606,7 +1611,7 @@ function linkAgentsOnSupport(pid,subIdx,agentName,targetName){
   if(!sb.agentData[agentName])sb.agentData[agentName]={};
   if(!sb.agentData[targetName])sb.agentData[targetName]={};
   var src=sb.agentData[agentName];
-  ['numPompe','debitInitial','debitFinal','refEchantillon'].forEach(function(f){
+  ['numPompe','debitInitial','debitFinal','refEchantillon','lot'].forEach(function(f){
     if(src[f])sb.agentData[targetName][f]=src[f];
   });
   saveData('vlep_missions_v3',state.missions);
@@ -1630,6 +1635,15 @@ function unlinkAgentFromSupport(pid,subIdx,agentName){
   });
   saveData('vlep_missions_v3',state.missions);
   render();
+}
+
+// Pense-bête sous le n° de lot : blanc dont la réf. ira dans la feuille de calcul (même agent, même lot)
+function infoBlancEchantillon(m,aname,date,lot){
+  if(!m.blancs||!m.blancs.length)return '';
+  var b=findBlancForAgent(m,aname,date,lot);
+  if(b)return '<div style="font-size:11px;color:#166534;padding:2px 0 4px;">Blanc associé : '+escapeHtml(b.ref||'(sans réf.)')+(b.lot?' (lot '+escapeHtml(b.lot)+')':'')+'</div>';
+  var autres=m.blancs.some(function(x){return x.agents&&x.agents.indexOf(aname)!==-1;});
+  return autres?'<div style="font-size:11px;color:#b45309;padding:2px 0 4px;">Aucun blanc de cet agent avec ce n° de lot : réf. du témoin non reportée</div>':'';
 }
 
 function updateAgentDataSynced(pid,idx,an,f,v){
@@ -1801,7 +1815,7 @@ function applyCoPrelSelection(){
       stillLinked.forEach(function(mn){
         if(mn!==sourceName){
           if(!sb.agentData[mn])sb.agentData[mn]={};
-          ['numPompe','debitInitial','debitFinal','refEchantillon'].forEach(function(f){
+          ['numPompe','debitInitial','debitFinal','refEchantillon','lot'].forEach(function(f){
             if(src[f])sb.agentData[mn][f]=src[f];
           });
         }
@@ -1870,6 +1884,7 @@ function renderSupportsSupp(p,sb,idx){
         h+='<div style="color:'+(c.horsTolerance?'#dc2626':'var(--text-muted)')+';font-size:11px;padding:4px 0;">'+(c.horsTolerance?'⚠️ ':'')+'Débit moyen '+formatDebit(c.moy)+' L/min '+(c.horsTolerance?'hors':'dans')+' tolérance (attendu '+formatDebit(c.range.min)+(c.range.min!==c.range.max?' – '+formatDebit(c.range.max):'')+' L/min ± 5 %)</div>';
       });
       h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="'+call('refEchantillon')+'"></div>';
+      h+='<div class="multi-agent-row"><label>N° de lot</label><input type="text" value="'+escapeHtml(ad.lot||'')+'" list="lots-mission" autocomplete="off" placeholder="Lot du support" onchange="'+call('lot')+'render();"></div>';
       h+='</div></div>';
     });
     h+='</div>';

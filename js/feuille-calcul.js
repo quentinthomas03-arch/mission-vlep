@@ -205,7 +205,9 @@ function fcRemplirColonne(s, R, col, ctx) {
     set(R.numId + 1, tachy ? (m.tachymetre || '') : (m.debitmetre || ''));
   }
   if (!ctx.protocole) set(f(eg('nature et marque'), { col: 'B' }), ag ? (ag['Support de prélèvement'] || '') : '');
-  if (ctx.blanc && ctx.blanc.lot) set(f(eg('n° de lot'), { col: 'B' }), ctx.blanc.lot);
+  // n° de lot : celui de l'échantillon (celui du blanc associé pour une ancienne saisie sans lot sur l'échantillon)
+  var lotEch = ctx.lot || (ctx.blanc && ctx.blanc.lot) || '';
+  if (lotEch) set(f(eg('n° de lot'), { col: 'B' }), lotEch);
   // vraie date Excel (format jj/mm/aa du modèle), pas un texte
   set(f(eg('date de prélèvement'), { col: 'A', avant: regionHaut }), fcDateExcel(sb.date));
 
@@ -488,7 +490,8 @@ function fcRemplirOnglet(s, o, m) {
   cols.forEach(function (c) {
     fcRemplirColonne(s, R, C(3 + c.idx), {
       m: m, p: c.serie.p, geh: o.geh, sb: c.sb, agents: c.serie.agents, modele: o.modele, seq: o.seq, type: c.serie.p.type,
-      blanc: findBlancForAgent(m, c.serie.agents[0], c.sb.date)
+      lot: fcLotEchantillon(c.sb, c.serie.agents[0]),
+      blanc: findBlancForAgent(m, c.serie.agents[0], c.sb.date, fcLotEchantillon(c.sb, c.serie.agents[0]))
     });
   });
   return cols.length;
@@ -522,6 +525,12 @@ function fcListesDeroulantes(s) {
   s.tail = apres ? s.tail.slice(0, apres.index) + bloc + s.tail.slice(apres.index) : s.tail.replace('</worksheet>', bloc + '</worksheet>');
 }
 
+// N° de lot saisi sous la réf. de l'échantillon (premier support de la colonne)
+function fcLotEchantillon(sb, agent) {
+  var ad = sb && sb.agentData && sb.agentData[agent];
+  return ad ? String(ad.lot || '').trim() : '';
+}
+
 // ---------- Onglet Eurofins (macro « Listes des références échantillons ») ----------
 // Échantillons analysés par Eurofins (un par support, références dédoublonnées) puis blancs, avec le n° de lot.
 function fcListeEurofins(m) {
@@ -541,7 +550,7 @@ function fcListeEurofins(m) {
       expandSubSupports(sb0).forEach(function (sb) {
         p.agents.forEach(function (a) {
           var ad = sb.agentData && sb.agentData[a.name];
-          if (ad && chezEurofins(a.name)) ajouter(ad.refEchantillon, sb.date, '', 'Echantillon');
+          if (ad && chezEurofins(a.name)) ajouter(ad.refEchantillon, sb.date, ad.lot || '', 'Echantillon');
         });
       });
     });
@@ -587,12 +596,40 @@ function fcMasquerModeles(wb, analyseursRemplis) {
   return premier ? wb.activerOnglet(premier) : null;
 }
 
+// Échantillons dont la case « réf. du témoin » restera vide (aucun blanc du même agent et du même n° de lot),
+// regroupés par agent et par lot. Avertissement seulement : la feuille est générée telle quelle.
+function fcAlertesBlancs(m) {
+  var groupes = {}, ordre = [];
+  (m.prelevements || []).forEach(function (p) {
+    (p.subPrelevements || []).forEach(function (sb) {
+      var vus = {};
+      (p.agents || []).forEach(function (a) {
+        if (typeof isAnalyseurAgent === 'function' && isAnalyseurAgent(a.name)) return; // mesure sur place, pas de blanc
+        var ad = sb.agentData && sb.agentData[a.name], ref = ad && String(ad.refEchantillon || '').trim();
+        if (!ref || vus[ref]) return;
+        vus[ref] = true;
+        if (findBlancForAgent(m, a.name, sb.date, ad.lot)) return;
+        var lot = String(ad.lot || '').trim(), k = a.name + '|' + normLot(lot);
+        if (!groupes[k]) { groupes[k] = { agent: a.name, lot: lot, n: 0 }; ordre.push(k); }
+        groupes[k].n++;
+      });
+    });
+  });
+  if (!ordre.length) return [];
+  if (!(m.blancs || []).length) return ['Aucun blanc terrain saisi (Échantillons) : la réf. du témoin restera vide.'];
+  return ordre.map(function (k) {
+    var g = groupes[k];
+    return '« ' + g.agent + ' »' + (g.lot ? ', lot ' + g.lot : ', sans n° de lot') + ' : ' + g.n + ' échantillon' + (g.n > 1 ? 's' : '') + ' sans blanc du même agent et du même lot, réf. du témoin vide.';
+  });
+}
+
 // Construit la feuille de calcul remplie ; renvoie {blob, filename, onglets, alertes}
 function construireFeuilleCalcul(m, donneesModele) {
   if (typeof missionRealisee === 'function') m = missionRealisee(m);
   var plan = fcPlan(m);
   // type de débitmètre non choisi (Infos mission) : massique par défaut, comme avant, mais signalé
   if (!m.debitmetreType) plan.alertes.push('Type de débitmètre non choisi (Infos mission) : « massique » retenu. Si c’est un débitmètre à piston ou à lame de savon, le choisir et regénérer (débits et volumes en dépendent).');
+  fcAlertesBlancs(m).forEach(function (a) { plan.alertes.push(a); });
   if (!plan.onglets.length) return Promise.reject(new Error('Aucun prélèvement exportable dans cette mission.'));
   return XlsmMoteur.Classeur.charger(donneesModele).then(function (wb) {
     var pris = {}; Object.keys(wb.paths).forEach(function (n) { pris[n] = true; });

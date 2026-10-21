@@ -44,14 +44,15 @@ function deleteCond(i){
   if(m&&confirm('Supprimer ?')){m.conditionsAmbiantes.splice(i,1);saveData('vlep_missions_v3',state.missions);render();}
 }
 
-// FIX #1 & #2: Liste échantillons avec code analytique corrigé et regroupement
+// Liste des échantillons et blancs (réf., agent, date, lot, blanc associé). La commande au laboratoire se fait
+// par la feuille de calcul (onglet Eurofins) : pas de code analytique ici.
 function renderListeEchantillons(){
   var m=getCurrentMission();
   if(!m){state.view='terrain-mission';render();return'';}
   if(!m.blancs)m.blancs=[];
   
   var h='<button class="back-btn" onclick="state.view=\'terrain-mission\';render();">'+ICONS.arrowLeft+' Mission</button><div class="card"><h2>'+ICONS.list+' Liste échantillons</h2><p class="subtitle">'+escapeHtml(m.clientSite)+'</p></div>';
-  h+='<div class="row mb-12"><button class="btn btn-gray" onclick="state.showModal=\'addBlanc\';state.blancAgentSearch=\'\';state.blancAgents=[];if(!state.blancDate)state.blancDate=getTodayDate();render();">+ Blanc terrain</button>'+(typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true?'<button class="btn btn-primary" onclick="exportFeuilleCalcul();">'+ICONS.sheet+' Feuille de calcul</button>':'')+'</div>';
+  h+='<div class="row mb-12"><button class="btn btn-gray" onclick="state.showModal=\'addBlanc\';state.blancAgentSearch=\'\';state.blancAgents=[];if(!state.blancDate)state.blancDate=getTodayDate();render();">+ Blanc terrain</button><button class="btn btn-gray" onclick="ouvrirLotEnMasse();">N° de lot…</button>'+(typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true?'<button class="btn btn-primary" onclick="exportFeuilleCalcul();">'+ICONS.sheet+' Feuille de calcul</button>':'')+'</div>';
   h+='<div class="row mb-12"><span style="font-size:13px;margin-right:8px;">Trier par :</span><button class="btn btn-small '+(state.echantillonSort==='date'?'btn-blue':'btn-gray')+'" onclick="state.echantillonSort=\'date\';render();">Date</button><button class="btn btn-small '+(state.echantillonSort==='agent'?'btn-blue':'btn-gray')+'" onclick="state.echantillonSort=\'agent\';render();">Agent</button></div>';
   
   // FIX #2: Regrouper par référence échantillon
@@ -63,10 +64,11 @@ function renderListeEchantillons(){
         if(d&&d.refEchantillon){
           var ref=d.refEchantillon;
           if(!byRef[ref]){
-            byRef[ref]={ref:ref,agents:[],date:sb.date||'',type:'Échantillon',isBlanc:false};
+            byRef[ref]={ref:ref,agents:[],date:sb.date||'',type:'Échantillon',isBlanc:false,lot:d.lot||'',blanc:''};
           }
-          var ag=getAgentFromDB(a.name);
-          byRef[ref].agents.push({name:a.name,code:getCodeAnalytique(ag)});
+          byRef[ref].agents.push({name:a.name});
+          var bl=findBlancForAgent(m,a.name,sb.date,d.lot);
+          if(bl&&!byRef[ref].blanc)byRef[ref].blanc=bl.ref||'(sans réf.)';
         }
       });
     });
@@ -77,16 +79,13 @@ function renderListeEchantillons(){
     var ref=b.ref;
     // Blanc sans référence (ancienne saisie, import) : ligne à part, jamais fusionné avec un autre
     if(!ref||!String(ref).trim()){
-      byRef['_blanc_sans_ref_'+bi]={ref:'(sans réf.)',agents:b.agents.map(function(an){return {name:an,code:getCodeAnalytique(getAgentFromDB(an))};}),date:b.date||'',type:'Blanc',isBlanc:true};
+      byRef['_blanc_sans_ref_'+bi]={ref:'(sans réf.)',agents:b.agents.map(function(an){return {name:an};}),date:b.date||'',type:'Blanc',isBlanc:true,lot:b.lot||''};
       return;
     }
     if(!byRef[ref]){
-      byRef[ref]={ref:ref,agents:[],date:b.date||'',type:'Blanc',isBlanc:true};
+      byRef[ref]={ref:ref,agents:[],date:b.date||'',type:'Blanc',isBlanc:true,lot:b.lot||''};
     }
-    b.agents.forEach(function(an){
-      var ag=getAgentFromDB(an);
-      byRef[ref].agents.push({name:an,code:getCodeAnalytique(ag)});
-    });
+    b.agents.forEach(function(an){byRef[ref].agents.push({name:an});});
   });
   
   // Convertir en liste
@@ -104,12 +103,11 @@ function renderListeEchantillons(){
   
   if(l.length===0)h+='<div class="empty-state"><p>Aucun échantillon</p></div>';
   else{
-    h+='<div class="card" style="padding:8px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;"><tr style="background:#f3f4f6;"><th style="padding:6px;text-align:left;">Réf.</th><th style="padding:6px;text-align:left;">Agent(s) chimique(s)</th><th style="padding:6px;">Date</th><th style="padding:6px;">Code(s) analytique(s)</th><th style="padding:6px;">Type</th></tr>';
+    h+='<div class="card" style="padding:8px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;"><tr style="background:#f3f4f6;"><th style="padding:6px;text-align:left;">Réf.</th><th style="padding:6px;text-align:left;">Agent(s) chimique(s)</th><th style="padding:6px;">Date</th><th style="padding:6px;">Lot</th><th style="padding:6px;">Blanc associé</th><th style="padding:6px;">Type</th></tr>';
     l.forEach(function(x){
       var bg=x.isBlanc?'background:#fef3c7;':'';
       var agentNames=x.agents.map(function(a){return a.name;}).join(', ');
-      var codes=x.agents.map(function(a){return a.code;}).filter(function(c){return c;}).join(', ');
-      h+='<tr style="border-bottom:1px solid #e5e7eb;'+bg+'"><td style="padding:6px;font-weight:600;">'+escapeHtml(x.ref)+'</td><td style="padding:6px;">'+escapeHtml(agentNames)+'</td><td style="padding:6px;text-align:center;">'+escapeHtml(x.date)+'</td><td style="padding:6px;text-align:center;">'+escapeHtml(codes||'-')+'</td><td style="padding:6px;text-align:center;"><span style="font-size:10px;padding:2px 6px;border-radius:4px;'+(x.isBlanc?'background:#f59e0b;color:white;':'background:#e5e7eb;')+'">'+x.type+'</span></td></tr>';
+      h+='<tr style="border-bottom:1px solid #e5e7eb;'+bg+'"><td style="padding:6px;font-weight:600;">'+escapeHtml(x.ref)+'</td><td style="padding:6px;">'+escapeHtml(agentNames)+'</td><td style="padding:6px;text-align:center;">'+escapeHtml(x.date)+'</td><td style="padding:6px;text-align:center;">'+escapeHtml(x.lot||'-')+'</td><td style="padding:6px;text-align:center;">'+(x.isBlanc?'':escapeHtml(x.blanc||'-'))+'</td><td style="padding:6px;text-align:center;"><span style="font-size:10px;padding:2px 6px;border-radius:4px;'+(x.isBlanc?'background:#f59e0b;color:white;':'background:#e5e7eb;')+'">'+x.type+'</span></td></tr>';
     });
     h+='</table></div>';
   }
@@ -117,12 +115,116 @@ function renderListeEchantillons(){
   if(m.blancs.length>0){
     h+='<div class="section-title mt-12">Blancs terrain ('+m.blancs.length+')</div>';
     m.blancs.forEach(function(b,i){
-      h+='<div class="card" style="padding:10px;background:#fef3c7;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>'+escapeHtml(b.ref||'(sans réf.)')+'</strong><div style="font-size:12px;color:#666;">'+escapeHtml(b.agents.join(', '))+' • '+escapeHtml(b.date||'Sans date')+(b.lot?' • Lot '+escapeHtml(b.lot):'')+'</div></div><button class="btn btn-danger btn-small" onclick="deleteBlanc('+i+');">'+ICONS.trash+'</button></div></div>';
+      h+='<div class="card" style="padding:10px;background:#fef3c7;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>'+escapeHtml(b.ref||'(sans réf.)')+'</strong><div style="font-size:12px;color:#666;">'+escapeHtml(b.agents.join(', '))+' • '+escapeHtml(b.date||'Sans date')+(b.lot?' • Lot '+escapeHtml(b.lot):' • Sans n° de lot')+'</div>'+(function(){var n=echantillonsDuBlanc(m,b);return '<div style="font-size:12px;margin-top:2px;color:'+(n?'#166534':'#b45309')+';">'+(n?'Réf. reportée sur '+n+' échantillon'+(n>1?'s':'')+' dans la feuille de calcul':'Aucun échantillon du même agent et du même n° de lot : réf. non reportée')+'</div>';})()+'</div><button class="btn btn-danger btn-small" onclick="deleteBlanc('+i+');">'+ICONS.trash+'</button></div></div>';
     });
   }
   
   if(state.showModal==='addBlanc')h+=renderAddBlancModal();
+  if(state.showModal==='lotEnMasse')h+=renderLotEnMasseModal(m);
   return h;
+}
+
+// ═══ N° de lot en une fois sur plusieurs échantillons et/ou blancs (évite de le ressaisir sous chaque réf.) ═══
+// Échantillons = réf. distinctes (une réf. = un support : tous les agents qui la portent reçoivent le lot).
+function lignesLot(m){
+  var l=[],vus={};
+  m.prelevements.forEach(function(p){
+    p.subPrelevements.forEach(function(s0){
+      if(s0.nonRealise)return;
+      expandSubSupports(s0).forEach(function(sb){
+        p.agents.forEach(function(a){
+          var d=sb.agentData&&sb.agentData[a.name];
+          var ref=d&&String(d.refEchantillon||'').trim();
+          if(!ref)return;
+          if(vus[ref]){if(vus[ref].agents.indexOf(a.name)===-1)vus[ref].agents.push(a.name);return;}
+          vus[ref]={cle:'e:'+ref,ref:ref,agents:[a.name],date:sb.date||'',lot:d.lot||'',blanc:false};
+          l.push(vus[ref]);
+        });
+      });
+    });
+  });
+  l.sort(function(a,b){return (a.agents[0]||'').localeCompare(b.agents[0]||'')||(a.date||'').localeCompare(b.date||'')||a.ref.localeCompare(b.ref);});
+  (m.blancs||[]).forEach(function(b,i){l.push({cle:'b:'+i,ref:b.ref||'(sans réf.)',agents:b.agents||[],date:b.date||'',lot:b.lot||'',blanc:true});});
+  return l;
+}
+
+function ouvrirLotEnMasse(){
+  state.lotMasse={lot:'',sel:{}};
+  state.showModal='lotEnMasse';
+  render();
+}
+
+function renderLotEnMasseModal(m){
+  var lm=state.lotMasse||(state.lotMasse={lot:'',sel:{}});
+  var l=lignesLot(m),agents=[];
+  l.forEach(function(x){x.agents.forEach(function(a){if(agents.indexOf(a)===-1)agents.push(a);});});
+  var n=l.filter(function(x){return lm.sel[x.cle];}).length;
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>N° de lot</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div>';
+  h+='<p class="subtitle" style="margin-bottom:8px;">Saisir le lot une fois, cocher les échantillons et les blancs de ce lot, puis appliquer.</p>';
+  h+='<div class="field"><label class="label">N° de lot</label>'+lotsDatalist(m)+'<input type="text" class="input" id="lot-masse" list="lots-mission" autocomplete="off" value="'+escapeHtml(lm.lot)+'" placeholder="Lot des supports" oninput="state.lotMasse.lot=this.value;"></div>';
+  if(!l.length)h+='<div class="empty-state"><p>Aucun échantillon ni blanc avec une référence</p></div>';
+  else{
+    var chip=function(label,args){return '<button class="btn btn-gray btn-small" style="width:auto;margin:0;" onclick="lotMasseCocher('+args+');">'+label+'</button>';};
+    h+='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">';
+    h+=chip('Tout','\'tout\'')+chip('Sans lot','\'sanslot\'');
+    agents.forEach(function(a){h+=chip(escapeHtml(a),'\'agent\',\''+escapeJs(a)+'\'');});
+    h+=chip('Aucun','\'aucun\'')+'</div>';
+    h+='<div style="max-height:45vh;overflow-y:auto;border:1px solid var(--border-subtle);border-radius:10px;">';
+    l.forEach(function(x){
+      h+='<label style="display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--border-subtle);font-size:12px;cursor:pointer;'+(x.blanc?'background:#fef3c7;':'')+'">';
+      h+='<input type="checkbox" '+(lm.sel[x.cle]?'checked ':'')+'onchange="state.lotMasse.sel[\''+escapeJs(x.cle)+'\']=this.checked;render();">';
+      h+='<span style="flex:1;min-width:0;"><strong>'+escapeHtml(x.ref)+'</strong>'+(x.blanc?' <span style="font-size:10px;padding:1px 5px;border-radius:4px;background:#f59e0b;color:white;">Blanc</span>':'')+'<br><span style="color:var(--text-muted);">'+escapeHtml(x.agents.join(', '))+(x.date?' · '+escapeHtml(formatDateFR(x.date)):'')+'</span></span>';
+      h+='<span style="font-size:11px;color:'+(x.lot?'var(--text-dark)':'var(--text-muted)')+';white-space:nowrap;">'+(x.lot?'Lot '+escapeHtml(x.lot):'sans lot')+'</span></label>';
+    });
+    h+='</div>';
+  }
+  h+='<div class="row mt-12"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-success" onclick="appliquerLotEnMasse();"'+(n?'':' disabled')+'>Appliquer à '+n+'</button></div></div></div>';
+  return h;
+}
+
+function lotMasseCocher(mode,agent){
+  var m=getCurrentMission();if(!m)return;
+  var sel={};
+  // un raccourci d'agent s'ajoute à la sélection en cours
+  if(mode==='agent')Object.keys(state.lotMasse.sel).forEach(function(k){if(state.lotMasse.sel[k])sel[k]=true;});
+  if(mode!=='aucun')lignesLot(m).forEach(function(x){
+    if(mode==='tout'||(mode==='sanslot'&&!x.lot)||(mode==='agent'&&x.agents.indexOf(agent)!==-1))sel[x.cle]=true;
+  });
+  state.lotMasse.sel=sel;
+  render();
+}
+
+function appliquerLotEnMasse(){
+  var m=getCurrentMission();if(!m)return;
+  var lm=state.lotMasse,lot=(lm.lot||'').trim();
+  if(!lot&&!confirm('Aucun n° de lot saisi : effacer le lot des éléments cochés ?'))return;
+  appliquerLot(m,lm.sel,lot);
+  saveData('vlep_missions_v3',state.missions);
+  state.showModal=null;state.lotMasse=null;
+  render();
+}
+
+// Écrit le lot sur les échantillons cochés (toutes les données d'agent qui portent la réf., supports fractionnés
+// compris) et sur les blancs cochés. Renvoie le nombre d'éléments cochés.
+function appliquerLot(m,sel,lot){
+  var refs={},n=0;
+  Object.keys(sel).forEach(function(k){
+    if(!sel[k])return;
+    n++;
+    if(k.indexOf('e:')===0)refs[k.slice(2)]=true;
+    else{var b=(m.blancs||[])[+k.slice(2)];if(b)b.lot=lot;}
+  });
+  m.prelevements.forEach(function(p){
+    p.subPrelevements.forEach(function(s0){
+      expandSubSupports(s0).forEach(function(sb){
+        Object.keys(sb.agentData||{}).forEach(function(an){
+          var d=sb.agentData[an];
+          if(d&&refs[String(d.refEchantillon||'').trim()])d.lot=lot;
+        });
+      });
+    });
+  });
+  return n;
 }
 
 // FIX #3: Modal blanc avec recherche corrigée
@@ -130,7 +232,8 @@ function renderAddBlancModal(){
   var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>+ Blanc terrain</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div>';
   h+='<div class="field"><label class="label">Référence échantillon *</label><input type="text" class="input" id="blanc-ref" placeholder="Ex: BT-001" value="'+escapeHtml(state.blancRef||'')+'" oninput="state.blancRef=this.value;"></div>';
   h+='<div class="field"><label class="label">Date</label><input type="date" class="input" id="blanc-date" value="'+(state.blancDate||'')+'" oninput="state.blancDate=this.value;"></div>';
-  h+='<div class="field"><label class="label">N° de lot</label><input type="text" class="input" id="blanc-lot" placeholder="Lot des supports" value="'+escapeHtml(state.blancLot||'')+'" oninput="state.blancLot=this.value;"></div>';
+  h+='<div class="field"><label class="label">N° de lot</label>'+lotsDatalist(getCurrentMission()||{})+'<input type="text" class="input" id="blanc-lot" list="lots-mission" autocomplete="off" placeholder="Lot des supports" value="'+escapeHtml(state.blancLot||'')+'" oninput="state.blancLot=this.value;"></div>';
+  h+='<div class="blanc-pense-bete">La réf. du blanc n’est reportée dans la feuille de calcul (« réf. du témoin ») que sur les échantillons du <strong>même agent chimique</strong> et du <strong>même n° de lot</strong>, saisi sous la réf. de chaque échantillon.</div>';
   h+='<div class="field"><label class="label">Agent(s) chimique(s)</label><input type="text" class="input" id="blanc-agent-search" placeholder="Rechercher..." value="'+escapeHtml(state.blancAgentSearch||'')+'" oninput="handleBlancAgentSearch(this.value);"></div>';
   h+='<div id="blanc-search-results">';
   if(state.blancAgentSearch&&state.blancAgentSearch.length>=2){
@@ -259,25 +362,54 @@ function getConditionsForPrel(m,subPrel){
   return null;
 }
 
-// Blanc terrain d'un agent pour un jour donné :
-// 1) blanc de l'agent pris le jour même ; 2) blanc de l'agent sans date ;
-// 3) blanc unique de l'agent sur la mission (un blanc pour toute la campagne).
+// Blanc terrain d'un échantillon : même agent chimique ET même n° de lot que l'échantillon (lots comparés sans
+// espaces ni majuscules ; un échantillon sans lot ne va qu'avec un blanc sans lot).
+// Lot renseigné : le blanc du jour s'il y en a un, sinon le premier blanc de ce lot (un blanc pour le lot).
+// Sans lot (anciennes saisies) : 1) blanc du jour ; 2) blanc sans date ; 3) blanc unique de l'agent sur la mission.
 // Plusieurs blancs, tous d'autres jours : aucun (on ne devine pas).
-function findBlancForAgent(m,agentName,date){
+// Lots déjà saisis sur la mission (échantillons et blancs), proposés à la saisie d'un lot
+function lotsConnus(m){
+  var vus={},l=[];
+  function add(x){x=String(x||'').trim();var k=normLot(x);if(k&&!vus[k]){vus[k]=true;l.push(x);}}
+  (m.prelevements||[]).forEach(function(p){(p.subPrelevements||[]).forEach(function(s0){expandSubSupports(s0).forEach(function(sb){Object.keys(sb.agentData||{}).forEach(function(an){add(sb.agentData[an]&&sb.agentData[an].lot);});});});});
+  (m.blancs||[]).forEach(function(b){add(b.lot);});
+  return l.sort();
+}
+function lotsDatalist(m){
+  return '<datalist id="lots-mission">'+lotsConnus(m).map(function(x){return '<option value="'+escapeHtml(x)+'"></option>';}).join('')+'</datalist>';
+}
+function normLot(l){return String(l||'').replace(/\s+/g,'').toLowerCase();}
+function findBlancForAgent(m,agentName,date,lot){
   if(!m.blancs||m.blancs.length===0)return null;
-  var duJour=null,sansDate=null,tous=[];
+  var nl=normLot(lot),duJour=null,sansDate=null,tous=[];
   m.blancs.forEach(function(b){
     if(!b.agents||b.agents.indexOf(agentName)===-1)return;
+    if(normLot(b.lot)!==nl)return;
     tous.push(b);
     if(date&&b.date===date&&!duJour)duJour=b;
     if(!b.date&&!sansDate)sansDate=b;
   });
+  if(nl)return duJour||tous[0]||null;
   return duJour||sansDate||(tous.length===1?tous[0]:null);
 }
 
-function getBlancForAgent(m,agentName,date){
-  var b=findBlancForAgent(m,agentName,date);
-  return b?(b.ref||''):'';
+// Échantillons de la mission auxquels un blanc est associé (pense-bête de la liste des blancs)
+function echantillonsDuBlanc(m,blanc){
+  var n=0,vus={};
+  (m.prelevements||[]).forEach(function(p){
+    (p.subPrelevements||[]).forEach(function(s0){
+      if(s0.nonRealise)return;
+      expandSubSupports(s0).forEach(function(sb){
+        (p.agents||[]).forEach(function(a){
+          var ad=sb.agentData&&sb.agentData[a.name];
+          var ref=ad&&String(ad.refEchantillon||'').trim();
+          if(!ref||vus[ref])return;
+          if(findBlancForAgent(m,a.name,sb.date,ad.lot)===blanc){vus[ref]=true;n++;}
+        });
+      });
+    });
+  });
+  return n;
 }
 
 // Fonction helper pour formater les dates en JJ/MM/AAAA
