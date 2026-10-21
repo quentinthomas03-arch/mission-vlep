@@ -33,7 +33,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600&display=swap">
-  <title>VLEP Mission v1.0 - © Quentin THOMAS</title>
+  <title>VLEP Mission</title>
   <style>
     /*
      * VLEP Mission — © 2025 Quentin THOMAS - Tous droits réservés
@@ -401,6 +401,14 @@
 .guide-point mark { background: rgba(20,212,194,0.3); color: inherit; border-radius: 3px; padding: 0 1px; }
 .guide-suite { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .guide-suite .btn { margin-bottom: 0; }
+.guide-etape-num svg { width: 15px; height: 15px; }
+.guide-som { padding: 0; overflow: hidden; }
+.guide-som.transverse { border: 1.5px dashed rgba(0,163,163,0.45); }
+.guide-som-tete { width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: none; border: none; cursor: pointer; text-align: left; font-family: inherit; }
+.guide-som-points { display: flex; flex-direction: column; border-top: 1px solid var(--border-subtle); padding: 4px 0; }
+.guide-som-points button { display: flex; gap: 10px; align-items: baseline; background: none; border: none; cursor: pointer; text-align: left; font-family: inherit; font-size: 13px; color: var(--text-dark); padding: 7px 14px; }
+.guide-som-points button:hover, .guide-som-points button:active { background: var(--primary-pale); }
+.guide-som-points button span { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 11px; color: var(--text-muted); min-width: 26px; }
 .guide-vide { text-align: center; color: var(--text-muted); font-size: 13px; }
 
   </style>
@@ -441,8 +449,7 @@
   <script src="js/scola-dossier.js"></script>
   <script src="js/rapport.js"></script>
   <script src="js/rapport-resultats.js"></script>
-  <script src="js/docx.iife.js"></script>
-  <script src="js/export-word.js"></script>
+  <script src="js/activite.js"></script>
   <script src="js/database-views.js"></script>
   <script src="js/quick-entry.js"></script>
   <script src="js/import-export.js"></script>

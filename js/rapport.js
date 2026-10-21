@@ -151,7 +151,52 @@ function rapportDonnees(m) {
   if (!m.rapport) m.rapport = { types: {}, categories: {} };
   if (!m.rapport.types) m.rapport.types = {};
   if (!m.rapport.categories) m.rapport.categories = {};
+  rapportPrecocher(m, m.rapport);
   return m.rapport;
+}
+
+// Agents des prélèvements réalisés (ou à réaliser), non réalisés exclus
+function rapportAgentsMission(m) {
+  var out = [];
+  (m.prelevements || []).forEach(function (p) {
+    if (!(p.subPrelevements || []).some(function (sb) { return !sb.nonRealise; })) return;
+    (p.agents || []).forEach(function (a) { if (out.indexOf(a.name) === -1) out.push(a.name); });
+  });
+  return out;
+}
+// Catégories de la carte « Agents contrôlés » déduites de la base des agents. « Hors arrêté du 15/12/09 » reste
+// au choix du technicien.
+function rapportCategoriesAuto(m) {
+  var c = {};
+  rapportAgentsMission(m).forEach(function (an) {
+    var ag = rapportAgentDB(an);
+    if (!ag) return;
+    if (/pollution particulaire/i.test(an)) { c.poussieres = true; return; }
+    if (/silice cristalline/i.test(an)) c.silice = true;
+    var cat = rapportCategorie(ag);
+    if (cat === 'contraignante') { c.contraignantes = true; return; }
+    if (cat === 'indicative') { c.indicatives = true; return; }
+    var cmr = String(ag['CMR (règlement CLP)'] || '').trim();
+    if (cmr && cmr !== '-') { c.cmr = true; return; }
+    if (ag['VLEP 8h (mg/m3)'] || ag['VLEP CT (mg/m3)']) c.admises = true;
+  });
+  return c;
+}
+// Précochage tant que le technicien n'a pas touché aux cases (une mission où des cases étaient déjà cochées à la
+// main avant cette fonction n'est pas modifiée). Toucher une case arrête le précochage de ce groupe.
+function rapportPrecocher(m, r) {
+  if (r.categoriesAuto === undefined) r.categoriesAuto = !Object.keys(r.categories).some(function (k) { return r.categories[k]; });
+  if (r.categoriesAuto) r.categories = rapportCategoriesAuto(m);
+  if (r.posteFixeAuto === undefined) r.posteFixeAuto = r.posteFixe === undefined;
+  if (r.posteFixeAuto) r.posteFixe = (m.prelevements || []).some(function (p) { return (p.subPrelevements || []).some(function (sb) { return sb.posteFixe && !sb.nonRealise; }); });
+}
+
+// Champs de la carte Rapport laissés vides (couverture, pieds de page), signalés après la génération
+function rapportChampsVides(m) {
+  var r = rapportDonnees(m), vides = [];
+  RAPPORT_CHAMPS.forEach(function (c) { if ((!c.si || r.types[c.si]) && !String(r[c.cle] || '').trim()) vides.push(c.label); });
+  if (!r.agence) vides.push('Agence');
+  return vides;
 }
 
 function rapportAgenceParDefaut() { try { return localStorage.getItem(RAPPORT_AGENCE_KEY) || ''; } catch (e) { return ''; } }
@@ -196,7 +241,7 @@ function renderRapportPrepa(m) {
     });
     h += '</div>';
   }
-  h += '<div class="field"><label class="label">Agents contrôlés</label><div class="row">';
+  h += '<div class="field"><label class="label">Agents contrôlés</label>' + (r.categoriesAuto ? '<p class="subtitle" style="margin:0 0 6px;">Cochés d’après les agents de la mission (base des agents) ; « Hors arrêté » reste à cocher si besoin.</p>' : '') + '<div class="row">';
   RAPPORT_CATEGORIES.forEach(function (c) { h += puce(r.categories[c.id], 'rapportBascule(\'categories\',\'' + c.id + '\');', c.label); });
   h += '</div></div><div class="field" style="margin-bottom:0;"><label class="label">Autres mesures</label><div class="row">';
   h += puce(r.posteFixe, 'rapportMaj(\'posteFixe\',' + (r.posteFixe ? 'false' : 'true') + ');render();', 'Mesures à poste fixe (hors accréditation)');
@@ -220,6 +265,7 @@ function rapportMaj(cle, v) {
   var m = getCurrentMission(); if (!m) return;
   var r = rapportDonnees(m);
   r[cle] = typeof v === 'string' ? v.trim() : v;
+  if (cle === 'posteFixe') r.posteFixeAuto = false;
   saveData('vlep_missions_v3', state.missions);
 }
 
@@ -227,6 +273,7 @@ function rapportBascule(groupe, id) {
   var m = getCurrentMission(); if (!m) return;
   var r = rapportDonnees(m);
   r[groupe][id] = !r[groupe][id];
+  if (groupe === 'categories') r.categoriesAuto = false;
   saveData('vlep_missions_v3', state.missions);
   render();
 }
@@ -826,6 +873,8 @@ function rapportGenerer(m, feuille, nomFeuille) {
     if (typeof afficherAttente === 'function') afficherAttente(null);
     downloadBlob(res.blob, res.filename);
     var msg = 'Rapport généré : ' + res.filename + '\n\nÀ l’ouverture, Word propose de mettre à jour les champs (sommaire, numéros d’annexes) : répondre Oui.';
+    var vides = rapportChampsVides(m);
+    if (vides.length) msg += '\n\nVides dans la carte « Rapport » (couverture et pieds de page à compléter dans Word) :\n- ' + vides.join('\n- ');
     var r = res.resultats;
     if (r) {
       msg += '\n\nRésultats repris de « ' + nomFeuille + ' » : ' + r.reg + ' tableau(x) réglementaire(s), ' + r.horsArrete + ' hors arrêté, ' + r.posteFixe + ' poste fixe ; ' + r.annexe + ' image(s) dans l’annexe des résultats détaillés. Résultats insérés en images de la feuille, comme avec la macro (non modifiables).';

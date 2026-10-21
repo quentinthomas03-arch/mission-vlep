@@ -1,13 +1,13 @@
 // guide.js - Guide d'utilisation intégré (accueil > Guide)
 // © 2025 Quentin THOMAS
 //
-// Parcours en cinq étapes (préparation, terrain, feuille de calcul, rapport, outils), points dépliables,
-// recherche dans tout le guide et questions fréquentes. Ne décrit que ce que l'appli fait réellement :
+// Sommaire à l'ouverture (les 4 étapes du déroulé, puis les fonctions utilisables à tout moment), parcours en
+// cinq étapes, points dépliables, recherche dans tout le guide et questions fréquentes. Ne décrit que ce que l'appli fait réellement :
 // à mettre à jour à chaque fonction qui change un écran.
 
 var GUIDE_PHASES = [
   {
-    icon: 'building', court: 'Préparation', titre: 'Préparer la mission', quand: 'Au bureau, avant la visite',
+    icon: 'building', court: 'Prépa', titre: 'Préparer la mission', quand: 'Au bureau, avant la visite',
     ouvrir: { label: 'Ouvrir la préparation', vue: 'prepa-list' },
     points: [
       { t: 'Créer la mission', ou: ['Accueil', 'Préparation mission', 'Nouvelle mission'],
@@ -33,7 +33,7 @@ var GUIDE_PHASES = [
     ouvrir: { label: 'Ouvrir la saisie terrain', vue: 'terrain-list' },
     points: [
       { t: 'Ouvrir la mission', ou: ['Accueil', 'Saisie terrain', 'Mission'],
-        d: 'En tête de mission : Feuille de calcul, Rapport Word, Échantillons, et le menu ⋯ (activité pour le rapport, envoi par e-mail, fichier .json, fusion, ajout de GEH).' },
+        d: 'En tête de mission : Feuille de calcul, Rapport Word, Échantillons, et le menu ⋯ (envoi par e-mail, fichier .json, fusion, ajout de GEH, retour en préparation).' },
       { t: 'Saisir un prélèvement', ou: ['Mission', 'Prélèvement', 'Onglet du jour'],
         d: 'Opérateur, date, n° de pompe, débits initial et final, plages horaires.',
         n: 'Virgule ou point acceptés. Le clavier numérique s’ouvre sur les champs chiffrés.' },
@@ -46,7 +46,8 @@ var GUIDE_PHASES = [
       { t: 'Ventilation et Scol@', ou: ['Mission', 'Prélèvement'],
         d: 'Environnement, ventilation générale, captage localisé, puis tâche, métier et type de procédé Scol@, repris dans la feuille de calcul.' },
       { t: 'Valider le prélèvement', ou: ['Mission', 'Prélèvement', 'Valider'],
-        d: 'Bouton « Valider » en bas de l’écran ; l’onglet du jour est coché.' },
+        d: 'Bouton « Valider » en bas de l’écran ; l’onglet du jour est coché. Il reste grisé tant qu’il manque un champ requis (opérateur, date, plage, pompe, débits, réf. échantillon) : ⓘ en donne la liste.',
+        n: 'La durée d’exposition n’est pas exigée pour valider : un rappel s’affiche, elle peut être complétée plus tard au bureau.' },
       { t: 'Prélèvement non réalisé', ou: ['Mission', 'Prélèvement', 'Non réalisé'],
         d: 'Pour un prélèvement prévu mais pas fait (pas d’exposition ce jour-là…). Il sort du compteur, de la feuille de calcul, du rapport et des échantillons. L’observation peut en donner la raison.',
         n: '« Annuler » le remet à faire.' },
@@ -71,7 +72,7 @@ var GUIDE_PHASES = [
       { t: 'Générer la feuille', ou: ['Mission', 'Feuille de calcul'],
         d: 'Un bandeau « en cours » s’affiche quelques secondes. Le modèle est chargé d’avance à l’ouverture de l’appli.' },
       { t: 'Alertes à la génération',
-        d: 'Avant le téléchargement, l’appli liste les points à vérifier : type de débitmètre non choisi, modèle absent, échantillons sans blanc du même agent et du même lot (réf. du témoin vide). La feuille est générée quand même.' },
+        d: 'Après la génération, l’appli liste les points à vérifier : type de débitmètre non choisi, modèle absent, jours sans conditions ambiantes, réf. d’échantillon utilisée sur plusieurs supports (un seul partirait dans la commande Eurofins), échantillons sans blanc du même agent et du même lot, prélèvements 8 h sans durée d’exposition. La feuille est générée quand même.' },
       { t: 'Contenu du fichier',
         d: 'Un onglet par GEH et par support, les analyseurs et l’onglet Acquisition, la demande d’analyse Eurofins et l’en-tête Scol@. Les onglets modèles vides sont masqués ; le premier GEH s’affiche à l’ouverture.' },
       { t: 'Ouvrir le fichier',
@@ -88,7 +89,7 @@ var GUIDE_PHASES = [
       { t: 'Ouvrir l’écran Rapport Word', ou: ['Mission', 'Rapport Word'],
         d: 'L’écran regroupe les données du dossier Scol@ (n° de dossier, établissement, site accrédité) et la carte Rapport, à part de la préparation.' },
       { t: 'Renseigner la carte Rapport', ou: ['Rapport Word', 'Rapport'],
-        d: 'Chrono, contrat, interlocuteur, rédacteur, valideur, agence ; type de rapport (campagne, contrôle périodique…) et agents contrôlés, comme dans le formulaire de la trame.',
+        d: 'Chrono, contrat, interlocuteur, rédacteur, valideur, agence ; type de rapport (campagne, contrôle périodique…) et agents contrôlés, comme dans le formulaire de la trame. Les agents contrôlés et « Mesures à poste fixe » sont cochés d’après la mission, modifiables ; les champs restés vides sont rappelés après la génération.',
         n: 'En 1re campagne : auteur et référence du rapport de stratégie.' },
       { t: 'Campagne et contrôle périodique ensemble', ou: ['Rapport Word', 'Rapport'],
         d: 'Si les deux sont cochés, choisir la partie de chaque GEH (ou de chaque agent) : les résultats et les EPI y sont placés.' },
@@ -108,7 +109,8 @@ var GUIDE_PHASES = [
       { t: 'Bouton J-1', ou: ['Mission', 'Prélèvement'],
         d: 'Reprend la valeur du prélèvement de la veille (opérateur, durée d’exposition) sur un prélèvement de plusieurs jours.' },
       { t: 'Fusion de prélèvements', ou: ['Mission', 'Menu ⋯', 'Fusion'],
-        d: 'Regroupe les prélèvements d’un même opérateur sur plusieurs jours en un seul prélèvement multi-jours.' },
+        d: 'Regroupe les prélèvements d’un même opérateur sur plusieurs jours en un seul prélèvement multi-jours.',
+        n: 'Si une saisie du prélèvement absorbé ne peut pas être reprise (jour en trop, autre opérateur, autres plages, observation), l’appli la liste et demande confirmation avant de fusionner.' },
       { t: 'Base de données', ou: ['Accueil', 'Base de données'],
         d: 'Tous les agents avec débit, support, conservation, VLEP et consignes.' },
       { t: 'Transférer une mission', ou: ['Mission', 'Menu ⋯', 'Envoyer par e-mail'],
@@ -154,7 +156,7 @@ function guideSurligne(texte, q) {
 }
 
 function guidePoint(p, id, num, ouvert, q) {
-  var h = '<div class="guide-point' + (ouvert ? ' ouvert' : '') + '">';
+  var h = '<div class="guide-point' + (ouvert ? ' ouvert' : '') + '" id="guide-pt-' + id + '">';
   h += '<button class="guide-point-tete" onclick="guideBasculer(\'' + id + '\')">';
   h += '<span class="guide-point-num">' + num + '</span>';
   h += '<span class="guide-point-titre">' + guideSurligne(p.t, q) + '</span>';
@@ -191,27 +193,52 @@ function guideCorps() {
     return h;
   }
 
-  var pi = state.guidePhase || 0, ph = GUIDE_PHASES[pi];
+  var pi = state.guidePhase == null ? -1 : state.guidePhase, ph = GUIDE_PHASES[pi];
   h += '<div class="guide-parcours">';
+  h += '<button class="guide-etape guide-etape-sommaire' + (pi < 0 ? ' active' : '') + '" onclick="guideAllerPhase(-1)">';
+  h += '<span class="guide-etape-num">' + ICONS.list + '</span><span class="guide-etape-label">Sommaire</span></button>';
   GUIDE_PHASES.forEach(function (x, i) {
     h += '<button class="guide-etape' + (i === pi ? ' active' : '') + (i < pi ? ' passee' : '') + '" onclick="guideAllerPhase(' + i + ')">';
     h += '<span class="guide-etape-num">' + (i + 1) + '</span><span class="guide-etape-label">' + x.court + '</span></button>';
   });
   h += '</div>';
 
+  if (pi < 0) return h + guideSommaire();
+
   h += '<div class="card guide-phase">';
   h += '<div class="guide-phase-tete"><div class="nav-icon">' + getIcon(ph.icon) + '</div><div style="flex:1;min-width:0;">';
-  h += '<div class="guide-phase-quand">Étape ' + (pi + 1) + ' sur ' + GUIDE_PHASES.length + ' · ' + escapeHtml(ph.quand) + '</div>';
+  h += '<div class="guide-phase-quand">' + (pi === GUIDE_PHASES.length - 1 ? 'Utilisable pendant toute la mission' : 'Étape ' + (pi + 1) + ' sur ' + (GUIDE_PHASES.length - 1) + ' · ' + escapeHtml(ph.quand)) + '</div>';
   h += '<div class="guide-phase-titre">' + escapeHtml(ph.titre) + '</div></div></div>';
   h += '<div class="guide-liste">';
   ph.points.forEach(function (p, i) { var id = pi + '-' + i; h += guidePoint(p, id, (pi + 1) + '.' + (i + 1), state.guideOuvert === id, ''); });
   h += '</div>';
   if (ph.ouvrir) h += '<button class="btn btn-gray mt-12" onclick="state.view=\'' + ph.ouvrir.vue + '\';render();window.scrollTo(0,0);">' + ph.ouvrir.label + ICONS.arrowRight + '</button>';
   h += '<div class="guide-suite">';
-  h += pi > 0 ? '<button class="btn btn-gray" onclick="guideAllerPhase(' + (pi - 1) + ')">' + ICONS.arrowLeft + ' ' + GUIDE_PHASES[pi - 1].court + '</button>' : '<span></span>';
-  h += pi < GUIDE_PHASES.length - 1 ? '<button class="btn btn-primary" onclick="guideAllerPhase(' + (pi + 1) + ')">' + GUIDE_PHASES[pi + 1].court + ' ' + ICONS.arrowRight + '</button>' : '<span></span>';
+  h += '<button class="btn btn-gray" onclick="guideAllerPhase(' + (pi - 1) + ')">' + ICONS.arrowLeft + ' ' + (pi > 0 ? GUIDE_PHASES[pi - 1].court : 'Sommaire') + '</button>';
+  h += pi < GUIDE_PHASES.length - 1 ? '<button class="btn btn-primary" onclick="guideAllerPhase(' + (pi + 1) + ')">' + GUIDE_PHASES[pi + 1].court + ' ' + ICONS.arrowRight + '</button>' : '<button class="btn btn-gray" onclick="guideAllerPhase(-1)">' + ICONS.list + ' Sommaire</button>';
   h += '</div></div>';
 
+  h += '<div class="section-title">Questions fréquentes</div><div class="card guide-phase"><div class="guide-liste">';
+  GUIDE_FAQ.forEach(function (f, i) { var id = 'f' + i; h += guidePoint(f, id, '?', state.guideOuvert === id, ''); });
+  h += '</div></div>';
+  return h;
+}
+
+// Sommaire : chaque catégorie s'ouvre d'un toucher, chaque point mène directement à son explication
+function guideSommaire() {
+  var h = '';
+  GUIDE_PHASES.forEach(function (ph, pi) {
+    var transverse = pi === GUIDE_PHASES.length - 1;
+    if (pi === 0) h += '<div class="section-title">Déroulé d’une mission</div>';
+    if (transverse) h += '<div class="section-title">À tout moment</div>';
+    h += '<div class="card guide-som' + (transverse ? ' transverse' : '') + '">';
+    h += '<button class="guide-som-tete" onclick="guideAllerPhase(' + pi + ')"><div class="nav-icon">' + getIcon(ph.icon) + '</div>';
+    h += '<div style="flex:1;min-width:0;"><div class="guide-phase-quand">' + (transverse ? 'Utilisable pendant toute la mission' : 'Étape ' + (pi + 1) + ' · ' + escapeHtml(ph.quand)) + '</div>';
+    h += '<div class="guide-phase-titre">' + escapeHtml(ph.titre) + '</div></div><span class="guide-chevron">' + ICONS.chevronRight + '</span></button>';
+    h += '<div class="guide-som-points">';
+    ph.points.forEach(function (p, i) { h += '<button onclick="guideAllerPoint(' + pi + ',' + i + ')"><span>' + (pi + 1) + '.' + (i + 1) + '</span>' + escapeHtml(p.t) + '</button>'; });
+    h += '</div></div>';
+  });
   h += '<div class="section-title">Questions fréquentes</div><div class="card guide-phase"><div class="guide-liste">';
   GUIDE_FAQ.forEach(function (f, i) { var id = 'f' + i; h += guidePoint(f, id, '?', state.guideOuvert === id, ''); });
   h += '</div></div>';
@@ -235,6 +262,11 @@ function guideBasculer(id) {
   if (id.charAt(0) === 'r') return;
   state.guideOuvert = state.guideOuvert === id ? null : id;
   guideRafraichir();
+}
+function guideAllerPoint(pi, i) {
+  state.guidePhase = pi; state.guideOuvert = pi + '-' + i;
+  guideRafraichir();
+  var el = document.getElementById('guide-pt-' + pi + '-' + i); if (el && el.scrollIntoView) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 function guideAllerPhase(i) {
   state.guidePhase = i; state.guideOuvert = null;

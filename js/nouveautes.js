@@ -6,10 +6,24 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.36';
+var APP_VERSION = '2.39';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.39', date: '21/10/2026', items: [
+    'Rapport Word : « Agents contrôlés » et « Mesures à poste fixe » cochés d’après la mission (modifiables) ; les champs de la carte Rapport restés vides sont rappelés après la génération.',
+    'Fusion de prélèvements : avant de fusionner, l’appli liste les saisies qui ne seraient pas reprises (jour en trop, autre opérateur, autres plages, observation) et demande confirmation.',
+    'Saisie rapide : statut réglementaire tiré de la base, comme en préparation ; messages corrigés (icône affichée en code, puces « ? »).'
+  ] },
+  { version: '2.38', date: '21/10/2026', items: [
+    'Feuille de calcul : nouvelles alertes après la génération — jours sans conditions ambiantes, réf. d’échantillon utilisée sur plusieurs supports (un seul partirait dans la commande Eurofins), prélèvements 8 h sans durée d’exposition.',
+    'Réf. d’échantillon déjà utilisée sur un autre support : signalée sous le champ.',
+    'Valider un prélèvement demande la réf. de l’échantillon (comme sur les supports fractionnés). La durée d’exposition n’est jamais exigée : un rappel s’affiche, elle peut être complétée au bureau.',
+    'L’ancien export « Activité (Word) » du menu ⋯ est retiré (repris par l’annexe des tâches du rapport Word) : l’appli s’ouvre plus vite.'
+  ] },
+  { version: '2.37', date: '21/10/2026', items: [
+    'Guide : il s’ouvre sur un sommaire des cinq catégories (les quatre étapes de la mission, puis les fonctions utilisables à tout moment) ; chaque point mène directement à son explication.'
+  ] },
   { version: '2.36', date: '21/10/2026', items: [
     'N° de lot : les lots déjà saisis sur la mission sont proposés en liste (échantillon, blanc, lot en une fois) et le bouton J-1 reprend celui de la veille.',
     'Feuille de calcul : alerte avant le téléchargement pour les échantillons sans blanc du même agent et du même lot (réf. du témoin vide), par agent et par lot.',

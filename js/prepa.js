@@ -19,7 +19,7 @@ function renderHome(){
   h+='</div>';
   h+='<input type="file" id="import-mission-input" accept=".json" style="display:none;" onchange="handleImportMission(event);">';
   if(state.showModal==='importChoice'){state.showModal=null;triggerImportMission();}
-  h+='<div class="home-tabbar"><button class="home-tab-btn" onclick="state.view=\'tutoriel\';render();">'+ICONS.book+'<span>Guide</span></button></div>';
+  h+='<div class="home-tabbar"><button class="home-tab-btn" onclick="state.view=\'tutoriel\';state.guidePhase=null;state.guideOuvert=null;state.guideQ=\'\';render();window.scrollTo(0,0);">'+ICONS.book+'<span>Guide</span></button></div>';
   h+='<div class="version-info">Version '+APP_VERSION+' © 2025 Quentin THOMAS</div>';
   return h;
 }
@@ -337,7 +337,7 @@ function renderPrepaAutoModal(m){
     if(notInDB.length>0){
       h+='<div class="info-box info-box-warning mt-8"><p><strong>'+notInDB.length+' agent(s) non trouvé(s) dans la base :</strong></p>';
       notInDB.forEach(function(an){
-        h+='<p style="font-size:11px;">? '+escapeHtml(an)+'</p>';
+        h+='<p style="font-size:11px;">• '+escapeHtml(an)+'</p>';
       });
       h+='<p style="font-size:11px;margin-top:4px;">Ils seront ajoutés en mode "manuel"</p></div>';
     }
@@ -1034,4 +1034,4 @@ function toggleGehAffect(an,gid,t){
 }
 
 
-console.log('? Prépa chargé');
+console.log('✓ Prépa chargé');

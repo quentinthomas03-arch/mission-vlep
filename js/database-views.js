@@ -89,7 +89,7 @@ function importDB(){
     // base intégrée en vigueur au moment de l'import (voir loadData)
     try{localStorage.setItem('vlep_database_base',typeof BUILTIN_DB_VERSION!=='undefined'?BUILTIN_DB_VERSION:'');}catch(e){}
     state.showModal=null;
-    alert(''+ICONS.check+' '+db.length+' agents importés !');
+    alert('✓ '+db.length+' agents importés !');
     render();
   }catch(e){alert('Erreur: '+e.message);}
 }

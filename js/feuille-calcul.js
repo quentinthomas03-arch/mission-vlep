@@ -623,13 +623,49 @@ function fcAlertesBlancs(m) {
   });
 }
 
+// Jours de prélèvement sans conditions ambiantes (température, pression, humidité vides dans la feuille)
+function fcAlertesConditions(m) {
+  var jours = [];
+  (m.prelevements || []).forEach(function (p) {
+    (p.subPrelevements || []).forEach(function (sb) {
+      if (sb.date && jours.indexOf(sb.date) === -1 && !getConditionsForPrel(m, sb)) jours.push(sb.date);
+    });
+  });
+  if (!jours.length) return [];
+  jours.sort();
+  return ['Conditions ambiantes non saisies pour ' + (jours.length > 1 ? 'les ' : 'le ') + jours.map(formatDateFR).join(', ') + ' : température, pression et humidité vides dans la feuille.'];
+}
+
+// Réf. d'échantillon sur plusieurs supports : la commande Eurofins n'en garde qu'une
+function fcAlertesRefDoublons(m) {
+  return refsEnDouble(m).map(function (x) {
+    return 'Réf. « ' + x.ref + ' » sur ' + x.libs.length + ' échantillons différents (' + x.libs.join(' ; ') + ') : un seul figure dans la commande Eurofins.';
+  });
+}
+
+// Prélèvements 8 h sans durée d'exposition (rappel, la saisie peut se faire au bureau)
+function fcAlertesDureeExpo(m) {
+  var n = 0, gehs = [];
+  (m.prelevements || []).forEach(function (p) {
+    if (p.type === 'CT') return;
+    var g = (m.gehs || []).filter(function (x) { return x.id === p.gehId; })[0];
+    (p.subPrelevements || []).forEach(function (sb) {
+      if (String(sb.dureeExpo || '').trim()) return;
+      n++;
+      if (g && gehs.indexOf(g.num) === -1) gehs.push(g.num);
+    });
+  });
+  if (!n) return [];
+  return [n + ' prélèvement' + (n > 1 ? 's' : '') + ' 8 h sans durée d’exposition' + (gehs.length ? ' (GEH ' + gehs.join(', ') + ')' : '') + ' : à compléter dans l’appli ou dans la feuille.'];
+}
+
 // Construit la feuille de calcul remplie ; renvoie {blob, filename, onglets, alertes}
 function construireFeuilleCalcul(m, donneesModele) {
   if (typeof missionRealisee === 'function') m = missionRealisee(m);
   var plan = fcPlan(m);
   // type de débitmètre non choisi (Infos mission) : massique par défaut, comme avant, mais signalé
   if (!m.debitmetreType) plan.alertes.push('Type de débitmètre non choisi (Infos mission) : « massique » retenu. Si c’est un débitmètre à piston ou à lame de savon, le choisir et regénérer (débits et volumes en dépendent).');
-  fcAlertesBlancs(m).forEach(function (a) { plan.alertes.push(a); });
+  [fcAlertesConditions(m), fcAlertesRefDoublons(m), fcAlertesBlancs(m), fcAlertesDureeExpo(m)].forEach(function (l) { l.forEach(function (a) { plan.alertes.push(a); }); });
   if (!plan.onglets.length) return Promise.reject(new Error('Aucun prélèvement exportable dans cette mission.'));
   return XlsmMoteur.Classeur.charger(donneesModele).then(function (wb) {
     var pris = {}; Object.keys(wb.paths).forEach(function (n) { pris[n] = true; });

@@ -367,6 +367,47 @@ function getConditionsForPrel(m,subPrel){
 // Lot renseigné : le blanc du jour s'il y en a un, sinon le premier blanc de ce lot (un blanc pour le lot).
 // Sans lot (anciennes saisies) : 1) blanc du jour ; 2) blanc sans date ; 3) blanc unique de l'agent sur la mission.
 // Plusieurs blancs, tous d'autres jours : aucun (on ne devine pas).
+// Réf. d'échantillon -> supports physiques qui la portent. Un co-prélèvement (agents d'un même support) partage
+// normalement sa réf. : il compte pour un seul support. Une réf. sur plusieurs supports (ou sur un échantillon et
+// un blanc) est une erreur de saisie : la commande Eurofins dédoublonne les réf., un seul échantillon partirait.
+// Analyseurs exclus (n° d'essai, rien au laboratoire). Clé : réf. sans espaces autour, sans majuscules.
+function supportsParRef(m){
+  var map={};
+  function noter(ref,cle,lib){
+    ref=String(ref||'').trim();if(!ref)return;
+    var k=ref.toLowerCase();
+    if(!map[k])map[k]={ref:ref,cles:{},libs:[]};
+    if(!map[k].cles[cle]){map[k].cles[cle]=true;map[k].libs.push(lib);}
+  }
+  (m.prelevements||[]).forEach(function(p){
+    (p.subPrelevements||[]).forEach(function(s0,si){
+      if(s0.nonRealise)return;
+      expandSubSupports(s0).forEach(function(sb,k){
+        (p.agents||[]).forEach(function(a){
+          if(typeof isAnalyseurAgent==='function'&&isAnalyseurAgent(a.name))return;
+          var ad=sb.agentData&&sb.agentData[a.name];if(!ad)return;
+          var grp=typeof getCoPrelGroupMembers==='function'?getCoPrelGroupMembers(s0,a.name):[];
+          var qui=grp.length>1?grp.slice().sort():[a.name];
+          noter(ad.refEchantillon,p.id+'|'+si+'|'+k+'|'+qui.join('+'),qui.join(' + ')+(sb.date?' · '+formatDateFR(sb.date):''));
+        });
+      });
+    });
+  });
+  (m.blancs||[]).forEach(function(b,i){noter(b.ref,'blanc|'+i,'blanc '+(b.agents||[]).join(', '));});
+  return map;
+}
+function refsEnDouble(m){
+  var map=supportsParRef(m);
+  return Object.keys(map).map(function(k){return map[k];}).filter(function(x){return Object.keys(x.cles).length>1;});
+}
+// Avertissement sous le champ réf. (formulaire terrain)
+function infoRefDouble(m,ref){
+  ref=String(ref||'').trim();if(!ref)return '';
+  var x=supportsParRef(m)[ref.toLowerCase()];
+  if(!x||Object.keys(x.cles).length<2)return '';
+  return '<div style="font-size:11px;color:#b45309;padding:2px 0 4px;">Même réf. sur '+x.libs.length+' échantillons différents ('+escapeHtml(x.libs.join(' ; '))+') : un seul partirait au laboratoire.</div>';
+}
+
 // Lots déjà saisis sur la mission (échantillons et blancs), proposés à la saisie d'un lot
 function lotsConnus(m){
   var vus={},l=[];

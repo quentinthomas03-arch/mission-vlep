@@ -98,16 +98,16 @@ function renderQuickEntry(){
     h+='<button class="btn btn-primary" onclick="createQuickMission();">'+ICONS.play+' Créer la mission ('+prelCount+' prél.)</button>';
   }else{
     h+='<div class="info-box info-box-warning"><p>Pour créer la mission :</p>';
-    if(!q.clientSite)h+='<p>? Renseignez le client/site</p>';
-    if(!q.gehs.some(function(g){return g.name;}))h+='<p>? Ajoutez au moins un GEH</p>';
-    if(q.agents.length===0)h+='<p>? Sélectionnez au moins un agent</p>';
-    if(q.agents.length>0&&prelCount===0)h+='<p>? Affectez les agents aux GEH</p>';
+    if(!q.clientSite)h+='<p>• Renseignez le client/site</p>';
+    if(!q.gehs.some(function(g){return g.name;}))h+='<p>• Ajoutez au moins un GEH</p>';
+    if(q.agents.length===0)h+='<p>• Sélectionnez au moins un agent</p>';
+    if(q.agents.length>0&&prelCount===0)h+='<p>• Affectez les agents aux GEH</p>';
     h+='</div>';
   }
   
   // Modal ajout manuel
   if(state.showModal==='quickAddManual'){
-    h+='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Ajouter agent</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="info-box info-box-warning"><p><strong>Agent hors base de données</strong></p><p style="font-size:12px;margin-top:4px;">Cet agent ne sera pas reconnu dans la base : vous devrez renseigner vous-même le(s) débit(s), le support de prélèvement, la méthode et la conservation. Il n\'aura pas de code analytique dans le récapitulatif échantillons.</p></div><div class="field"><label class="label">Nom de l\'agent</label><input type="text" class="input" id="quick-manual-name" placeholder="Ex: Benzène"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addQuickManualAgent();">Ajouter</button></div></div></div>';
+    h+='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Ajouter agent</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="info-box info-box-warning"><p><strong>Agent hors base de données</strong></p><p style="font-size:12px;margin-top:4px;">Cet agent ne sera pas reconnu dans la base : vous devrez renseigner vous-même le(s) débit(s), le support de prélèvement, la méthode et la conservation.</p></div><div class="field"><label class="label">Nom de l\'agent</label><input type="text" class="input" id="quick-manual-name" placeholder="Ex: Benzène"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="addQuickManualAgent();">Ajouter</button></div></div></div>';
   }
   
   return h;
@@ -166,7 +166,7 @@ function removeQuickGeh(i){
 function addQuickAgent(name){
   var q=state.quickMission;
   if(q.agents.some(function(a){return a.name===name;}))return;
-  q.agents.push({name:name,is8h:hasVLEP8h(name),isCT:hasVLEPCT(name),isReg:true,gehs:{}});
+  q.agents.push({name:name,is8h:hasVLEP8h(name),isCT:hasVLEPCT(name),isReg:agentEstReglementaire(name),gehs:{}});
   state.quickAgentSearch='';
   render();
 }
@@ -178,7 +178,7 @@ function addQuickManualAgent(){
   var q=state.quickMission;
   if(q.agents.some(function(a){return a.name===name;})){alert('Agent déjà ajouté');return;}
   var b=nomAgentManuel(name);
-  if(b&&!q.agents.some(function(a){return a.name===b;})){q.agents.push({name:b,is8h:hasVLEP8h(b),isCT:hasVLEPCT(b),isReg:true,gehs:{}});state.showModal=null;render();return;}
+  if(b&&!q.agents.some(function(a){return a.name===b;})){q.agents.push({name:b,is8h:hasVLEP8h(b),isCT:hasVLEPCT(b),isReg:agentEstReglementaire(b),gehs:{}});state.showModal=null;render();return;}
   q.agents.push({name:name,is8h:true,isCT:true,isReg:true,isManual:true,gehs:{}});
   state.showModal=null;
   render();
@@ -274,7 +274,7 @@ function createQuickMission(){
   m.gehs.forEach(function(g){state.expandedGeh[g.id]=true;});
   
   render();
-  alert(''+ICONS.check+' Mission créée avec '+m.prelevements.length+' prélèvement(s) !');
+  alert('✓ Mission créée avec '+m.prelevements.length+' prélèvement(s) !');
 }
 
 

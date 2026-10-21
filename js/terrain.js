@@ -109,7 +109,6 @@ function renderMissionHead(m){
     h+='<div class="mission-menu">'+
       item('render();sendMissionByMail('+m.id+');',ICONS.mail,'Envoyer la mission par e-mail')+
       item('render();exportMissionJSON('+m.id+');',ICONS.download,'Enregistrer la mission (.json)')+
-      item('render();exportActiviteWord();',ICONS.fileText,'Activité (Word)')+
       item('showSmartFusionModal();',ICONS.zap,'Fusionner intelligemment')+
       item('startFusionMode();',ICONS.merge,'Fusion manuelle')+
       item('state.showModal=\'addGehTerrain\';render();',ICONS.plus,'Ajouter un GEH')+
@@ -408,6 +407,37 @@ function toggleFusionSelect(pid){
   render();
 }
 
+// Saisies du prélèvement absorbé qu'une fusion ne reprend pas : jours au-delà de ceux du prélèvement gardé,
+// opérateur / plages / observations différents (seuls pompes, débits, réf. et lots des agents sont repris).
+function sbADesDonnees(sb){
+  if(!sb)return false;
+  if((sb.operateur||'').trim()||(sb.observations||'').trim())return true;
+  if((sb.plages||[]).some(function(pl){return pl.debut||pl.fin;}))return true;
+  return Object.keys(sb.agentData||{}).some(function(an){var d=sb.agentData[an]||{};return Object.keys(d).some(function(k){return String(d[k]||'').trim();});});
+}
+function fusionPertes(garde,autres){
+  var pertes=[];
+  var plagesTxt=function(sb){return (sb.plages||[]).filter(function(pl){return pl.debut||pl.fin;}).map(function(pl){return (pl.debut||'?')+'-'+(pl.fin||'?');}).join(', ');};
+  autres.forEach(function(o){
+    var qui='« '+o.agents.map(function(a){return a.name;}).join(' + ')+' »';
+    o.subPrelevements.forEach(function(b,s){
+      var a=garde.subPrelevements[s],j='J'+(s+1)+' de '+qui;
+      if(!a){if(sbADesDonnees(b))pertes.push(j+' : saisie supprimée (le prélèvement gardé n’a que '+garde.subPrelevements.length+' jour'+(garde.subPrelevements.length>1?'s':'')+')');return;}
+      var op=(b.operateur||'').trim();
+      if(op&&op!==(a.operateur||'').trim())pertes.push(j+' : opérateur « '+op+' » non repris'+((a.operateur||'').trim()?' (« '+a.operateur.trim()+' » gardé)':''));
+      var pb=plagesTxt(b),pa=plagesTxt(a);
+      if(pb&&pb!==pa)pertes.push(j+' : plages '+pb+' non reprises'+(pa?' ('+pa+' gardées)':''));
+      var ob=(b.observations||'').trim();
+      if(ob&&ob!==(a.observations||'').trim())pertes.push(j+' : observation « '+(ob.length>40?ob.slice(0,40)+'…':ob)+' » non reprise');
+    });
+  });
+  return pertes;
+}
+function confirmerPertesFusion(pertes){
+  if(!pertes.length)return true;
+  return confirm('Cette fusion ne reprend pas ces saisies :\n\n- '+pertes.join('\n- ')+'\n\nFusionner quand même ?');
+}
+
 function doFusion(){
   var m=getCurrentMission();
   if(!m||state.selectedForFusion.length<2)return;
@@ -422,6 +452,7 @@ function doFusion(){
     if(o.isReglementaire!==first.isReglementaire)errors.push('Statut réglementaire différent');
   }
   if(errors.length>0){alert('Fusion impossible:\n- '+errors.join('\n- '));return;}
+  if(!confirmerPertesFusion(fusionPertes(tm[0],tm.slice(1))))return;
   var mn=tm[0];
   for(var j=1;j<tm.length;j++){
     var o=tm[j];
@@ -570,6 +601,9 @@ function doSmartFusion(){
     return;
   }
   
+  var pertes=[];
+  selectedGroups.forEach(function(g){if(g.prelevements.length>1)pertes=pertes.concat(fusionPertes(g.prelevements[0],g.prelevements.slice(1)));});
+  if(!confirmerPertesFusion(pertes))return;
   var totalFused=0;
   selectedGroups.forEach(function(group){
     if(group.prelevements.length<2)return;
@@ -782,6 +816,7 @@ function getMissingFields(p,sb){
         if(!ad.debitInitial||!(''+ad.debitInitial).trim())missing.push('Débit initial · '+shortName);
         if(!ad.debitFinal||!(''+ad.debitFinal).trim())missing.push('Débit final · '+shortName);
       }
+      if(!ad.refEchantillon||!(''+ad.refEchantillon).trim())missing.push('Réf. échantillon · '+shortName);
     });
   }
   getSupportsSupp(sb).forEach(function(s,k){
@@ -1061,7 +1096,8 @@ function renderSubPrelForm(p,sb,idx){
         });
       }
       
-      h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'refEchantillon\',this.value);"></div>';
+      h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'refEchantillon\',this.value);render();"></div>';
+      h+=infoRefDouble(m,ad.refEchantillon);
       h+='<div class="multi-agent-row"><label>N° de lot';
       if(canCopyFromPrevious)h+='<button class="copy-btn" onclick="copyAgentDataFromPrevious('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'lot\');">J-1</button>';
       h+='</label><input type="text" list="lots-mission" autocomplete="off" value="'+escapeHtml(ad.lot||'')+'" placeholder="Lot du support" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'lot\',this.value);render();"></div>';
@@ -1172,6 +1208,8 @@ function renderSubPrelForm(p,sb,idx){
     h+='<button class="btn btn-gray" onclick="toggleSubNonRealise('+p.id+','+idx+');">Annuler : prélèvement à réaliser</button></div>';
     return h;
   }
+  // Durée d'exposition (8h) : rappelée mais jamais exigée pour valider (souvent complétée plus tard, au bureau)
+  if(p.type!=='CT'&&!(sb.dureeExpo||'').trim())h+='<div style="font-size:12px;color:#b45309;margin-bottom:6px;">Durée d’exposition non saisie : la validation reste possible, à compléter avant la feuille de calcul.</div>';
   // Bouton Valider : grisé + pastille ⓘ si champs manquants
   if(sb.completed){
     h+='<button class="btn btn-success" onclick="toggleSubComplete('+p.id+','+idx+');">✓ Complété - Modifier</button></div>';
@@ -1883,7 +1921,8 @@ function renderSupportsSupp(p,sb,idx){
       ctrls.forEach(function(c){
         h+='<div style="color:'+(c.horsTolerance?'#dc2626':'var(--text-muted)')+';font-size:11px;padding:4px 0;">'+(c.horsTolerance?'⚠️ ':'')+'Débit moyen '+formatDebit(c.moy)+' L/min '+(c.horsTolerance?'hors':'dans')+' tolérance (attendu '+formatDebit(c.range.min)+(c.range.min!==c.range.max?' – '+formatDebit(c.range.max):'')+' L/min ± 5 %)</div>';
       });
-      h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="'+call('refEchantillon')+'"></div>';
+      h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="'+call('refEchantillon')+'render();"></div>';
+      h+=infoRefDouble(getCurrentMission()||{},ad.refEchantillon);
       h+='<div class="multi-agent-row"><label>N° de lot</label><input type="text" value="'+escapeHtml(ad.lot||'')+'" list="lots-mission" autocomplete="off" placeholder="Lot du support" onchange="'+call('lot')+'render();"></div>';
       h+='</div></div>';
     });
