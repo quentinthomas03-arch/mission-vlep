@@ -67,7 +67,7 @@ function renderListeEchantillons(){
             byRef[ref]={ref:ref,agents:[],date:sb.date||'',type:'Échantillon',isBlanc:false,lot:d.lot||'',blanc:''};
           }
           byRef[ref].agents.push({name:a.name});
-          var bl=findBlancForAgent(m,a.name,sb.date,d.lot);
+          var bl=findBlancForSupport(m,sb,agentsMemeRef(p,sb,a.name));
           if(bl&&!byRef[ref].blanc)byRef[ref].blanc=bl.ref||'(sans réf.)';
         }
       });
@@ -112,6 +112,17 @@ function renderListeEchantillons(){
     h+='</table></div>';
   }
   
+  // Gravimétrie : 2 blancs par lot
+  var gravi=blancsGraviManquants(m);
+  if(gravi.length){
+    h+='<div class="info-box info-box-warning mt-12"><p><strong>Gravimétrie : 2 blancs attendus par lot</strong></p>';
+    gravi.forEach(function(g,i){
+      h+='<div style="display:flex;align-items:center;gap:8px;margin-top:6px;font-size:12px;"><span style="flex:1;min-width:0;">« '+escapeHtml(g.agent)+' »'+(g.lot?', lot '+escapeHtml(g.lot):', sans n° de lot')+' : '+g.blancs.length+' blanc sur 2</span>';
+      h+='<button class="btn btn-small btn-primary" style="white-space:nowrap;" onclick="ajouterBlancDuLot('+i+');">'+(g.blancs.length?'Ajouter le 2e blanc du lot':'Ajouter un blanc du lot')+'</button></div>';
+    });
+    h+='</div>';
+  }
+
   if(m.blancs.length>0){
     h+='<div class="section-title mt-12">Blancs terrain ('+m.blancs.length+')</div>';
     m.blancs.forEach(function(b,i){
@@ -233,8 +244,26 @@ function renderAddBlancModal(){
   h+='<div class="field"><label class="label">Référence échantillon *</label><input type="text" class="input" id="blanc-ref" placeholder="Ex: BT-001" value="'+escapeHtml(state.blancRef||'')+'" oninput="state.blancRef=this.value;"></div>';
   h+='<div class="field"><label class="label">Date</label><input type="date" class="input" id="blanc-date" value="'+(state.blancDate||'')+'" oninput="state.blancDate=this.value;"></div>';
   h+='<div class="field"><label class="label">N° de lot</label>'+lotsDatalist(getCurrentMission()||{})+'<input type="text" class="input" id="blanc-lot" list="lots-mission" autocomplete="off" placeholder="Lot des supports" value="'+escapeHtml(state.blancLot||'')+'" oninput="state.blancLot=this.value;"></div>';
-  h+='<div class="blanc-pense-bete">La réf. du blanc n’est reportée dans la feuille de calcul (« réf. du témoin ») que sur les échantillons du <strong>même agent chimique</strong> et du <strong>même n° de lot</strong>, saisi sous la réf. de chaque échantillon.</div>';
-  h+='<div class="field"><label class="label">Agent(s) chimique(s)</label><input type="text" class="input" id="blanc-agent-search" placeholder="Rechercher..." value="'+escapeHtml(state.blancAgentSearch||'')+'" oninput="handleBlancAgentSearch(this.value);"></div>';
+  h+='<div class="blanc-pense-bete">La réf. du blanc n’est reportée dans la feuille de calcul (« réf. du témoin ») que sur les échantillons du <strong>même agent chimique</strong> et du <strong>même n° de lot</strong>, saisi sous la réf. de chaque échantillon. Plusieurs agents sur le même support : un seul d’entre eux suffit.</div>';
+  // Agents de la mission en un toucher ; supports à plusieurs agents (agents fusionnés) d'un coup
+  var ch=blancChoixMission(getCurrentMission()||{}),sel=state.blancAgents||[];
+  if(ch.agents.length){
+    h+='<div class="field"><label class="label">Agent(s) chimique(s) de la mission</label>';
+    if(ch.supports.length){
+      h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">';
+      ch.supports.forEach(function(s,i){
+        var tous=s.every(function(a){return sel.indexOf(a)!==-1;});
+        h+='<button type="button" class="btn btn-small '+(tous?'btn-primary':'btn-gray')+'" style="text-align:left;" onclick="ajouterBlancSupport('+i+');">Tout le support : '+escapeHtml(s.join(' + '))+'</button>';
+      });
+      h+='</div>';
+    }
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+    ch.agents.forEach(function(a,i){
+      h+='<button type="button" class="btn btn-small '+(sel.indexOf(a)!==-1?'btn-primary':'btn-gray')+'" style="text-align:left;" onclick="basculerBlancAgent('+i+');">'+(sel.indexOf(a)!==-1?'✓ ':'')+escapeHtml(a)+'</button>';
+    });
+    h+='</div></div>';
+  }
+  h+='<div class="field"><label class="label">'+(ch.agents.length?'Autre agent (recherche dans la base)':'Agent(s) chimique(s)')+'</label><input type="text" class="input" id="blanc-agent-search" placeholder="Rechercher..." value="'+escapeHtml(state.blancAgentSearch||'')+'" oninput="handleBlancAgentSearch(this.value);"></div>';
   h+='<div id="blanc-search-results">';
   if(state.blancAgentSearch&&state.blancAgentSearch.length>=2){
     var r=searchAgentsDB(state.blancAgentSearch).slice(0,6);
@@ -288,6 +317,41 @@ function updateBlancSearchResults(){
     }
   }
   container.innerHTML=h;
+}
+
+// Agents de la mission pouvant avoir un blanc (hors analyseurs) et supports portant plusieurs agents (même réf.)
+function blancChoixMission(m){
+  var agents=[],supports=[],vus={};
+  (m.prelevements||[]).forEach(function(p){
+    (p.agents||[]).forEach(function(a){
+      if(typeof isAnalyseurAgent==='function'&&isAnalyseurAgent(a.name))return;
+      if(agents.indexOf(a.name)===-1)agents.push(a.name);
+    });
+    (p.subPrelevements||[]).forEach(function(s0){
+      if(s0.nonRealise)return;
+      expandSubSupports(s0).forEach(function(sb){
+        (p.agents||[]).forEach(function(a){
+          var g=agentsMemeRef(p,sb,a.name).filter(function(x){return agents.indexOf(x)!==-1;});
+          var k=g.slice().sort().join('|');
+          if(g.length>1&&!vus[k]){vus[k]=true;supports.push(g);}
+        });
+      });
+    });
+  });
+  return {agents:agents,supports:supports};
+}
+function basculerBlancAgent(i){
+  var a=blancChoixMission(getCurrentMission()||{}).agents[i];if(!a)return;
+  if(!state.blancAgents)state.blancAgents=[];
+  var k=state.blancAgents.indexOf(a);
+  if(k===-1)state.blancAgents.push(a);else state.blancAgents.splice(k,1);
+  render();
+}
+function ajouterBlancSupport(i){
+  var s=blancChoixMission(getCurrentMission()||{}).supports[i];if(!s)return;
+  if(!state.blancAgents)state.blancAgents=[];
+  s.forEach(function(a){if(state.blancAgents.indexOf(a)===-1)state.blancAgents.push(a);});
+  render();
 }
 
 function addBlancAgent(name){
@@ -434,6 +498,65 @@ function findBlancForAgent(m,agentName,date,lot){
   return duJour||sansDate||(tous.length===1?tous[0]:null);
 }
 
+// Blanc d'un support portant plusieurs agents (agents fusionnés, même réf.) : le blanc saisi avec l'un d'eux
+// vaut pour le support (lot de chaque agent, sinon celui du support)
+function findBlancForSupport(m,sb,agentNames){
+  var lotSupport='';
+  agentNames.forEach(function(an){var d=sb.agentData&&sb.agentData[an];if(!lotSupport&&d&&String(d.lot||'').trim())lotSupport=String(d.lot).trim();});
+  for(var i=0;i<agentNames.length;i++){
+    var d=sb.agentData&&sb.agentData[agentNames[i]];
+    var b=findBlancForAgent(m,agentNames[i],sb.date,(d&&String(d.lot||'').trim())||lotSupport);
+    if(b)return b;
+  }
+  return null;
+}
+// Agents du prélèvement partageant la réf. d'échantillon de cet agent sur ce support
+function agentsMemeRef(p,sb,an){
+  var d=sb.agentData&&sb.agentData[an],ref=d&&String(d.refEchantillon||'').trim();
+  if(!ref)return [an];
+  return (p.agents||[]).map(function(a){return a.name;}).filter(function(x){var e=sb.agentData&&sb.agentData[x];return e&&String(e.refEchantillon||'').trim()===ref;});
+}
+
+// Gravimétrie (poussières inhalables / alvéolaires, brouillard d'huile…) : 2 blancs attendus par lot
+function estGravimetrie(an){
+  var a=getAgentFromDB(an);
+  return !!a&&/gravim/i.test(JSON.stringify(a));
+}
+// Agents en gravimétrie × lot d'échantillons réalisés ayant moins de 2 blancs (même agent, même lot)
+function blancsGraviManquants(m){
+  var groupes={},ordre=[];
+  (m.prelevements||[]).forEach(function(p){
+    (p.subPrelevements||[]).forEach(function(s0){
+      if(s0.nonRealise)return;
+      expandSubSupports(s0).forEach(function(sb){
+        (p.agents||[]).forEach(function(a){
+          var ad=sb.agentData&&sb.agentData[a.name];
+          if(!ad||!String(ad.refEchantillon||'').trim()||!estGravimetrie(a.name))return;
+          var k=a.name+'|'+normLot(ad.lot);
+          if(!groupes[k]){groupes[k]={agent:a.name,lot:String(ad.lot||'').trim(),date:sb.date||''};ordre.push(k);}
+        });
+      });
+    });
+  });
+  return ordre.map(function(k){
+    var g=groupes[k];
+    g.blancs=(m.blancs||[]).filter(function(b){return (b.agents||[]).indexOf(g.agent)!==-1&&normLot(b.lot)===normLot(g.lot);});
+    return g;
+  }).filter(function(g){return g.blancs.length<2;});
+}
+// Formulaire « + Blanc terrain » prérempli avec l'agent, le lot et la date du blanc déjà saisi (seule la réf. reste à taper)
+function ajouterBlancDuLot(i){
+  var m=getCurrentMission();if(!m)return;
+  var g=blancsGraviManquants(m)[i];if(!g)return;
+  var b=g.blancs[0];
+  state.blancAgents=b?(b.agents||[]).slice():[g.agent];
+  state.blancLot=b?(b.lot||''):g.lot;
+  state.blancDate=b&&b.date?b.date:(g.date||getTodayDate());
+  state.blancRef='';state.blancAgentSearch='';
+  state.showModal='addBlanc';
+  render();
+}
+
 // Échantillons de la mission auxquels un blanc est associé (pense-bête de la liste des blancs)
 function echantillonsDuBlanc(m,blanc){
   var n=0,vus={};
@@ -445,7 +568,7 @@ function echantillonsDuBlanc(m,blanc){
           var ad=sb.agentData&&sb.agentData[a.name];
           var ref=ad&&String(ad.refEchantillon||'').trim();
           if(!ref||vus[ref])return;
-          if(findBlancForAgent(m,a.name,sb.date,ad.lot)===blanc){vus[ref]=true;n++;}
+          if(findBlancForSupport(m,sb,agentsMemeRef(p,sb,a.name))===blanc){vus[ref]=true;n++;}
         });
       });
     });

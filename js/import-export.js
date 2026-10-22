@@ -50,27 +50,28 @@ function handleImportMission(event){
   reader.readAsText(file);
 }
 
+// Mission contenue dans un fichier (format standard, QR code compact ou brut), sinon null
+function missionDepuisDonnees(data){
+  if(!data)return null;
+  if(data._format==='VLEP_Mission_JSON'&&data.mission)return data.mission;
+  if(data._f==='VLEP'&&data.m)return data.m;
+  if(data.id&&data.gehs&&data.agents!==undefined)return data;
+  return null;
+}
+
 function importMissionFromText(text){
   try{
     var data=JSON.parse(text);
-    var mission=null;
-    // Format standard
-    if(data._format==='VLEP_Mission_JSON'&&data.mission){
-      mission=data.mission;
-    // Format QR code compact
-    }else if(data._f==='VLEP'&&data.m){
-      mission=data.m;
-    // Format brut
-    }else if(data.id&&data.gehs&&data.agents!==undefined){
-      mission=data;
-    }else{
+    var mission=missionDepuisDonnees(data);
+    if(!mission){
       alert('Format non reconnu.\n\nAssurez-vous d\'importer des données VLEP Mission.');
       return;
     }
-    // Vérifier si la mission existe déjà
+    // Mission déjà sur le téléphone (fichier d'un collègue) : fusion proposée avant l'écrasement
     var exists=state.missions.some(function(m){return m.id===mission.id;});
     if(exists){
-      if(!confirm('Une mission avec le même identifiant existe déjà.\n\nVoulez-vous l\'écraser ?'))return;
+      if(confirm('Cette mission est déjà sur le téléphone.\n\nOK : fusionner (vos saisies et celles du fichier sont réunies)\nAnnuler : autre choix')){appliquerFusionMission(mission);return;}
+      if(!confirm('Écraser la mission du téléphone par celle du fichier ?\n\nVos saisies sur ce téléphone seront perdues.'))return;
       state.missions=state.missions.filter(function(m){return m.id!==mission.id;});
     }
     state.missions.push(mission);

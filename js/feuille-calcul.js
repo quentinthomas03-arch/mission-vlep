@@ -490,8 +490,9 @@ function fcRemplirOnglet(s, o, m) {
   cols.forEach(function (c) {
     fcRemplirColonne(s, R, C(3 + c.idx), {
       m: m, p: c.serie.p, geh: o.geh, sb: c.sb, agents: c.serie.agents, modele: o.modele, seq: o.seq, type: c.serie.p.type,
-      lot: fcLotEchantillon(c.sb, c.serie.agents[0]),
-      blanc: findBlancForAgent(m, c.serie.agents[0], c.sb.date, fcLotEchantillon(c.sb, c.serie.agents[0]))
+      lot: c.serie.agents.map(function (an) { return fcLotEchantillon(c.sb, an); }).filter(Boolean)[0] || '',
+      // agents fusionnés sur le même support : le blanc saisi avec n'importe lequel d'entre eux
+      blanc: findBlancForSupport(m, c.sb, fcAgentsDuSupport(c.serie.p, c.sb, c.serie.agents))
     });
   });
   return cols.length;
@@ -526,6 +527,12 @@ function fcListesDeroulantes(s) {
 }
 
 // N° de lot saisi sous la réf. de l'échantillon (premier support de la colonne)
+// Agents de la colonne puis ceux qui partagent leur réf. d'échantillon (même support)
+function fcAgentsDuSupport(p, sb, agents) {
+  var l = agents.slice();
+  agents.forEach(function (an) { agentsMemeRef(p, sb, an).forEach(function (x) { if (l.indexOf(x) === -1) l.push(x); }); });
+  return l;
+}
 function fcLotEchantillon(sb, agent) {
   var ad = sb && sb.agentData && sb.agentData[agent];
   return ad ? String(ad.lot || '').trim() : '';
@@ -608,7 +615,7 @@ function fcAlertesBlancs(m) {
         var ad = sb.agentData && sb.agentData[a.name], ref = ad && String(ad.refEchantillon || '').trim();
         if (!ref || vus[ref]) return;
         vus[ref] = true;
-        if (findBlancForAgent(m, a.name, sb.date, ad.lot)) return;
+        if (findBlancForSupport(m, sb, agentsMemeRef(p, sb, a.name))) return;
         var lot = String(ad.lot || '').trim(), k = a.name + '|' + normLot(lot);
         if (!groupes[k]) { groupes[k] = { agent: a.name, lot: lot, n: 0 }; ordre.push(k); }
         groupes[k].n++;
@@ -620,6 +627,13 @@ function fcAlertesBlancs(m) {
   return ordre.map(function (k) {
     var g = groupes[k];
     return '« ' + g.agent + ' »' + (g.lot ? ', lot ' + g.lot : ', sans n° de lot') + ' : ' + g.n + ' échantillon' + (g.n > 1 ? 's' : '') + ' sans blanc du même agent et du même lot, réf. du témoin vide.';
+  });
+}
+// Gravimétrie : lots n'ayant qu'un blanc sur les 2 attendus (sans blanc du tout : déjà signalé ci-dessus)
+function fcAlertesBlancsGravi(m) {
+  if (typeof blancsGraviManquants !== 'function') return [];
+  return blancsGraviManquants(m).filter(function (g) { return g.blancs.length === 1; }).map(function (g) {
+    return '« ' + g.agent + ' »' + (g.lot ? ', lot ' + g.lot : ', sans n° de lot') + ' : 1 blanc sur les 2 attendus par lot en gravimétrie.';
   });
 }
 
@@ -665,7 +679,7 @@ function construireFeuilleCalcul(m, donneesModele) {
   var plan = fcPlan(m);
   // type de débitmètre non choisi (Infos mission) : massique par défaut, comme avant, mais signalé
   if (!m.debitmetreType) plan.alertes.push('Type de débitmètre non choisi (Infos mission) : « massique » retenu. Si c’est un débitmètre à piston ou à lame de savon, le choisir et regénérer (débits et volumes en dépendent).');
-  [fcAlertesConditions(m), fcAlertesRefDoublons(m), fcAlertesBlancs(m), fcAlertesDureeExpo(m)].forEach(function (l) { l.forEach(function (a) { plan.alertes.push(a); }); });
+  [fcAlertesConditions(m), fcAlertesRefDoublons(m), fcAlertesBlancs(m), fcAlertesBlancsGravi(m), fcAlertesDureeExpo(m)].forEach(function (l) { l.forEach(function (a) { plan.alertes.push(a); }); });
   if (!plan.onglets.length) return Promise.reject(new Error('Aucun prélèvement exportable dans cette mission.'));
   return XlsmMoteur.Classeur.charger(donneesModele).then(function (wb) {
     var pris = {}; Object.keys(wb.paths).forEach(function (n) { pris[n] = true; });

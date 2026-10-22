@@ -550,6 +550,68 @@ function rapportDe(nom) {
   var n = /^[A-Z][a-zé]/.test(nom) ? nom.charAt(0).toLowerCase() + nom.slice(1) : nom; // « Azote (dioxyde d') » → « azote… »
   return (/^[aeiouyhéèêàâîïôû]/i.test(n) ? 'd’' : 'de ') + n;
 }
+
+// ----- Écarts : prélèvements « non réalisés » que le technicien a classés en écart (stratégie ou contrat) -----
+// Rien n'est déduit : seuls les choix du technicien sont rédigés, avec sa justification.
+// Une phrase par GEH et par situation (n réalisés sur n prévus), agents réunis, comme dans les rapports rendus
+function rapportEcartMotif(t) {
+  t = String(t || '').replace(/\s*\n\s*/g, ' ').trim().replace(/\.+$/, '');
+  return /^[A-ZÀ-Ý][a-zà-ÿ]/.test(t) ? t.charAt(0).toLowerCase() + t.slice(1) : t; // « Pas d'activité » → « pas… », sigles gardés
+}
+function rapportEcarts(m, type, filtre) {
+  var groupes = [], index = {};
+  (m.prelevements || []).forEach(function (p) {
+    if (filtre && !filtre(p)) return;
+    var subs = p.subPrelevements || [];
+    var ec = subs.filter(function (sb) { return sb.nonRealise && sb.ecart === type; });
+    if (!ec.length) return;
+    var prevu = subs.length, fait = subs.filter(function (sb) { return !sb.nonRealise; }).length, raisons = [];
+    ec.forEach(function (sb) { var o = rapportEcartMotif(sb.ecartMotif); if (o && raisons.indexOf(o) === -1) raisons.push(o); });
+    var cle = [p.gehId, fait, prevu, raisons.join(' ; ')].join('|');
+    if (!index[cle]) {
+      index[cle] = { geh: (m.gehs || []).filter(function (g) { return String(g.id) === String(p.gehId); })[0], fait: fait, prevu: prevu, raison: raisons.join(' ; '), agents: [] };
+      groupes.push(index[cle]);
+    }
+    (p.agents || []).forEach(function (a) {
+      var e = index[cle].agents.filter(function (x) { return x.nom === a.name; })[0], t = p.type === 'CT' ? 'CT' : '8h';
+      if (!e) { e = { nom: a.name, types: [] }; index[cle].agents.push(e); }
+      if (e.types.indexOf(t) === -1) e.types.push(t);
+    });
+  });
+  return groupes.map(function (g) {
+    var ags = rapportListe(g.agents.map(function (a) { return rapportDe(a.nom) + ' (' + a.types.sort().join(' et ') + ')'; }));
+    var geh = g.geh ? ' pour le GEH ' + g.geh.num + ' « ' + g.geh.name + ' »' : '';
+    var raison = g.raison ? ' (' + g.raison + ')' : '';
+    var une = g.agents.length === 1 && g.agents[0].types.length === 1 && g.prevu === 1;
+    if (!g.fait) return (une ? 'La mesure ' + ags + geh + ' n’a pas été réalisée' : 'Les mesures ' + ags + geh + ' n’ont pas été réalisées') + raison + '.';
+    return 'Les mesures ' + ags + geh + ' ne sont pas complètes. ' + (g.fait === 1 ? 'Seule 1 mesure sur les ' + g.prevu + ' prévues a été réalisée' : 'Seules ' + g.fait + ' mesures sur les ' + g.prevu + ' prévues ont été réalisées') + raison + '.';
+  });
+}
+// m : mission complète (avec les prélèvements non réalisés)
+function rapportRemplirEcarts(doc, m) {
+  var X = D_(), paras = X.trouverTous(doc.corps(), 'w:p');
+  // objectif : « Ecart au contrat : Sans objet. » → écarts au contrat
+  var contrat = rapportEcarts(m, 'contrat', null);
+  paras.filter(function (p) { return /^Ecart au contrat\s*:\s*Sans objet\.?$/.test(X.texte(p).trim()); }).forEach(function (p) {
+    if (!contrat.length) return;
+    rapportRemplacerTexte(p, 'Sans objet.', '') || rapportRemplacerTexte(p, 'Sans objet', '');
+    var ancre = p;
+    contrat.forEach(function (t) { var np = rapportParagrapheNoir(p, t); X.trouverTous(np, 'w:b').forEach(X.retirer); X.insererApres(ancre, np); ancre = np; });
+  });
+  // parties réglementaires : « Aucun écart… » → écarts à la stratégie de la partie (une partie sans paragraphe
+  // d'écarts, comme le contrôle périodique réuni à une campagne dans la trame V18, voit ses écarts dans la première)
+  var cibles = paras.filter(function (p) { return /^Aucun écart\. Les conditions lors des prélèvements/.test(X.texte(p).trim()); })
+    .map(function (p) { return { p: p, partie: rapportPartieDe(paras, p) }; }).filter(function (c) { return c.partie === 'ei' || c.partie === 'cp'; });
+  cibles.forEach(function (c, i) {
+    var parties = [c.partie];
+    if (i === 0) ['ei', 'cp'].forEach(function (x) { if (!cibles.some(function (y) { return y.partie === x; })) parties.push(x); });
+    var liste = rapportEcarts(m, 'strategie', function (p) { return p.isReglementaire && parties.some(function (x) { return rapportPrelDansEtape(m, p, x); }); });
+    if (!liste.length) return;
+    var ancre = c.p;
+    liste.forEach(function (t) { var np = rapportParagrapheNoir(c.p, t); X.insererApres(ancre, np); ancre = np; });
+    rapportParagrapheTexte(c.p, 'Les points suivants dérogent au plan d’échantillonnage :');
+  });
+}
 // ----- Périmètre : prélèvements d'agents à VLEP non réglementaire (consigne « A votre demande, x prélèvements… ») -----
 function rapportPerimetre(doc, m) {
   var X = D_(), n = 0, agents = [];
@@ -819,6 +881,7 @@ function rapportReglages(doc) {
 // Rapport : renvoie { blob, filename, resultats }. donneesFeuille (facultatif) : feuille de calcul complétée et
 // enregistrée par Excel ; ses tableaux de résultats sont alors placés dans le rapport (rapport-resultats.js).
 function construireRapport(m, donneesTrame, type, donneesFeuille) {
+  var mComplete = m;
   if (typeof missionRealisee === 'function') m = missionRealisee(m);
   var I = rapportInfos(m), resume = null;
   return DocxMoteur.Document.charger(donneesTrame).then(function (doc) {
@@ -834,6 +897,7 @@ function construireRapport(m, donneesTrame, type, donneesFeuille) {
     });
     rapportPrincipes(doc, I.agents);
     rapportRemplirEpi(doc, m);
+    rapportRemplirEcarts(doc, mComplete);
     rapportPerimetre(doc, m);
     rapportAnnexeTaches(doc, m);
     if (I.r.posteFixe) rapportPosteFixe(doc);

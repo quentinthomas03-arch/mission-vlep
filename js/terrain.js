@@ -21,6 +21,7 @@ function renderTerrainMission(){
   if(!m){state.view='terrain-list';render();return'';}
   var h='<button class="back-btn" onclick="state.view=\'terrain-list\';state.currentMissionId=null;state.missionMenuOpen=false;render();">'+ICONS.arrowLeft+' Missions</button>';
   h+=renderMissionHead(m);
+  if(!state.fusionMode)h+=renderAVerifier(m);
   if(state.fusionMode){
     h+='<div class="info-box info-box-warning mb-12"><p><strong>Fusion manuelle</strong></p><p>Sélectionnez les prélèvements à fusionner (même GEH, même type)</p></div><div class="row mb-12"><button class="btn btn-gray" onclick="cancelFusion();">Annuler</button><button class="btn btn-primary" onclick="doFusion();" '+(state.selectedForFusion.length<2?'disabled':'')+'>Fusionner ('+state.selectedForFusion.length+')</button></div>';
   }
@@ -87,6 +88,75 @@ function missionRingSvg(done,total){
 }
 
 // En-tête de mission : infos, avancement, feuille de calcul et échantillons, le reste dans « ⋯ »
+// ===== « À vérifier » : oublis repérés pendant la mission (rappel discret, jamais bloquant) =====
+// Seuls les prélèvements commencés comptent : un prélèvement encore à faire n'est pas un oubli.
+// Chaque point ouvre l'écran où le corriger. Mêmes contrôles que la validation et la feuille de calcul.
+function sbCommence(sb){return !sb.nonRealise&&(sb.completed||(sb.plages||[]).some(function(pl){return pl.debut;}));}
+function aVerifierMission(m,aujourdhui){
+  aujourdhui=aujourdhui||getTodayDate();
+  var l=[],gehDe=function(p){var g=(m.gehs||[]).filter(function(x){return x.id===p.gehId;})[0];return g?'GEH '+g.num:'';};
+  var court=function(n){return n.length>30?n.slice(0,30)+'…':n;};
+  var ouvrir=function(p,i){return 'openPrel('+p.id+');state.activeSubIndex='+i+';state.lastDayIndex='+i+';render();';};
+  var sansEcart=null,nSansEcart=0;
+  (m.prelevements||[]).forEach(function(p){
+    var qui=gehDe(p)+' · '+court((p.agents||[]).map(function(a){return a.name;}).join(' + '));
+    (p.subPrelevements||[]).forEach(function(sb,i){
+      var j=qui+' · J'+(i+1);
+      if(sb.nonRealise){if(!sb.ecart){nSansEcart++;if(!sansEcart)sansEcart=ouvrir(p,i);}return;}
+      if(!sbCommence(sb))return;
+      // arrêté (toutes les plages finies) ou d'un jour passé, mais pas validé : ce qui manque
+      var arrete=(sb.plages||[]).every(function(pl){return !pl.debut||pl.fin;});
+      if(!sb.completed&&(arrete||(sb.date&&sb.date<aujourdhui))){
+        var mq=getMissingFields(p,sb);
+        if(mq.length)l.push({t:j+' : non validé, manque '+mq.slice(0,2).join(', ')+(mq.length>2?' (+'+(mq.length-2)+')':''),go:ouvrir(p,i)});
+      }
+      // débit moyen hors tolérance
+      (p.agents||[]).forEach(function(a){
+        var ad=sb.agentData&&sb.agentData[a.name];
+        if(!ad||isTachymetreAgent(a.name)||isAnalyseurAgent(a.name))return;
+        var c=checkDebitMoyen(a.name,p.type,ad.debitInitial,ad.debitFinal);
+        if(c&&c.horsTolerance)l.push({t:j+' : débit moyen '+formatDebit(c.moy)+' L/min hors tolérance ('+court(a.name)+')',go:ouvrir(p,i)});
+      });
+    });
+  });
+  // conditions ambiantes des jours de prélèvement commencés
+  var jours=[];
+  (m.prelevements||[]).forEach(function(p){(p.subPrelevements||[]).forEach(function(sb){
+    if(sbCommence(sb)&&sb.date&&sb.date<=aujourdhui&&jours.indexOf(sb.date)===-1&&!getConditionsForPrel(m,sb))jours.push(sb.date);
+  });});
+  if(jours.length)l.push({t:'Conditions ambiantes non saisies : '+jours.sort().map(formatDateFR).join(', '),go:'state.view=\'conditions\';render();'});
+  // échantillons : blancs, gravimétrie, réf. en double, n° de lot
+  var ech='state.view=\'liste-echantillons\';render();';
+  if(typeof fcAlertesBlancs==='function'){
+    var mr=missionRealisee(m);
+    fcAlertesBlancs(mr).concat(fcAlertesBlancsGravi(mr),fcAlertesRefDoublons(mr)).forEach(function(t){l.push({t:t,go:ech});});
+  }
+  var avecLot=0,sansLot=0;
+  (m.prelevements||[]).forEach(function(p){(p.subPrelevements||[]).forEach(function(s0){
+    if(s0.nonRealise)return;
+    expandSubSupports(s0).forEach(function(sb){(p.agents||[]).forEach(function(a){
+      var ad=sb.agentData&&sb.agentData[a.name];
+      if(!ad||!String(ad.refEchantillon||'').trim()||isAnalyseurAgent(a.name))return;
+      if(String(ad.lot||'').trim())avecLot++;else sansLot++;
+    });});
+  });});
+  if(avecLot&&sansLot)l.push({t:sansLot+' échantillon'+(sansLot>1?'s':'')+' sans n° de lot (les autres en ont un)',go:ech});
+  if(nSansEcart)l.push({t:nSansEcart+' prélèvement'+(nSansEcart>1?'s':'')+' non réalisé'+(nSansEcart>1?'s':'')+' sans écart indiqué (facultatif)',go:sansEcart});
+  return l;
+}
+function renderAVerifier(m){
+  var l=aVerifierMission(m);
+  if(!l.length)return '';
+  var ouvert=!!state.aVerifierOuvert;
+  var h='<div class="a-verifier'+(ouvert?' open':'')+'"><button type="button" class="a-verifier-tete" onclick="state.aVerifierOuvert='+(!ouvert)+';render();"><span>À vérifier ('+l.length+')</span><span class="a-verifier-chevron">'+ICONS.chevronRight+'</span></button>';
+  if(ouvert){
+    h+='<div class="a-verifier-liste">';
+    l.forEach(function(x){h+='<button type="button" class="a-verifier-item" onclick="'+x.go+'">'+escapeHtml(x.t)+'</button>';});
+    h+='</div>';
+  }
+  return h+'</div>';
+}
+
 function renderMissionHead(m){
   var t=0,d=0,dates=[];
   m.prelevements.forEach(function(p){p.subPrelevements.forEach(function(s){if(s.nonRealise)return;t++;if(s.completed)d++;if(s.date)dates.push(s.date);});});
@@ -109,6 +179,7 @@ function renderMissionHead(m){
     h+='<div class="mission-menu">'+
       item('render();sendMissionByMail('+m.id+');',ICONS.mail,'Envoyer la mission par e-mail')+
       item('render();exportMissionJSON('+m.id+');',ICONS.download,'Enregistrer la mission (.json)')+
+      item('render();declencherFusionFichier();',ICONS.merge,'Fusionner le fichier d’un collègue')+
       item('showSmartFusionModal();',ICONS.zap,'Fusionner intelligemment')+
       item('startFusionMode();',ICONS.merge,'Fusion manuelle')+
       item('state.showModal=\'addGehTerrain\';render();',ICONS.plus,'Ajouter un GEH')+
@@ -1101,7 +1172,7 @@ function renderSubPrelForm(p,sb,idx){
       h+='<div class="multi-agent-row"><label>N° de lot';
       if(canCopyFromPrevious)h+='<button class="copy-btn" onclick="copyAgentDataFromPrevious('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'lot\');">J-1</button>';
       h+='</label><input type="text" list="lots-mission" autocomplete="off" value="'+escapeHtml(ad.lot||'')+'" placeholder="Lot du support" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'lot\',this.value);render();"></div>';
-      h+=infoBlancEchantillon(m,aname,sb.date,ad.lot);
+      h+=infoBlancEchantillon(m,aname,sb.date,ad.lot,p,sb);
       // consignes de la base (durées, volumes, rappels) pour cet agent
       if(typeof renderConsignesAgent==='function')(isLinked?grpOrdered.map(function(x){return x.name;}):[aname]).forEach(function(n){h+=renderConsignesAgent(m,p,sb,n);});
       h+='</div></div>';
@@ -1205,6 +1276,17 @@ function renderSubPrelForm(p,sb,idx){
   // Prélèvement prévu mais pas fait (pas d'exposition ce jour-là…) : sorti des compteurs et des exports
   if(sb.nonRealise){
     h+='<div class="info-box info-box-warning" style="margin-top:8px;"><p><strong>Prélèvement non réalisé</strong></p><p style="font-size:12px;">Hors compteurs, feuille de calcul et rapport. L’observation peut en donner la raison.</p></div>';
+    // Écart (facultatif) : rédigé par le rapport Word dans le paragraphe d'écarts correspondant (la stratégie
+    // ne concerne que les prélèvements réglementaires)
+    var ecVal=sb.ecart||'';
+    h+='<div style="font-size:13px;color:var(--text-dark);margin:8px 0 4px;">Écart à indiquer dans le rapport</div>';
+    h+='<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px;">';
+    [['','Aucun'],['strategie','Écart à la stratégie'],['contrat','Écart au contrat']].forEach(function(o){
+      if(o[0]==='strategie'&&!p.isReglementaire&&ecVal!=='strategie')return;
+      h+='<button type="button" class="btn btn-small '+(ecVal===o[0]?'btn-primary':'btn-gray')+'" onclick="updateSubField('+p.id+','+idx+',\'ecart\',\''+o[0]+'\');render();">'+o[1]+'</button>';
+    });
+    h+='</div>';
+    if(ecVal)h+='<textarea class="input" rows="2" style="margin-bottom:8px;" placeholder="Justification (notes terrain), reprise dans la phrase du rapport" onchange="updateSubField('+p.id+','+idx+',\'ecartMotif\',this.value);">'+escapeHtml(sb.ecartMotif||'')+'</textarea>';
     h+='<button class="btn btn-gray" onclick="toggleSubNonRealise('+p.id+','+idx+');">Annuler : prélèvement à réaliser</button></div>';
     return h;
   }
@@ -1676,9 +1758,10 @@ function unlinkAgentFromSupport(pid,subIdx,agentName){
 }
 
 // Pense-bête sous le n° de lot : blanc dont la réf. ira dans la feuille de calcul (même agent, même lot)
-function infoBlancEchantillon(m,aname,date,lot){
+// (p, sb : agents fusionnés sur la même réf., le blanc de l'un vaut pour le support)
+function infoBlancEchantillon(m,aname,date,lot,p,sb){
   if(!m.blancs||!m.blancs.length)return '';
-  var b=findBlancForAgent(m,aname,date,lot);
+  var b=p&&sb?findBlancForSupport(m,sb,agentsMemeRef(p,sb,aname)):findBlancForAgent(m,aname,date,lot);
   if(b)return '<div style="font-size:11px;color:#166534;padding:2px 0 4px;">Blanc associé : '+escapeHtml(b.ref||'(sans réf.)')+(b.lot?' (lot '+escapeHtml(b.lot)+')':'')+'</div>';
   var autres=m.blancs.some(function(x){return x.agents&&x.agents.indexOf(aname)!==-1;});
   return autres?'<div style="font-size:11px;color:#b45309;padding:2px 0 4px;">Aucun blanc de cet agent avec ce n° de lot : réf. du témoin non reportée</div>':'';

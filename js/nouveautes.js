@@ -6,10 +6,18 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.39';
+var APP_VERSION = '2.40';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.40', date: '22/10/2026', items: [
+    'À plusieurs sur une mission : menu ⋯ › « Fusionner le fichier d’un collègue » (proposé aussi quand on importe une mission déjà présente). Les saisies des deux téléphones sont réunies jour par jour, avec les blancs, les conditions ambiantes et les prélèvements ajoutés ; un jour saisi des deux côtés garde la saisie la plus récente et est signalé dans le bilan.',
+    'Mission : bandeau « À vérifier » en haut de la page (replié, touchez pour l’ouvrir). Il liste les oublis des prélèvements commencés : prélèvement arrêté mais non validé (ce qui manque), débit hors tolérance, conditions ambiantes du jour, blancs manquants, réf. en double, n° de lot oublié. Chaque ligne ouvre l’écran à corriger ; rien n’est bloquant.',
+    'Prélèvement non réalisé : choix « Écart à la stratégie », « Écart au contrat » ou « Aucun », avec un champ de justification. Le rapport Word rédige la phrase dans le paragraphe d’écarts correspondant, justification comprise (à relire).',
+    'Prépa automatique (devis) : les agents écrits sur deux lignes dans l’annexe, comme « Butanol (Toxilabo) » ou les agents « (support PVC) », sont maintenant reconnus dans la base.',
+    'Gravimétrie (poussières inhalables, alvéolaires, brouillard d’huile…) : 2 blancs attendus par lot. Échantillons signale les lots incomplets, avec un bouton « Ajouter le 2e blanc du lot » (agent, lot et date déjà remplis, seule la réf. reste à taper) ; rappel aussi à la génération de la feuille de calcul.',
+    'Blanc terrain : les agents de la mission se choisissent en un toucher, et « Tout le support » ajoute d’un coup les agents prélevés sur le même support (même réf.). Pour ces agents fusionnés, le blanc saisi avec l’un d’eux est maintenant repris comme témoin de tout le support dans la feuille de calcul.'
+  ] },
   { version: '2.39', date: '21/10/2026', items: [
     'Rapport Word : « Agents contrôlés » et « Mesures à poste fixe » cochés d’après la mission (modifiables) ; les champs de la carte Rapport restés vides sont rappelés après la génération.',
     'Fusion de prélèvements : avant de fusionner, l’appli liste les saisies qui ne seraient pas reprises (jour en trop, autre opérateur, autres plages, observation) et demande confirmation.',

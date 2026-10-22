@@ -92,6 +92,7 @@ function generateId(){
 }
 
 function saveData(k,d){
+  if(k==='vlep_missions_v3'&&typeof daterSaisies==='function')daterSaisies(d); // fusion-missions.js
   try{
     localStorage.setItem(k,JSON.stringify(d));
   }catch(e){}

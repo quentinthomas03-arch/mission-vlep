@@ -192,8 +192,8 @@ function veoliaExporter(wb, m, plan, resume) {
               if (reg && si > 2) return;
               fcRemplirColonne(s, R, C(3 + bi * largeur + si * 2), {
                 m: m, p: x.se.p, geh: x.o.geh, sb: sb, agents: x.se.agents, modele: e.modele, seq: /\(séq\)/.test(e.modele), type: x.se.p.type, protocole: true,
-                lot: fcLotEchantillon(sb, x.se.agents[0]),
-                blanc: findBlancForAgent(m, x.se.agents[0], sb.date, fcLotEchantillon(sb, x.se.agents[0]))
+                lot: x.se.agents.map(function (an) { return fcLotEchantillon(sb, an); }).filter(Boolean)[0] || '',
+                blanc: findBlancForSupport(m, sb, fcAgentsDuSupport(x.se.p, sb, x.se.agents))
               });
               n++;
             });

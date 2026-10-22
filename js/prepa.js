@@ -587,6 +587,13 @@ function parseAgentNames(raw){
     // Ignorer les lignes qui sont des commentaires comme "Analyse TOXILABO"
     if(!t)return;
     if(t.toLowerCase().indexOf('analyse ')===0)return;
+    // Nom de la base écrit sur deux lignes (« Butanol » / « (Toxilabo) », « … » / « (support PVC) ») : précision
+    // entre parenthèses rattachée à l'agent de la ligne précédente
+    if(t.charAt(0)==='('&&names.length){
+      var prec=names[names.length-1];
+      names[names.length-1]=getAgentFromDB(prec+'\n'+t)?prec+'\n'+t:prec+' '+t;
+      return;
+    }
     // Ajouter si c'est un nom valide
     if(t.length>1)names.push(t);
   });
