@@ -798,7 +798,7 @@ function appliquerPlanPrepa(m,p){
 }
 
 // Saisies reprises de la feuille de l'an dernier (gaf.reprise8h / repriseCT) -> prélèvement n°s (le 1er à défaut)
-var REPRISE_CHAMPS=['scolaTache','scolaMetier','scolaProcede','ventEnv','ventGenerale','ventCaptage','epiType','dureeExpo'];
+var REPRISE_CHAMPS=['scolaTache','scolaMetier','scolaProcede','ventEnv','ventGenerale','ventCaptage','epiType','dureeExpo','scolaDispositif','scolaMethode','scolaApr'];
 function appliquerReprise(sb,ga,type,s){
   var l=ga['reprise'+type];
   if(!l||!l.length)return;

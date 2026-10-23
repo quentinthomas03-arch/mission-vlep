@@ -12,6 +12,10 @@
 var RA_TYPES = /^(Cassette\+tube|Cassette|Tube|Fibres|CIP10 sf silice|CIP10 silice|Cyclone silice)( Reg)?( \((séq|multi)\))?$|^Analyseurs$/;
 var RA_SCOLA = { 'Tâche *': 'scolaTache', 'Métier *': 'scolaMetier', 'Type de procédé *': 'scolaProcede', 'Type de Lieu de Travail *': 'ventEnv', 'Ventilation global *': 'ventGenerale', 'Protection Collective *': 'ventCaptage' };
 var RA_CHAMPS_SCOLA = ['scolaTache', 'scolaMetier', 'scolaProcede', 'ventEnv', 'ventGenerale', 'ventCaptage'];
+// Par prélèvement (colonne) : dispositif et méthode (propres à l'agent), efficacité de la protection respiratoire
+var RA_COLONNE = { 'Type de dispositif *': 'scolaDispositif', 'Méthode de prélèvement *': 'scolaMethode', 'Protection individuelle *': 'scolaApr' };
+// Repris au niveau du GEH (écran « Scol@ par GEH ») : circonstances et efficacité de la protection
+var RA_CHAMPS_GEH = RA_CHAMPS_SCOLA.concat(['scolaApr']);
 
 // Valeur saisie : vide, « / » et textes d'attente des formules Scol@ (« VIDE ? », « Substance non sélectionné ») écartés
 function raVal(s, col, r) {
@@ -75,6 +79,8 @@ function raLignes(s) {
   L.multi = L.multi.filter(Boolean); // 1re occurrence : la saisie (les lignes du bloc RESULTATS la reprennent)
   L.scola = {};
   if (scola) Object.keys(RA_SCOLA).forEach(function (lib) { L.scola[RA_SCOLA[lib]] = premier(lib, scola - 1); });
+  L.colonne = {};
+  if (scola) Object.keys(RA_COLONNE).forEach(function (lib) { L.colonne[RA_COLONNE[lib]] = premier(lib, scola - 1); });
   return L;
 }
 
@@ -106,6 +112,7 @@ function raLireOnglet(s, nom, modele) {
     var j = { epiType: raVal(s, c, L.epi) };
     var d = raDuree(raVal(s, c, L.expo)); if (d) j.dureeExpo = d;
     RA_CHAMPS_SCOLA.forEach(function (k) { var v = raScolaAppli(k, raVal(s, colScola, L.scola[k])); if (v) j[k] = v; });
+    Object.keys(L.colonne).forEach(function (k) { var v = raVal(s, c, L.colonne[k]) || raVal(s, colScola, L.colonne[k]); if (v && !(k === 'scolaApr' && /^Absence/.test(v))) j[k] = v; });
     return j;
   };
   var pas = reg ? 6 : 2;
@@ -188,7 +195,7 @@ function repriseConstruirePlan(lignes, infos) {
   var scolaGeh = {};
   lignes.forEach(function (l) {
     var sg = scolaGeh[l.geh.num] = scolaGeh[l.geh.num] || {};
-    l.jours.forEach(function (j) { RA_CHAMPS_SCOLA.forEach(function (k) { if (j[k] && !sg[k]) sg[k] = j[k]; }); });
+    l.jours.forEach(function (j) { RA_CHAMPS_GEH.forEach(function (k) { if (j[k] && !sg[k]) sg[k] = j[k]; }); });
   });
   var complete = 0;
   lignes.forEach(function (l) {

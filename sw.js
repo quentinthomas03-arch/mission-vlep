@@ -45,6 +45,7 @@ const urlsToCache = [
   './js/regroupement.js',
   './js/reprise-ancien.js',
   './js/scola-geh.js',
+  './js/scola-dispositifs.js',
   './js/timers.js',
   './js/activite.js',
   './js/app.js',

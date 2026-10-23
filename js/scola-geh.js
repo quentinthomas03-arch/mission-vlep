@@ -7,7 +7,9 @@
 // différente…) garde la sienne, et l'écran le signale avec « Appliquer à tous ». La feuille de calcul lit toujours
 // les valeurs des prélèvements : rien ne change à l'export.
 
-var SG_CHAMPS = ['scolaTache', 'scolaMetier', 'scolaProcede', 'ventEnv', 'ventEnvAutre', 'ventGenerale', 'ventGeneraleAutre', 'ventCaptage', 'ventCaptageAutre'];
+var SG_CHAMPS = ['scolaTache', 'scolaMetier', 'scolaProcede', 'ventEnv', 'ventEnvAutre', 'ventGenerale', 'ventGeneraleAutre', 'ventCaptage', 'ventCaptageAutre', 'scolaApr'];
+// Efficacité de la protection respiratoire (liste Scol@ Plage_Protection_individuelle, hors « Absence », déduite sans EPI)
+var SG_APR = ['Protection respiratoire efficace et appropriée', "Protection respiratoire efficace et appropriée avec procédures d'utilisation et de gestion de l'APR", 'Sans protection respiratoire efficace et appropriée', 'Information non relevée'];
 var SG_ESSENTIELS = [['scolaTache', 'tâche'], ['scolaMetier', 'métier'], ['scolaProcede', 'procédé']];
 
 function sgDisponible() { return typeof SCOLA_LISTES !== 'undefined' && typeof FC_MODELE_DISPO !== 'undefined' && FC_MODELE_DISPO === true; }
@@ -21,11 +23,15 @@ function sgSubs(m, gid) {
   });
   return l;
 }
-// Champs essentiels manquants (lieu, ventilation et captage ont une valeur par défaut)
-function sgManquants(g) {
+// Champs essentiels manquants (lieu, ventilation et captage ont une valeur par défaut) ; protection respiratoire si un
+// prélèvement du GEH a un EPI
+function sgManquants(g, m) {
   var s = g.scola || {};
-  return SG_ESSENTIELS.filter(function (c) { return !s[c[0]]; }).map(function (c) { return c[1]; });
+  var l = SG_ESSENTIELS.filter(function (c) { return !s[c[0]]; }).map(function (c) { return c[1]; });
+  if (m && sgAvecEpi(m, g) && !s.scolaApr) l.push('protection respiratoire');
+  return l;
 }
+function sgAvecEpi(m, g) { return sgSubs(m, g.id).some(function (sb) { return sb.epiType && sb.epiType !== 'sans objet'; }); }
 // Prélèvements dont la valeur diffère de celle du GEH (saisie à la main)
 function sgEcarts(m, g, k) {
   var v = (g.scola || {})[k];
@@ -119,6 +125,10 @@ function renderScolaGehChamps(m, g) {
   h += sgTitre('Captage localisé') + sgBoutons(gid, 'ventCaptage', s.ventCaptage, ['Non', 'Inducteur', 'Enveloppant', 'Cabine ventilée de grande dimension', 'Autre'].map(function (o) { return [o, o]; }));
   if (s.ventCaptage === 'Autre') h += sgAutre(gid, 'ventCaptageAutre', s.ventCaptageAutre);
   h += sgEcartLigne(m, g, 'ventCaptage');
+  if (sgAvecEpi(m, g) || s.scolaApr) {
+    h += sgTitre('Protection respiratoire (EPI porté)') + sgBoutons(gid, 'scolaApr', s.scolaApr, SG_APR.map(function (o) { return [o, o.replace(/^Protection respiratoire /, '').replace(/^efficace et appropriée avec procédures.*/, 'efficace et appropriée, avec procédures d’utilisation et de gestion')]; }));
+    h += '<div style="font-size:12px;color:var(--text-muted);margin:-2px 0 6px;">Le type de protection (demi-masque FFP2…) vient de l’EPI saisi ; sans EPI : « Absence de protection respiratoire ».</div>' + sgEcartLigne(m, g, 'scolaApr');
+  }
   return h;
 }
 
@@ -130,7 +140,7 @@ function renderScolaGeh() {
   h += '<div class="card"><h2>' + ICONS.clipboard + ' Scol@ par GEH</h2><p class="subtitle">Saisi une fois par GEH, recopié dans tous ses prélèvements. Un prélèvement changé à la main garde sa valeur.</p></div>';
   var gehs = (m.gehs || []).filter(function (g) { return g.name; });
   gehs.forEach(function (g) {
-    var manq = sgManquants(g), ouvert = state.sgOuvert[g.id] || (gehs.length === 1);
+    var manq = sgManquants(g, m), ouvert = state.sgOuvert[g.id] || (gehs.length === 1);
     var nb = sgSubs(m, g.id).length;
     h += '<div class="accordion"><div class="accordion-header ' + (ouvert ? 'open' : '') + '" onclick="state.sgOuvert[' + g.id + ']=!state.sgOuvert[' + g.id + '];render();"><span class="accordion-icon">' + ICONS.chevronRight + '</span>';
     h += '<span class="accordion-title">' + g.num + '. ' + escapeHtml(g.name) + '</span>';
@@ -150,7 +160,7 @@ function renderScolaGehLigne(m) {
   if (!sgDisponible()) return '';
   var gehs = (m.gehs || []).filter(function (g) { return g.name; });
   if (!gehs.length) return '';
-  var n = gehs.filter(function (g) { return sgManquants(g).length; }).length;
+  var n = gehs.filter(function (g) { return sgManquants(g, m).length; }).length;
   return '<div class="row-card" onclick="state.view=\'scola-geh\';render();window.scrollTo(0,0);">' + ICONS.clipboard + '<span class="row-card-label">Scol@ par GEH</span>' +
     '<span style="font-size:12px;color:' + (n ? '#b45309' : 'var(--accent)') + ';margin-right:6px;">' + (n ? n + ' à compléter' : 'complet') + '</span>' + ICONS.chevronRight + '</div>';
 }

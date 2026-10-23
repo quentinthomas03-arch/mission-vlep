@@ -313,7 +313,11 @@ function fcScola(s, R, col, ctx, supports, methodeImposee) {
   set('N° de prélèvement *', sad.refEchantillon || '');
   set('Date de prélèvement *', formatDateFR(sb.date) || '');
   set('Représentativité *', FC_SCOLA.representativite[ctx.type === 'CT' ? 'CT' : '8h']);
-  set('Méthode de prélèvement *', methodeImposee || fcScolaMethode(an));
+  // Type de dispositif et méthode : saisie reprise de l'an dernier, sinon la table par agent (déduite sans ambiguïté
+  // ou validée par la DT, js/scola-dispositifs.js), sinon la déduction simple (tubes, CIP10, badges)
+  var td = typeof SCOLA_DISPOSITIFS !== 'undefined' && SCOLA_DISPOSITIFS[an] && /^(sur|dt)$/.test(SCOLA_DISPOSITIFS[an].s) ? SCOLA_DISPOSITIFS[an] : {};
+  set('Type de dispositif *', sb.scolaDispositif || td.d || null);
+  set('Méthode de prélèvement *', methodeImposee || sb.scolaMethode || td.m || fcScolaMethode(an));
   var duree = dureePrelevementMin(sb);
   if (duree > 0) set('Durée *', duree);
   // Débit moyen : celui calculé par la feuille (débit corrigé si lame de savon, CIP10 sinon)
@@ -335,8 +339,13 @@ function fcScola(s, R, col, ctx, supports, methodeImposee) {
   set('Ventilation global *', FC_SCOLA.ventilation[sb.ventGenerale || 'non'] || null);
   set('Protection Collective *', FC_SCOLA.captage[sb.ventCaptage || 'Non'] || null);
   set('Type de procédé *', sb.scolaProcede || '');
-  // Protection respiratoire : seule l'absence se déduit ; l'efficacité de l'APR reste au jugement du technicien
+  // Protection respiratoire : l'absence se déduit ; avec un EPI, l'efficacité est le jugement du technicien (saisie
+  // par GEH, sb.scolaApr) et le type de protection est l'intitulé long de l'EPI dans la table FPA de la feuille
   if ((sb.epiType || 'sans objet') === 'sans objet') set('Protection individuelle *', 'Absence de protection respiratoire');
+  else {
+    if (sb.scolaApr) set('Protection individuelle *', sb.scolaApr);
+    set('Type de protection *', _fcFpaLong[sb.epiType] || null);
+  }
   var rFpa = f(function (t) { return t.indexOf('facteur de protection assigné (fpa)') === 0; }, { col: 'A', formuleOk: true });
   var rScolaFpa = ligne('Facteur de protection *');
   if (rFpa && rScolaFpa) s.setFormula(col + rScolaFpa, 'IF(' + col + rFpa + '="","",' + col + rFpa + ')');
@@ -705,6 +714,21 @@ function fcRetirerJoursVides(m) {
   return n;
 }
 
+// EPI (intitulé court) -> intitulé long Scol@, lus dans la table FPA de la feuille (onglet Reference, Plage_FPA)
+var _fcFpaLong = {};
+function fcLireFpa(wb) {
+  _fcFpaLong = {};
+  var m = /<definedName name="Plage_FPA"[^>]*>'?([^'!<]+)'?!\$([A-Z]+)\$(\d+):\$([A-Z]+)\$(\d+)<\/definedName>/.exec(wb.workbookXml);
+  if (!m || !wb.paths[m[1]]) return Promise.resolve();
+  return wb.onglet(m[1]).then(function (s) {
+    var c1 = XlsmMoteur.colIdx(m[2]);
+    for (var r = +m[3]; r <= +m[5]; r++) {
+      var court = s.text(XlsmMoteur.colStr(c1) + r).trim(), long = s.text(XlsmMoteur.colStr(c1 + 1) + r).trim();
+      if (court && long && court !== 'sans objet' && court !== 'Intitulé court') _fcFpaLong[court] = long;
+    }
+  });
+}
+
 // Construit la feuille de calcul remplie ; renvoie {blob, filename, onglets, alertes}
 function construireFeuilleCalcul(m, donneesModele) {
   m = typeof missionRealisee === 'function' ? missionRealisee(m) : JSON.parse(JSON.stringify(m));
@@ -718,9 +742,9 @@ function construireFeuilleCalcul(m, donneesModele) {
   if (!plan.onglets.length) return Promise.reject(new Error('Aucun prélèvement exportable dans cette mission.'));
   return XlsmMoteur.Classeur.charger(donneesModele).then(function (wb) {
     var pris = {}; Object.keys(wb.paths).forEach(function (n) { pris[n] = true; });
-    var chain = Promise.resolve(), resume = [];
+    var chain = fcLireFpa(wb), resume = [];
     // Mission Véolia : onglets du protocole du site (assistant « Choix Site »), voir veolia.js
-    if (m.veoliaSite && typeof veoliaExporter === 'function') chain = veoliaExporter(wb, m, plan, resume);
+    if (m.veoliaSite && typeof veoliaExporter === 'function') chain = chain.then(function () { return veoliaExporter(wb, m, plan, resume); });
     else {
       // analyseurs : paire Analyseurs / Acquisition du modèle (pas un onglet par GEH), voir fcExporterAnalyseurs
       var analyseurs = plan.onglets.filter(function (o) { return o.modele === 'Analyseurs'; });
