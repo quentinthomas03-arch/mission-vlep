@@ -23,7 +23,7 @@ const ctx = {
 ctx.window = ctx;
 vm.createContext(ctx);
 ctx.JSZip = require(path.join(racine, 'js', 'jszip.min.js'));
-['js/icons.js', 'js/database.js', 'js/scola-listes.js', 'js/state.js', 'js/prepa.js', 'js/terrain.js', 'js/consignes-agents.js', 'js/releves-analyseur.js', 'js/echantillons.js', 'js/xlsm-moteur.js', 'js/feuille-calcul.js', 'js/veolia.js', 'js/scola-dossier.js', 'js/activite.js', 'js/docx-moteur.js', 'js/rapport.js', 'js/rapport-resultats.js', 'js/nouveautes.js', 'js/guide.js', 'js/quick-entry.js', 'js/import-export.js', 'js/fusion-missions.js', 'js/fiche-supports.js', 'js/regroupement.js']
+['js/icons.js', 'js/database.js', 'js/scola-listes.js', 'js/state.js', 'js/prepa.js', 'js/terrain.js', 'js/consignes-agents.js', 'js/releves-analyseur.js', 'js/echantillons.js', 'js/xlsm-moteur.js', 'js/feuille-calcul.js', 'js/veolia.js', 'js/scola-dossier.js', 'js/activite.js', 'js/docx-moteur.js', 'js/rapport.js', 'js/rapport-resultats.js', 'js/nouveautes.js', 'js/guide.js', 'js/quick-entry.js', 'js/import-export.js', 'js/fusion-missions.js', 'js/fiche-supports.js', 'js/regroupement.js', 'js/timers.js']
   .forEach(f => vm.runInContext(fs.readFileSync(path.join(racine, f), 'utf8'), ctx, { filename: f }));
 vm.runInContext('state.agentsDB = JSON.parse(JSON.stringify(BUILTIN_DB));', ctx);
 vm.runInContext(`var _gen = XlsmMoteur.Classeur.prototype.generer; XlsmMoteur.Classeur.prototype.generer = function(t){ return _gen.call(this, t === 'blob' ? 'nodebuffer' : t); };`, ctx);
@@ -425,6 +425,30 @@ egal('blanc sans lot : échantillon avec lot -> aucun', G.getBlancForAgent(mC, '
     egal('date : jamais remplie en préparation', mPrep.prelevements[0].subPrelevements[0].date || '', '');
     G.state.missions = avM; G.state.currentMissionId = avC;
   }
+  egal('conditions : jours de prélèvement sans conditions proposés', G.joursSansConditions({ conditionsAmbiantes: [{ date: '2026-10-21' }], prelevements: [{ subPrelevements: [{ date: '2026-10-22' }, { date: '2026-10-21' }, { date: '2026-10-20', nonRealise: true }, {}] }] }), ['2026-10-22']);
+  // fenêtre « Même support » : agents de même support précochés ; ajout de prélèvement : statut de la base, nombre au choix
+  {
+    const avM = G.state.missions, avC = G.state.currentMissionId, avR = G.render;
+    G.render = () => {};
+    const pM = { id: 31, gehId: 1, type: '8h', isReglementaire: true, agents: [{ name: 'toluène' }, { name: 'o-xylène' }, { name: 'méthanol' }], subPrelevements: [{ agentData: {} }, { agentData: {} }] };
+    const mM = { id: 'MS', gehs: [{ id: 1, num: 1, name: 'A' }], prelevements: [pM] };
+    G.state.missions = [mM]; G.state.currentMissionId = 'MS';
+    G.showLinkAgentModal(31, 0, 'toluène');
+    egal('même support : agents de même support précochés', Object.keys(G.state.coPrelSelection), ['o-xylène']);
+    vrai('même support : fenêtre claire (pas d\'emoji, avertissement si support différent coché)', (() => { G.state.coPrelSelection['méthanol'] = true; const h = G.renderLinkAgentModal(); return !/🔗|🎯/.test(h) && /support différent dans la base/.test(h) && /Valider \(3 agents\)/.test(h); })());
+    G.state.newPrelData = { gehId: 1, agents: [], type: '8h', isReg: true, agentSearch: '' };
+    G.addNewPrelAgent('acide acétique');
+    egal('ajout de prélèvement : statut tiré de la base', G.state.newPrelData.isReg, !!G.agentEstReglementaire('acide acétique'));
+    G.state.newPrelData.nb = 2; G.state.newPrelData.isReg = true; G.addPrelTerrain();
+    const pn = mM.prelevements[mM.prelevements.length - 1];
+    egal('ajout de prélèvement : nombre choisi, justification si réglementaire à moins de 3', [pn.subPrelevements.length, !!pn.justifNb], [2, true]);
+    G.state.missions = avM; G.state.currentMissionId = avC; G.render = avR;
+  }
+  // dictée : phrases successives (iPhone) et morceaux cumulés (Android) donnent le même texte
+  egal('dictée : phrases successives (iPhone)', G.dicteeFusion(['contrôle du poste', 'de peinture']), 'contrôle du poste de peinture');
+  egal('dictée : morceaux cumulés (Android)', G.dicteeFusion(['contrôle', 'contrôle du poste', 'contrôle du poste de peinture']), 'contrôle du poste de peinture');
+  egal('dictée : ponctuation dictée', G.applyPonctuationCommands('cabine ouverte virgule porte fermée point').trim(), 'cabine ouverte, porte fermée.');
+  egal('dictée : répétition ignorée (Android)', G.dicteeFusion(['cabine ouverte', 'cabine ouverte', 'porte fermée']), 'cabine ouverte porte fermée');
   egal('alerte blancs : aucun blanc saisi', G.fcAlertesBlancs({ blancs: [], prelevements: mL.prelevements }), ['Aucun blanc terrain saisi (Échantillons) : la réf. du témoin restera vide.']);
 }
 

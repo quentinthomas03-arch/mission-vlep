@@ -236,7 +236,10 @@
     .affect-reg-toggle.nonreg { background: var(--status-warn-bg); color: var(--status-warn-fg); }
     .affect-geh-row { display: flex; align-items: center; gap: 6px; padding: 7px 8px; background: #f8fafc; border-radius: 8px; margin-bottom: 4px; }
     .affect-geh-name { flex: 1; font-size: 12px; font-weight: 600; color: var(--text-dark); }
-    .affect-geh-badges { display: flex; gap: 4px; }
+    .affect-geh-badges { display: flex; gap: 10px; flex-wrap: wrap; }
+    .affect-geh-row { flex-wrap: wrap; }
+    .affect-geh-row .affect-geh-name { flex: 1 1 100%; }
+    .affect-groupe { display: inline-flex; gap: 3px; align-items: center; }
     .affect-mini-badge { padding: 5px 10px; border-radius: 6px; font-size: 11px; font-weight: 700; cursor: pointer; border: 1.5px solid var(--border-input); background: white; color: var(--text-muted); }
     .affect-mini-badge.active-8h { background: var(--primary); color: white; border-color: var(--primary); }
     .affect-mini-badge.active-ct { background: var(--purple); color: white; border-color: var(--purple); }
