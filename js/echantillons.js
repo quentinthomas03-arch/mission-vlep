@@ -107,7 +107,7 @@ function renderListeEchantillons(){
     l.forEach(function(x){
       var bg=x.isBlanc?'background:#fef3c7;':'';
       var agentNames=x.agents.map(function(a){return a.name;}).join(', ');
-      h+='<tr style="border-bottom:1px solid #e5e7eb;'+bg+'"><td style="padding:6px;font-weight:600;">'+escapeHtml(x.ref)+'</td><td style="padding:6px;">'+escapeHtml(agentNames)+'</td><td style="padding:6px;text-align:center;">'+escapeHtml(x.date)+'</td><td style="padding:6px;text-align:center;">'+escapeHtml(x.lot||'-')+'</td><td style="padding:6px;text-align:center;">'+(x.isBlanc?'':escapeHtml(x.blanc||'-'))+'</td><td style="padding:6px;text-align:center;"><span style="font-size:10px;padding:2px 6px;border-radius:4px;'+(x.isBlanc?'background:#f59e0b;color:white;':'background:#e5e7eb;')+'">'+x.type+'</span></td></tr>';
+      h+='<tr style="border-bottom:1px solid #e5e7eb;'+bg+'"><td style="padding:6px;font-weight:600;">'+escapeHtml(x.ref)+'</td><td style="padding:6px;">'+escapeHtml(agentNames)+'</td><td style="padding:6px;text-align:center;">'+escapeHtml(formatDateFR(x.date))+'</td><td style="padding:6px;text-align:center;">'+escapeHtml(x.lot||'-')+'</td><td style="padding:6px;text-align:center;">'+(x.isBlanc?'':escapeHtml(x.blanc||'-'))+'</td><td style="padding:6px;text-align:center;"><span style="font-size:10px;padding:2px 6px;border-radius:4px;'+(x.isBlanc?'background:#f59e0b;color:white;':'background:#e5e7eb;')+'">'+x.type+'</span></td></tr>';
     });
     h+='</table></div>';
   }
@@ -126,7 +126,7 @@ function renderListeEchantillons(){
   if(m.blancs.length>0){
     h+='<div class="section-title mt-12">Blancs terrain ('+m.blancs.length+')</div>';
     m.blancs.forEach(function(b,i){
-      h+='<div class="card" style="padding:10px;background:#fef3c7;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>'+escapeHtml(b.ref||'(sans réf.)')+'</strong><div style="font-size:12px;color:#666;">'+escapeHtml(b.agents.join(', '))+' • '+escapeHtml(b.date||'Sans date')+(b.lot?' • Lot '+escapeHtml(b.lot):' • Sans n° de lot')+'</div>'+(function(){var n=echantillonsDuBlanc(m,b);return '<div style="font-size:12px;margin-top:2px;color:'+(n?'#166534':'#b45309')+';">'+(n?'Réf. reportée sur '+n+' échantillon'+(n>1?'s':'')+' dans la feuille de calcul':'Aucun échantillon du même agent et du même n° de lot : réf. non reportée')+'</div>';})()+'</div><button class="btn btn-danger btn-small" onclick="deleteBlanc('+i+');">'+ICONS.trash+'</button></div></div>';
+      h+='<div class="card" style="padding:10px;background:#fef3c7;margin-bottom:8px;"><div style="display:flex;justify-content:space-between;align-items:center;"><div><strong>'+escapeHtml(b.ref||'(sans réf.)')+'</strong><div style="font-size:12px;color:#666;">'+escapeHtml(b.agents.join(', '))+' • '+escapeHtml(b.date?formatDateFR(b.date):'Sans date')+(b.lot?' • Lot '+escapeHtml(b.lot):' • Sans n° de lot')+'</div>'+(function(){var n=echantillonsDuBlanc(m,b);return '<div style="font-size:12px;margin-top:2px;color:'+(n?'#166534':'#b45309')+';">'+(n?'Réf. reportée sur '+n+' échantillon'+(n>1?'s':'')+' dans la feuille de calcul':'Aucun échantillon du même agent et du même n° de lot : réf. non reportée')+'</div>';})()+'</div><button class="btn btn-danger btn-small" onclick="deleteBlanc('+i+');">'+ICONS.trash+'</button></div></div>';
     });
   }
   

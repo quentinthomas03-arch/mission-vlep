@@ -148,8 +148,11 @@ function generatePrelevements(m){
         var ns=nbPrelPrevu(ga,'8h');
         var p={id:generateId(),gehId:g.id,gehName:g.name,gehNum:g.num,agents:[{name:an,color:c}],type:'8h',isReglementaire:isReg8h,subPrelevements:[]};
         if(isReg8h&&ns<3)p.justifNb=JUSTIF_NB_DEFAUT;
+        if(ga.plage8h)p.plagePrevue=ga.plage8h;
         for(var s=0;s<ns;s++){
           var sb={id:generateId(),operateur:'',date:'',plages:[{debut:'',fin:''}],observations:'',completed:false,agentData:{}};
+          if(ga.jours8h&&ga.jours8h[s])sb.jourPrevu=ga.jours8h[s];
+          if(ga.posteFixe)sb.posteFixe=true;
           sb.agentData[an]={refEchantillon:'',numPompe:'',debitInitial:'',debitFinal:''};
           p.subPrelevements.push(sb);
         }
@@ -159,8 +162,11 @@ function generatePrelevements(m){
         var nsCT=nbPrelPrevu(ga,'CT');
         var pct={id:generateId(),gehId:g.id,gehName:g.name,gehNum:g.num,agents:[{name:an,color:lightenColor(c,0.4)}],type:'CT',isReglementaire:isRegCT,subPrelevements:[]};
         if(isRegCT&&nsCT<3)pct.justifNb=JUSTIF_NB_DEFAUT;
+        if(ga.plageCT)pct.plagePrevue=ga.plageCT;
         for(var sCT=0;sCT<nsCT;sCT++){
           var sbCT={id:generateId(),operateur:'',date:'',plages:[{debut:'',fin:''}],observations:'',completed:false,agentData:{}};
+          if(ga.joursCT&&ga.joursCT[sCT])sbCT.jourPrevu=ga.joursCT[sCT];
+          if(ga.posteFixe)sbCT.posteFixe=true;
           sbCT.agentData[an]={refEchantillon:'',numPompe:'',debitInitial:'',debitFinal:''};
           pct.subPrelevements.push(sbCT);
         }
@@ -190,6 +196,8 @@ function generatePrelevements(m){
     ex.isReglementaire=p.isReglementaire;
     if(ex.isReglementaire&&p.subPrelevements.length<3&&ex.subPrelevements.length<3&&!ex.justifNb)ex.justifNb=JUSTIF_NB_DEFAUT;
     while(ex.subPrelevements.length<p.subPrelevements.length)ex.subPrelevements.push(p.subPrelevements[ex.subPrelevements.length]);
+    if(p.plagePrevue)ex.plagePrevue=p.plagePrevue;
+    p.subPrelevements.forEach(function(sb,i){if(sb.jourPrevu&&ex.subPrelevements[i])ex.subPrelevements[i].jourPrevu=sb.jourPrevu;});
   });
   m.prelevements=gardes;
   return retires;
@@ -199,8 +207,6 @@ function goToTerrain(id){
   state.currentMissionId=id;
   state.view='terrain-mission';
   state.expandedGeh={};
-  state.fusionMode=false;
-  state.selectedForFusion=[];
   render();
 }
 
@@ -217,6 +223,7 @@ function renderPrepaMission(){
   h+='<div class="nav-menu"><div class="nav-item" onclick="state.view=\'prepa-geh\';render();"><div class="nav-icon">'+ICONS.folder+'</div><div class="nav-label">1. GEH</div><div class="nav-count">'+gc+'</div></div><div class="nav-item" onclick="state.view=\'prepa-agents\';state.searchText=\'\';render();"><div class="nav-icon green">'+ICONS.beaker+'</div><div class="nav-label">2. Agents chimiques</div><div class="nav-count">'+ac+'</div></div></div>';
   if(ac>0&&gc>0)h+='<button class="btn btn-blue" onclick="state.view=\'prepa-affectations\';render();">'+ICONS.link+' 3. Affecter agents aux GEH</button>';
   h+='<div class="info-box info-box-success mt-12"><p><strong>Récap :</strong> '+gc+' GEH · '+ac+' agents · '+pc+' prélèvements</p></div>';
+  if(pc>0)h+='<button class="btn btn-gray mt-8" onclick="ouvrirFicheSupports(\'prepa-mission\');">'+ICONS.clipboard+' Fiche supports (réf., commentaires, nombres conseillés)</button>';
   h+='<div class="row">';
   if(m.status==='prepa'){
     if(pc>0)h+='<button class="btn btn-primary" onclick="validateMission('+m.id+');">'+ICONS.check+' Valider ('+pc+')</button>';
@@ -273,21 +280,24 @@ function renderPrepaAutoModal(m){
   h+='<div class="field"><label class="label">Format du devis</label><div class="row">';
   h+='<button class="btn btn-small '+(d.format==='1'?'btn-primary':'btn-gray')+'" onclick="state.prepaAutoData.format=\'1\';state.prepaAutoData.parsed=null;render();">Format 1 : N° GEH</button>';
   h+='<button class="btn btn-small '+(d.format==='2'?'btn-primary':'btn-gray')+'" onclick="state.prepaAutoData.format=\'2\';state.prepaAutoData.parsed=null;render();">Format 2 : Noms GEH</button>';
+  h+='<button class="btn btn-small '+(d.format==='3'?'btn-primary':'btn-gray')+'" onclick="state.prepaAutoData.format=\'3\';state.prepaAutoData.parsed=null;render();">Format 3 : Plan d’échantillonnage</button>';
   h+='</div></div>';
   
   // Instructions
-  if(d.format==='1'){
+  if(d.format==='3'){
+    h+='<div class="info-box"><p><strong>Format 3 :</strong> Collez l’onglet « Plan d’échantillonnage » de l’annexe</p><p style="font-size:11px;margin-top:4px;">Colonnes : Jour | Agents chimiques | GEH | Nb total de prélèvements | Type de VLEP | Plage horaire. GEH en numéro (« 1 »), en nom (« Laborantin ») ou les deux (« 1 - Prestataire ») ; la partie « Postes fixes » est reconnue.</p><p style="font-size:11px;margin-top:2px;">Les jours (J1, J2…) servent à la fiche supports (matériel par jour) et sont rappelés sur chaque prélèvement.</p></div>';
+  }else if(d.format==='1'){
     h+='<div class="info-box"><p><strong>Format 1 :</strong> Collez le tableau du devis</p><p style="font-size:11px;margin-top:4px;">Colonnes attendues : Agent chimique | N° GEH | Nb prélèvements | Type VLEP</p><p style="font-size:11px;margin-top:2px;">+ Collez la liste des GEH (N° | Nom) en dessous</p></div>';
   }else{
     h+='<div class="info-box"><p><strong>Format 2 :</strong> Collez le tableau du devis</p><p style="font-size:11px;margin-top:4px;">Colonnes attendues : Agent chimique | Noms GEH | Nb prélèvements | Type VLEP</p></div>';
   }
   
   // Zone de saisie devis
-  h+='<div class="field"><label class="label">Tableau du devis (copier/coller depuis Excel)</label><textarea class="input" id="prepa-auto-devis" rows="6" placeholder="Collez ici le tableau du devis..." style="font-size:12px;font-family:monospace;">'+escapeHtml(d.devisText)+'</textarea></div>';
+  h+='<div class="field"><label class="label">'+(d.format==='3'?'Plan d’échantillonnage (copier/coller depuis Excel, ligne « Jour » comprise)':'Tableau du devis (copier/coller depuis Excel)')+'</label><textarea class="input" id="prepa-auto-devis" rows="6" placeholder="Collez ici le tableau du devis..." style="font-size:12px;font-family:monospace;">'+escapeHtml(d.devisText)+'</textarea></div>';
   
   // Zone GEH si format 1
-  if(d.format==='1'){
-    h+='<div class="field"><label class="label">Liste des GEH (N° + Nom)</label><textarea class="input" id="prepa-auto-gehlist" rows="4" placeholder="Ex:\n1\tDécoupe LM\n2\tDécoupe SHW\n..." style="font-size:12px;font-family:monospace;">'+escapeHtml(d.gehListText)+'</textarea></div>';
+  if(d.format==='1'||d.format==='3'){
+    h+='<div class="field"><label class="label">Liste des GEH (N° + Nom)'+(d.format==='3'?' — facultative, si le plan ne donne que des numéros':'')+'</label><textarea class="input" id="prepa-auto-gehlist" rows="4" placeholder="Ex:\n1\tDécoupe LM\n2\tDécoupe SHW\n..." style="font-size:12px;font-family:monospace;">'+escapeHtml(d.gehListText)+'</textarea></div>';
   }
   
   // Bouton analyser
@@ -313,20 +323,21 @@ function renderPrepaAutoModal(m){
     // Agents et affectations
     h+='<div class="card" style="padding:10px;"><div style="font-weight:700;font-size:13px;margin-bottom:6px;"><span class="svg-icon">'+ICONS.beaker+'</span> '+p.agents.length+' agent(s) chimique(s)</div>';
     p.rows.forEach(function(r){
-      var regs=r.agentNames.map(agentEstReglementaire);
+      var regs=r.posteFixe?r.agentNames.map(function(){return false;}):r.agentNames.map(agentEstReglementaire);
       var regLabel=regs.every(Boolean)?'<span style="color:#047857;font-size:10px;font-weight:700;"> REG</span>':(regs.some(Boolean)?'<span style="color:#047857;font-size:10px;font-weight:700;"> REG / NR</span>':'<span style="color:#b45309;font-size:10px;font-weight:700;"> NR</span>');
       h+='<div style="background:#f8fafc;border-radius:6px;padding:8px;margin-bottom:6px;border-left:3px solid var(--primary);">';
       r.agentNames.forEach(function(an){
         h+='<div style="font-size:12px;font-weight:600;">'+escapeHtml(an)+'</div>';
       });
-      h+='<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">'+r.type+regLabel+' · '+r.gehNums.length+' GEH × '+r.nb+' = '+(r.gehNums.length*r.nb)+' sous-prél.'+(r.nb<3&&regs.some(Boolean)?' (réglementaire, justification à confirmer sur le terrain)':'')+'</div>';
+      if(r.jours&&r.jours.length)h+='<div style="font-size:11px;color:var(--primary);margin-top:3px;">'+escapeHtml(r.joursTexte)+(r.plage?' · '+escapeHtml(r.plage):'')+(r.posteFixe?' · poste fixe':'')+'</div>';
+      h+='<div style="font-size:11px;color:var(--text-muted);margin-top:3px;">'+r.type+regLabel+(r.posteFixe?' (poste fixe, hors accréditation)':'')+' · '+(r.agentNames.length>1?r.agentNames.length+' agents × ':'')+r.gehNums.length+' GEH × '+r.nb+' = '+(r.agentNames.length*r.gehNums.length*r.nb)+' sous-prél.'+(r.nb<3&&regs.some(Boolean)?' (réglementaire, justification à confirmer sur le terrain)':'')+'</div>';
       h+='</div>';
     });
     h+='</div>';
     
     // Résumé
     var totalPrel=0;
-    p.rows.forEach(function(r){totalPrel+=r.gehNums.length*r.nb;});
+    p.rows.forEach(function(r){totalPrel+=r.agentNames.length*r.gehNums.length*r.nb;});
     h+='<div class="info-box info-box-success"><p><strong>Total :</strong> '+p.gehs.length+' GEH · '+p.agents.length+' agents · '+totalPrel+' sous-prélèvements</p></div>';
     
     // Avertissements agents non trouvés dans la DB
@@ -363,6 +374,10 @@ function parsePrepaAuto(){
   
   if(!d.devisText.trim()){
     d.error='Collez le tableau du devis';
+    render();return;
+  }
+  if(d.format==='3'){
+    try{d.parsed=parsePlanEchantillonnage(d.devisText,d.gehListText);}catch(e){d.error=e.message;}
     render();return;
   }
   
@@ -489,8 +504,7 @@ function parsePrepaAuto(){
       if(gehNums.length===0)return;
       
       // Col 2 : Nb prélèvements
-      var nbRaw=(cols[2]||'').trim().toLowerCase();
-      var nb=(nbRaw.indexOf('1')!==-1&&nbRaw.indexOf('3')===-1)?1:3;
+      var nb=lireNbPrel(cols[2]);
       
       // Col 3 : Type VLEP
       var typeRaw=(cols[3]||'8h').trim().toUpperCase();
@@ -535,6 +549,59 @@ function parsePrepaAuto(){
   }
   
   render();
+}
+
+// Nombre de prélèvements d'une cellule (« 3 », « 2 prélèvements », « x1 ») ; illisible : 3 comme avant
+function lireNbPrel(v){
+  var n=parseInt(String(v||'').replace(/[^\d]/g,' ').trim().split(/\s+/)[0],10);
+  return n>0&&n<100?n:3;
+}
+
+// Jours d'une ligne du plan (« J1/J2/J3 », « J2 / J3 / J4 », « J2 ») -> jour prévu de chaque prélèvement.
+// Autant de jours que de prélèvements : un jour chacun ; un seul jour : tous ce jour-là ; sinon le prélèvement est
+// « à placer » parmi les jours listés (« J3/J4/J5 »), jamais deviné.
+function joursPlan(texte,nb){
+  var l=String(texte||'').split(/[\/,;]+/).map(function(x){return x.replace(/\s+/g,'').toUpperCase();}).filter(function(x){return /^J\d+$/.test(x);});
+  var out=[];
+  for(var i=0;i<nb;i++)out.push(!l.length?'':(l.length===nb?l[i]:(l.length===1?l[0]:l.join('/'))));
+  return out;
+}
+
+// Format 3 : onglet « Plan d'échantillonnage » de l'annexe (Jour | Agents | GEH | Nb | Type | Plage horaire).
+// GEH : numéro, nom ou « n - nom » ; liste des GEH facultative pour nommer les numéros. Partie « Postes fixes » :
+// lignes suivantes en poste fixe. Renvoie le même aperçu que les formats 1 et 2, avec jours et plage par ligne.
+function parsePlanEchantillonnage(text,gehListText){
+  var lignes=parseTSVLines(text),noms={},gehMap={},rows=[],agents=[],pf=false;
+  (gehListText?parseTSVLines(gehListText):[]).forEach(function(c){var n=parseInt(c[0],10);if(n>0&&c[1]&&c[1].trim())noms[n]=c[1].trim();});
+  var gehs=[],cle=function(num,nom){return num?'n'+num:'t'+nom.toLowerCase();};
+  var parGeh={};
+  lignes.forEach(function(c){
+    var c0=(c[0]||'').trim();
+    if(/^postes? fixes?$/i.test(c0)&&!(c[1]||'').trim()){pf=true;return;}
+    if(/^jour$/i.test(c0)||c.length<4)return;
+    var agentNames=parseAgentNames(c[1]||'');
+    var gRaw=(c[2]||'').replace(/\s+/g,' ').trim();
+    if(!agentNames.length||!gRaw)return;
+    var m=/^(\d+)\s*(?:-\s*(.+))?$/.exec(gRaw),num=m?parseInt(m[1],10):null,nom=m?(m[2]||noms[num]||''):gRaw;
+    // même GEH écrit tantôt « 1 - Peintres », tantôt « Peintres », tantôt « 1 » : rapproché par numéro ou par nom
+    var g=num?gehs.filter(function(x){return x.num===num;})[0]:null;
+    if(!g&&nom)g=gehs.filter(function(x){return x.name&&x.name.toLowerCase()===nom.toLowerCase()&&(!num||!x.num);})[0];
+    if(!g){g={num:num,name:nom,pf:pf||/^PF\b/i.test(gRaw)};gehs.push(g);}
+    else{if(!g.num&&num)g.num=num;if(!g.name&&nom)g.name=nom;}
+    var k=cle(g.num,g.name);parGeh[k]=g;
+    var nb=lireNbPrel(c[3]);
+    var type=/CT/i.test(c[4]||'')?'CT':'8h';
+    var jours=joursPlan(c0,nb);
+    agentNames.forEach(function(an){if(agents.indexOf(an)===-1)agents.push(an);});
+    rows.push({agentNames:agentNames,geh:g,nb:nb,type:type,jours:jours,joursTexte:c0,plage:(c[5]||'').replace(/\s+/g,' ').trim(),posteFixe:g.pf});
+  });
+  if(!rows.length)throw new Error('Aucune ligne reconnue. Collez le tableau à partir de la ligne « Jour | Agents chimiques | … ».');
+  // numéros : ceux du plan, puis les GEH nommés sans numéro à la suite
+  var pris={};gehs.forEach(function(g){if(g.num)pris[g.num]=true;});
+  var suivant=1;gehs.forEach(function(g){if(!g.num){while(pris[suivant])suivant++;g.num=suivant;pris[suivant]=true;}if(!g.name)g.name='GEH '+g.num;gehMap[g.num]=g.name;});
+  rows.forEach(function(r){r.gehNums=[r.geh.num];r.posteFixe=r.geh.pf;delete r.geh;});
+  gehs.sort(function(a,b){return a.num-b.num;});
+  return {gehs:gehs.map(function(g){return {num:g.num,name:g.name,posteFixe:g.pf};}),agents:agents,rows:rows,gehMap:gehMap};
 }
 
 function parseTSVLines(text){
@@ -653,6 +720,7 @@ function applyPrepaAuto(){
   p.gehs.forEach(function(g){
     m.gehs.push({id:generateId(),num:g.num,name:g.name});
   });
+  p.rows.forEach(function(r){r.nb=r.nb||3;});
   
   // 2. Créer les agents
   m.agents=[];
@@ -694,17 +762,14 @@ function applyPrepaAuto(){
           m.affectations[an].gehs[geh.id]={has8h:false,hasCT:false,isReg8h:true,isRegCT:true};
         }
         var gaf=m.affectations[an].gehs[geh.id];
-        
-        if(r.type==='8h'){
-          gaf.has8h=true;
-          gaf.isReg8h=agentEstReglementaire(an);
-          gaf.nb8h=r.nb;
-        }
-        if(r.type==='CT'){
-          gaf.hasCT=true;
-          gaf.isRegCT=agentEstReglementaire(an);
-          gaf.nbCT=r.nb;
-        }
+        // même agent, même GEH, même type sur plusieurs lignes : prélèvements additionnés (avant : le dernier écrasait)
+        var T=r.type==='CT'?'CT':'8h';
+        if(gaf['has'+T]){gaf['nb'+T]=(gaf['nb'+T]||0)+r.nb;}
+        else{gaf['has'+T]=true;gaf['nb'+T]=r.nb;}
+        // poste fixe : mesure d'ambiance hors accréditation, jamais réglementaire
+        gaf['isReg'+T]=r.posteFixe?false:agentEstReglementaire(an);
+        if(r.jours){gaf['jours'+T]=(gaf['jours'+T]||[]).concat(r.jours);if(r.plage)gaf['plage'+T]=r.plage;}
+        if(r.posteFixe)gaf.posteFixe=true;
       });
     });
   });

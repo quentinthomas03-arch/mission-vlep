@@ -21,10 +21,7 @@ function renderTerrainMission(){
   if(!m){state.view='terrain-list';render();return'';}
   var h='<button class="back-btn" onclick="state.view=\'terrain-list\';state.currentMissionId=null;state.missionMenuOpen=false;render();">'+ICONS.arrowLeft+' Missions</button>';
   h+=renderMissionHead(m);
-  if(!state.fusionMode)h+=renderAVerifier(m);
-  if(state.fusionMode){
-    h+='<div class="info-box info-box-warning mb-12"><p><strong>Fusion manuelle</strong></p><p>Sélectionnez les prélèvements à fusionner (même GEH, même type)</p></div><div class="row mb-12"><button class="btn btn-gray" onclick="cancelFusion();">Annuler</button><button class="btn btn-primary" onclick="doFusion();" '+(state.selectedForFusion.length<2?'disabled':'')+'>Fusionner ('+state.selectedForFusion.length+')</button></div>';
-  }
+  h+=renderAVerifier(m);
   h+='<div class="row-card" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+'<span class="row-card-label">Conditions ambiantes</span>'+ICONS.chevronRight+'</div>';
   var byGeh={};
   m.prelevements.forEach(function(p){var k=p.gehId;if(!byGeh[k])byGeh[k]=[];byGeh[k].push(p);});
@@ -41,30 +38,23 @@ function renderTerrainMission(){
         var anyDone=p.subPrelevements.some(function(s){return s.completed;});
         var allDone=p.subPrelevements.every(function(s){return s.completed||s.nonRealise;});
         var mc=p.agents&&p.agents[0]?p.agents[0].color:'#3b82f6';
-        var isSelected=state.selectedForFusion.indexOf(p.id)!==-1;
+        var nbSup=p.agents&&p.agents.length>1&&typeof regSupportsTexte==='function'?regSupportsTexte(p):'';
         var agentNames=p.agents&&p.agents.length>0?p.agents.map(function(a){return escapeHtml(a.name);}).join(' + '):'Agent inconnu';
-        h+='<div class="prel-item '+(isSelected?'selected':'')+'" style="--agent-color:'+mc+';">';
-        if(state.fusionMode){
-          h+='<div class="prel-checkbox '+(isSelected?'checked':'')+'" onclick="toggleFusionSelect('+p.id+');">✓</div>';
-        }else{
-          h+='<div class="prel-status '+(allDone?'done':'pending')+'" onclick="openPrel('+p.id+');">✓</div>';
-        }
-        h+='<div class="prel-content" onclick="'+(state.fusionMode?'toggleFusionSelect('+p.id+');':'openPrel('+p.id+');')+'"><div class="prel-title">'+agentNames+'</div><div class="prel-subtitle">'+p.type+' • '+p.subPrelevements.length+' sous-prél. '+(p.isReglementaire?'<span class="prel-reg-badge">Régl.</span>':'<span class="prel-nonreg-badge">Non-régl.</span>')+'</div></div>';
-        if(!state.fusionMode){
-          if(p.agents&&p.agents.length>1)h+='<button class="btn btn-gray btn-icon" onclick="event.stopPropagation();defusionPrel('+p.id+');" title="Défusionner" aria-label="Défusionner">'+ICONS.merge+'</button>';
-          h+='<button class="btn btn-danger btn-icon" onclick="event.stopPropagation();deletePrelTerrain('+p.id+');" aria-label="Supprimer le prélèvement">'+ICONS.trash+'</button>';
-        }
-        h+='<div class="prel-arrow" onclick="'+(state.fusionMode?'toggleFusionSelect('+p.id+');':'openPrel('+p.id+');')+'">'+ICONS.arrowRight+'</div></div>';
+        h+='<div class="prel-item" style="--agent-color:'+mc+';">';
+        h+='<div class="prel-status '+(allDone?'done':'pending')+'" onclick="openPrel('+p.id+');">✓</div>';
+        h+='<div class="prel-content" onclick="openPrel('+p.id+');"><div class="prel-title">'+agentNames+'</div><div class="prel-subtitle">'+p.type+' • '+p.subPrelevements.length+' sous-prél. '+(nbSup?'· '+escapeHtml(nbSup)+' ':'')+(p.isReglementaire?'<span class="prel-reg-badge">Régl.</span>':'<span class="prel-nonreg-badge">Non-régl.</span>')+'</div></div>';
+        if(p.agents&&p.agents.length>1)h+='<button class="btn btn-gray btn-small prel-separer" onclick="event.stopPropagation();defusionPrel('+p.id+');">Séparer</button>';
+        h+='<button class="btn btn-danger btn-icon" onclick="event.stopPropagation();deletePrelTerrain('+p.id+');" aria-label="Supprimer le prélèvement">'+ICONS.trash+'</button>';
+        h+='<div class="prel-arrow" onclick="openPrel('+p.id+');">'+ICONS.arrowRight+'</div></div>';
       });
     }
     h+='</div></div>';
   });
   
-  if(!state.fusionMode)h+='<button class="add-link" onclick="state.showModal=\'addPrelTerrain\';render();">'+ICONS.plus+' Ajouter un prélèvement</button>';
+  h+='<button class="add-link" onclick="state.showModal=\'addPrelTerrain\';render();">'+ICONS.plus+' Ajouter un prélèvement</button>';
   // Modals
   if(state.showModal==='addGehTerrain')h+=renderAddGehTerrainModal();
   if(state.showModal==='addPrelTerrain')h+=renderAddPrelTerrainModal();
-  if(state.showModal==='smartFusion')h+=renderSmartFusionModal();
   
   return h;
 }
@@ -99,7 +89,7 @@ function aVerifierMission(m,aujourdhui){
   var ouvrir=function(p,i){return 'openPrel('+p.id+');state.activeSubIndex='+i+';state.lastDayIndex='+i+';render();';};
   var sansEcart=null,nSansEcart=0;
   (m.prelevements||[]).forEach(function(p){
-    var qui=gehDe(p)+' · '+court((p.agents||[]).map(function(a){return a.name;}).join(' + '));
+    var qui=gehDe(p)+' · '+court((p.agents||[]).map(function(a){return a.name;}).join(' + '))+(p.type==='CT'?' · CT':'');
     (p.subPrelevements||[]).forEach(function(sb,i){
       var j=qui+' · J'+(i+1);
       if(sb.nonRealise){if(!sb.ecart){nSansEcart++;if(!sansEcart)sansEcart=ouvrir(p,i);}return;}
@@ -179,9 +169,9 @@ function renderMissionHead(m){
     h+='<div class="mission-menu">'+
       item('render();sendMissionByMail('+m.id+');',ICONS.mail,'Envoyer la mission par e-mail')+
       item('render();exportMissionJSON('+m.id+');',ICONS.download,'Enregistrer la mission (.json)')+
-      item('render();declencherFusionFichier();',ICONS.merge,'Fusionner le fichier d’un collègue')+
-      item('showSmartFusionModal();',ICONS.zap,'Fusionner intelligemment')+
-      item('startFusionMode();',ICONS.merge,'Fusion manuelle')+
+      item('ouvrirFicheSupports(\'terrain-mission\');',ICONS.clipboard,'Fiche supports')+
+      item('render();declencherFusionFichier();',ICONS.merge,'Réunir le fichier d’un collègue')+
+      item('ouvrirRegroupement();',ICONS.merge,'Regrouper des prélèvements')+
       item('state.showModal=\'addGehTerrain\';render();',ICONS.plus,'Ajouter un GEH')+
       item('editMissionFromTerrain();',ICONS.edit,'Modifier la mission')+
       item('unvalidateMissionFromTerrain();',ICONS.arrowLeft,'Repasser en préparation')+
@@ -315,45 +305,6 @@ function renderAddPrelTerrainModal(){
   return h;
 }
 
-function renderSmartFusionModal(){
-  if(!state.fusionGroups||state.fusionGroups.length===0)return'';
-  
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;state.fusionGroups=null;render();}"><div class="modal-content" style="max-height:90vh;overflow-y:auto;"><div class="modal-header"><h2>'+ICONS.zap+' Fusion intelligente</h2><button class="close-btn" onclick="state.showModal=null;state.fusionGroups=null;render();">×</button></div>';
-  
-  var selectedCount=state.fusionGroups.filter(function(g){return g.selected;}).length;
-  
-  h+='<div class="info-box mb-12"><p><strong>'+state.fusionGroups.length+' groupe(s) fusionnable(s) détecté(s)</strong></p><p style="font-size:11px;margin-top:4px;">Décochez les groupes que vous ne souhaitez pas fusionner</p></div>';
-  
-  // Boutons rapides
-  h+='<div class="row mb-12"><button class="btn btn-gray btn-small" onclick="toggleAllGroups(true);">Tout sélectionner</button><button class="btn btn-gray btn-small" onclick="toggleAllGroups(false);">Tout désélectionner</button></div>';
-  
-  // Liste des groupes
-  state.fusionGroups.forEach(function(group){
-    var hasWarnings=group.warnings.length>0;
-    h+='<div class="card" style="padding:10px;margin-bottom:8px;border-left:4px solid '+(hasWarnings?'var(--warning)':'var(--accent)')+';">';
-    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">';
-    h+='<input type="checkbox" '+(group.selected?'checked':'')+' onchange="toggleGroupSelection(\''+group.id+'\');" style="width:18px;height:18px;cursor:pointer;">';
-    h+='<div style="flex:1;"><div style="font-weight:700;font-size:13px;color:var(--text-dark);">'+group.gehNum+'. '+escapeHtml(group.gehName)+'</div>';
-    h+='<div style="font-size:11px;color:var(--text-muted);margin-top:2px;">'+group.type+' • '+(group.isReglementaire?'Réglementaire':'Non-régl.')+'</div></div>';
-    h+='<div style="background:var(--primary-pale);color:var(--primary);padding:4px 8px;border-radius:6px;font-size:11px;font-weight:700;">'+group.prelevements.length+' prél.</div>';
-    h+='</div>';
-    
-    // Agents
-    h+='<div style="font-size:12px;color:var(--text-dark);margin-bottom:4px;"><strong>Agents:</strong> '+group.agentNames.map(escapeHtml).join(', ')+'</div>';
-    
-    // Avertissements
-    if(hasWarnings){
-      h+='<div style="background:#fef3c7;border-radius:6px;padding:6px 8px;font-size:11px;color:#b45309;"><strong>⚠️ Attention:</strong> '+group.warnings.join(', ')+'</div>';
-    }
-    
-    h+='</div>';
-  });
-  
-  h+='<div class="row mt-12"><button class="btn btn-gray" onclick="state.showModal=null;state.fusionGroups=null;render();">Annuler</button><button class="btn btn-success" onclick="doSmartFusion();" '+(selectedCount===0?'disabled':'')+'>Fusionner ('+selectedCount+')</button></div>';
-  h+='</div></div>';
-  return h;
-}
-
 function handleNewPrelAgentSearch(value){
   state.newPrelData.agentSearch=value;
   var container=document.getElementById('new-prel-search-results');
@@ -426,16 +377,6 @@ function addPrelTerrain(){
   render();
 }
 
-function startFusionMode(){
-  state.fusionMode=true;
-  state.selectedForFusion=[];
-  var m=getCurrentMission();
-  if(m)m.gehs.forEach(function(g){state.expandedGeh[g.id]=true;});
-  render();
-}
-
-
-
 function returnToTerrain(){
   var m=getCurrentMission();
   if(!m)return;
@@ -458,102 +399,20 @@ function editMissionFromTerrain(){
   saveData('vlep_missions_v3',state.missions);
   render();
 }
-function cancelFusion(){state.fusionMode=false;state.selectedForFusion=[];render();}
-
-function toggleFusionSelect(pid){
-  var m=getCurrentMission();if(!m)return;
-  var p=m.prelevements.find(function(x){return x.id===pid;});
-  if(!p)return;
-  var i=state.selectedForFusion.indexOf(pid);
-  if(i===-1){
-    if(state.selectedForFusion.length>0){
-      var fp=m.prelevements.find(function(x){return x.id===state.selectedForFusion[0];});
-      if(fp.gehId!==p.gehId||fp.type!==p.type||fp.isReglementaire!==p.isReglementaire){
-        alert('Les prélèvements doivent être du même GEH, même type et même statut réglementaire');
-        return;
-      }
-    }
-    state.selectedForFusion.push(pid);
-  }else state.selectedForFusion.splice(i,1);
-  render();
-}
-
-// Saisies du prélèvement absorbé qu'une fusion ne reprend pas : jours au-delà de ceux du prélèvement gardé,
-// opérateur / plages / observations différents (seuls pompes, débits, réf. et lots des agents sont repris).
+// Jour de prélèvement ayant au moins une saisie (opérateur, observation, plage, donnée d'agent)
 function sbADesDonnees(sb){
   if(!sb)return false;
   if((sb.operateur||'').trim()||(sb.observations||'').trim())return true;
   if((sb.plages||[]).some(function(pl){return pl.debut||pl.fin;}))return true;
   return Object.keys(sb.agentData||{}).some(function(an){var d=sb.agentData[an]||{};return Object.keys(d).some(function(k){return String(d[k]||'').trim();});});
 }
-function fusionPertes(garde,autres){
-  var pertes=[];
-  var plagesTxt=function(sb){return (sb.plages||[]).filter(function(pl){return pl.debut||pl.fin;}).map(function(pl){return (pl.debut||'?')+'-'+(pl.fin||'?');}).join(', ');};
-  autres.forEach(function(o){
-    var qui='« '+o.agents.map(function(a){return a.name;}).join(' + ')+' »';
-    o.subPrelevements.forEach(function(b,s){
-      var a=garde.subPrelevements[s],j='J'+(s+1)+' de '+qui;
-      if(!a){if(sbADesDonnees(b))pertes.push(j+' : saisie supprimée (le prélèvement gardé n’a que '+garde.subPrelevements.length+' jour'+(garde.subPrelevements.length>1?'s':'')+')');return;}
-      var op=(b.operateur||'').trim();
-      if(op&&op!==(a.operateur||'').trim())pertes.push(j+' : opérateur « '+op+' » non repris'+((a.operateur||'').trim()?' (« '+a.operateur.trim()+' » gardé)':''));
-      var pb=plagesTxt(b),pa=plagesTxt(a);
-      if(pb&&pb!==pa)pertes.push(j+' : plages '+pb+' non reprises'+(pa?' ('+pa+' gardées)':''));
-      var ob=(b.observations||'').trim();
-      if(ob&&ob!==(a.observations||'').trim())pertes.push(j+' : observation « '+(ob.length>40?ob.slice(0,40)+'…':ob)+' » non reprise');
-    });
-  });
-  return pertes;
-}
-function confirmerPertesFusion(pertes){
-  if(!pertes.length)return true;
-  return confirm('Cette fusion ne reprend pas ces saisies :\n\n- '+pertes.join('\n- ')+'\n\nFusionner quand même ?');
-}
-
-function doFusion(){
-  var m=getCurrentMission();
-  if(!m||state.selectedForFusion.length<2)return;
-  var tm=m.prelevements.filter(function(p){return state.selectedForFusion.indexOf(p.id)!==-1;});
-  if(tm.length<2)return;
-  var first=tm[0];
-  var errors=[];
-  for(var j=1;j<tm.length;j++){
-    var o=tm[j];
-    if(o.gehId!==first.gehId)errors.push('GEH différent');
-    if(o.type!==first.type)errors.push('Type différent (8h/CT)');
-    if(o.isReglementaire!==first.isReglementaire)errors.push('Statut réglementaire différent');
-  }
-  if(errors.length>0){alert('Fusion impossible:\n- '+errors.join('\n- '));return;}
-  if(!confirmerPertesFusion(fusionPertes(tm[0],tm.slice(1))))return;
-  var mn=tm[0];
-  for(var j=1;j<tm.length;j++){
-    var o=tm[j];
-    o.agents.forEach(function(a){if(!mn.agents.some(function(x){return x.name===a.name;}))mn.agents.push(a);});
-    for(var s=0;s<mn.subPrelevements.length&&s<o.subPrelevements.length;s++){
-      if(!mn.subPrelevements[s].agentData)mn.subPrelevements[s].agentData={};
-      if(o.subPrelevements[s].agentData){
-        for(var an in o.subPrelevements[s].agentData){
-          if(!mn.subPrelevements[s].agentData[an])mn.subPrelevements[s].agentData[an]=o.subPrelevements[s].agentData[an];
-        }
-      }
-      mergeSupportsSupp(mn.subPrelevements[s],o.subPrelevements[s]);
-    }
-    var idx=m.prelevements.findIndex(function(x){return x.id===o.id;});
-    if(idx!==-1)m.prelevements.splice(idx,1);
-  }
-  saveData('vlep_missions_v3',state.missions);
-  state.fusionMode=false;
-  state.selectedForFusion=[];
-  render();
-}
-
-
 // ===== DEFUSION =====
 function defusionPrel(prelId){
   var m=getCurrentMission();
   if(!m)return;
   var p=m.prelevements.find(function(x){return x.id===prelId;});
-  if(!p||!p.agents||p.agents.length<2){alert('Ce prélèvement ne contient qu\'un seul agent, impossible de défusionner.');return;}
-  if(!confirm('Défusionner ce prélèvement ?\nChaque agent redeviendra un prélèvement séparé.'))return;
+  if(!p||!p.agents||p.agents.length<2){alert('Ce prélèvement ne contient qu\'un seul agent : rien à séparer.');return;}
+  if(!confirm('Séparer ce prélèvement ?\n\nChaque agent redevient un prélèvement à part (les saisies sont recopiées ; « Même support » est retiré).'))return;
   var newPrels=[];
   p.agents.forEach(function(agent){
     var np={id:generateId(),gehId:p.gehId,gehName:p.gehName,gehNum:p.gehNum,type:p.type,isReglementaire:p.isReglementaire,agents:[agent],subPrelevements:[]};
@@ -574,169 +433,7 @@ function defusionPrel(prelId){
   render();
 }
 
-// Nouvelle fonction : Analyse les groupes fusionnables
-function analyzeGroupsForFusion(){
-  var m=getCurrentMission();
-  if(!m)return[];
-  
-  var groups=[];
-  var processed={};
-  
-  m.prelevements.forEach(function(p){
-    if(processed[p.id])return;
-    
-    // Trouver tous les prélèvements compatibles
-    var compatible=m.prelevements.filter(function(x){
-      return x.gehId===p.gehId && x.type===p.type && x.isReglementaire===p.isReglementaire && x.id!==p.id && !processed[x.id];
-    });
-    
-    if(compatible.length>0){
-      var allInGroup=[p].concat(compatible);
-      var gehInfo=m.gehs.find(function(g){return g.id===p.gehId;});
-      var agentNames=[];
-      allInGroup.forEach(function(pr){
-        pr.agents.forEach(function(a){
-          if(agentNames.indexOf(a.name)===-1)agentNames.push(a.name);
-        });
-      });
-      
-      // Vérifier les différences
-      var warnings=[];
-      var operators={};
-      var dates={};
-      var supports={};
-      var codesPretrait={};
-      
-      allInGroup.forEach(function(pr){
-        pr.subPrelevements.forEach(function(sub){
-          if(sub.operateur)operators[sub.operateur]=true;
-          if(sub.date)dates[sub.date]=true;
-        });
-        pr.agents.forEach(function(a){
-          var ag=getAgentFromDB(a.name);
-          if(ag){
-            var sup=ag['Support de prélèvement']||'';
-            var cp=ag['Code prétraitement']||'';
-            if(sup)supports[sup]=true;
-            if(cp)codesPretrait[cp]=true;
-          }
-        });
-      });
-      var opCount=Object.keys(operators).length;
-      var dateCount=Object.keys(dates).length;
-      if(opCount>1)warnings.push('Opérateurs différents');
-      if(dateCount>1)warnings.push('Dates différentes');
-      if(Object.keys(supports).length>1)warnings.push('Supports différents: '+Object.keys(supports).join(', '));
-      if(Object.keys(codesPretrait).length>1)warnings.push('Codes prétraitement différents: '+Object.keys(codesPretrait).join(', '));
-      
-      groups.push({
-        id:'group_'+p.id,
-        gehId:p.gehId,
-        gehName:gehInfo?gehInfo.name:'',
-        gehNum:gehInfo?gehInfo.num:'',
-        type:p.type,
-        isReglementaire:p.isReglementaire,
-        prelevements:allInGroup,
-        agentNames:agentNames,
-        warnings:warnings,
-        selected:warnings.length===0 // Auto-sélectionner seulement si pas de warnings
-      });
-      
-      allInGroup.forEach(function(pr){processed[pr.id]=true;});
-    }
-  });
-  
-  return groups;
-}
-
-// Nouvelle fonction : Affiche le modal de fusion intelligente
-function showSmartFusionModal(){
-  var groups=analyzeGroupsForFusion();
-  if(groups.length===0){
-    alert('Aucun prélèvement fusionnable trouvé.\n\nLes prélèvements doivent partager :\n- Même GEH\n- Même type (8h ou CT)\n- Même statut réglementaire');
-    return;
-  }
-  state.showModal='smartFusion';
-  state.fusionGroups=groups;
-  render();
-}
-
-// Nouvelle fonction : Effectue la fusion intelligente
-function doSmartFusion(){
-  var m=getCurrentMission();
-  if(!m||!state.fusionGroups)return;
-  
-  var selectedGroups=state.fusionGroups.filter(function(g){return g.selected;});
-  if(selectedGroups.length===0){
-    alert('Aucun groupe sélectionné');
-    return;
-  }
-  
-  var pertes=[];
-  selectedGroups.forEach(function(g){if(g.prelevements.length>1)pertes=pertes.concat(fusionPertes(g.prelevements[0],g.prelevements.slice(1)));});
-  if(!confirmerPertesFusion(pertes))return;
-  var totalFused=0;
-  selectedGroups.forEach(function(group){
-    if(group.prelevements.length<2)return;
-    
-    var first=group.prelevements[0];
-    for(var j=1;j<group.prelevements.length;j++){
-      var other=group.prelevements[j];
-      
-      // Fusionner les agents
-      other.agents.forEach(function(a){
-        if(!first.agents.some(function(x){return x.name===a.name;})){
-          first.agents.push(a);
-        }
-      });
-      
-      // Fusionner les données de sous-prélèvements
-      for(var s=0;s<first.subPrelevements.length&&s<other.subPrelevements.length;s++){
-        if(!first.subPrelevements[s].agentData)first.subPrelevements[s].agentData={};
-        if(other.subPrelevements[s].agentData){
-          for(var an in other.subPrelevements[s].agentData){
-            if(!first.subPrelevements[s].agentData[an]){
-              first.subPrelevements[s].agentData[an]=other.subPrelevements[s].agentData[an];
-            }
-          }
-        }
-        mergeSupportsSupp(first.subPrelevements[s],other.subPrelevements[s]);
-      }
-      
-      // Supprimer l'autre prélèvement
-      var idx=m.prelevements.findIndex(function(x){return x.id===other.id;});
-      if(idx!==-1){
-        m.prelevements.splice(idx,1);
-        totalFused++;
-      }
-    }
-  });
-  
-  saveData('vlep_missions_v3',state.missions);
-  state.showModal=null;
-  state.fusionGroups=null;
-  render();
-  
-  alert('Fusion réussie !\n\n'+selectedGroups.length+' groupe(s) fusionné(s)\n'+totalFused+' prélèvement(s) fusionné(s)');
-}
-
-// Nouvelle fonction : Toggle sélection groupe
-function toggleGroupSelection(groupId){
-  if(!state.fusionGroups)return;
-  var group=state.fusionGroups.find(function(g){return g.id===groupId;});
-  if(group)group.selected=!group.selected;
-  render();
-}
-
-// Nouvelle fonction : Tout sélectionner/désélectionner
-function toggleAllGroups(select){
-  if(!state.fusionGroups)return;
-  state.fusionGroups.forEach(function(g){g.selected=select;});
-  render();
-}
-
 function openPrel(pid){
-  if(state.fusionMode)return;
   state.currentPrelId=pid;
   // Point 3 : rester sur le dernier jour utilisé (J1/J2/J3) au lieu de retomber sur J1.
   // L'index est borné au nombre de sous-prélèvements du prélèvement ouvert
@@ -1011,14 +708,12 @@ function renderSubPrelForm(p,sb,idx){
   var m=getCurrentMission();
   var canCopyFromPrevious=idx>0;
   
-  // Feature : pré-remplissage automatique de la date du jour à l'ouverture
-  // (le champ reste pleinement modifiable via updateSubField ci-dessous)
-  if(!sb.date){
-    sb.date=getTodayDate();
-    saveData('vlep_missions_v3',state.missions);
-  }
-  
+  // Date : plus remplie à l'ouverture (un prélèvement consulté au bureau gardait la date du jour) ; posée à la
+  // première saisie par daterSaisies (fusion-missions.js), au premier enregistrement qui suit
+
   var h='<div class="card">';
+  // jour et plage du plan d'échantillonnage (prépa automatique, format 3)
+  if(sb.jourPrevu||p.plagePrevue)h+='<div style="font-size:12px;color:var(--text-muted);margin:-2px 0 8px;">Prévu au plan : '+escapeHtml([sb.jourPrevu,p.plagePrevue].filter(Boolean).join(' · '))+'</div>';
   
   // Opérateur avec bouton copier J-1
   // Opérateur par défaut ; « Poste fixe » donne « à poste fixe » en type de prélèvement dans la feuille de calcul

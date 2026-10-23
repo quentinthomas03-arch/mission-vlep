@@ -30,8 +30,6 @@ var state={
   expandedGeh:{},
   
   // Modes
-  fusionMode:false,
-  selectedForFusion:[],
   coPrelMode:false,
   selectedForCoPrel:[],
   coPrelGroups:null,

@@ -21,6 +21,8 @@ function render(){
     case'rapport-donnees':h=renderRapportDonnees();break;
     case'quick-entry':h=renderQuickEntry();break;
     case'tutoriel':h=renderTutoriel();break;
+    case'fiche-supports':h=renderFicheSupports();break;
+    case'regroupement':h=renderRegroupement();break;
     default:h=renderHome();
   }
   document.getElementById('app').innerHTML=h;
@@ -142,6 +144,10 @@ window.addEventListener('popstate', function(event) {
     state.view = 'home';
   } else if (state.view === 'tutoriel') {
     state.view = 'home';
+  } else if (state.view === 'regroupement') {
+    state.view = 'terrain-mission'; state.reg = null;
+  } else if (state.view === 'fiche-supports') {
+    state.view = state.ficheSupportsRetour || 'home';
   } else {
     // Par défaut, retour à l'accueil
     state.view = 'home';

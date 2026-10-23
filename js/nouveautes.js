@@ -6,10 +6,32 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.40';
+var APP_VERSION = '2.44';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.44', date: '23/10/2026', items: [
+    'Regrouper des prélèvements (menu ⋯, remplace « Fusionner intelligemment » et « Fusion manuelle ») : par GEH, les agents d’un même support (un seul support par jour, « Même support » coché d’office) puis « tout le GEH » quand c’est sans risque ; « Tout regrouper » applique en une fois les propositions sûres, après une liste à cocher. Saisies en conflit et jours différents sont affichés avant de valider ; rien n’est perdu : les jours en plus sont ajoutés, les champs vides complétés.',
+    'Liste de la mission : un prélèvement regroupé indique « 1 support (tube de charbon actif) » ou « 2 supports », avec un bouton « Séparer » en clair. « Fusionner le fichier d’un collègue » devient « Réunir le fichier d’un collègue ».',
+    'Prépa automatique : un poste fixe n’est jamais réglementaire (hors accréditation) ; l’aperçu compte tous les agents d’une ligne (3 agents × 3 prélèvements = 9).',
+    'Corrections : carte « Quoi de neuf » limitée aux 5 dernières nouveautés (le reste dans l’historique du guide) ; dates en jj/mm/aaaa dans Échantillons ; « CT » précisé dans le bandeau « À vérifier » ; un poste fixe ne coche plus « Hors arrêté » dans le rapport.',
+    'Date du prélèvement : remplie à la première saisie (opérateur, plage, débit, chronomètre, validation…) et non plus à la simple ouverture du prélèvement ; un prélèvement consulté au bureau ne prend plus la date du jour.'
+  ] },
+  { version: '2.43', date: '23/10/2026', items: [
+    'Prépa automatique, format 3 : coller l’onglet « Plan d’échantillonnage » de l’annexe (Jour | Agents | GEH | Nb | Type | Plage horaire). GEH écrit en numéro, en nom ou « 1 - Nom » ; partie « Postes fixes » reconnue.',
+    'Les jours prévus (J1, J2…) et la plage horaire sont rappelés sur chaque prélèvement, et la fiche supports donne les pompes, CIP10 et analyseurs par jour.',
+    'Prépa automatique : le nombre de prélèvements est lu tel quel (un « 2 » devenait 3) ; un même agent sur un même GEH écrit sur deux lignes additionne ses prélèvements au lieu d’écraser la première ligne.'
+  ] },
+  { version: '2.42', date: '23/10/2026', items: [
+    'Fiche supports (préparation, et menu ⋯ sur le terrain) : par polluant, le support, sa réf. et son code, le laboratoire, les débits, la conservation et le commentaire de la base ; puis les supports à prévoir (échantillons + blancs, 2 blancs par lot de 15 en gravimétrie) et les prélèvements à équiper (pompes, CIP10, analyseurs). Une aide à la préparation, pas un bon de commande : imprimable, avec un commentaire libre (marge, stock…).',
+    'La fiche indique les agents qui peuvent partager un même support : les regrouper d’abord (fusion puis « Même support ») réduit le nombre de supports.'
+  ] },
+  { version: '2.41', date: '23/10/2026', items: [
+    'Rapport Word, tableaux de résultats : le bloc vierge « 2 - intitulé » d’un onglet à un seul GEH et les prélèvements non utilisés ne sont plus repris ; dans un tableau multi-agents, les agents non utilisés (n°3, n°4…) sont masqués, comme le fait la macro de la feuille.',
+    'Rapport Word : « Agents contrôlés » précochés d’après chaque prélèvement (réglementaire ou non) ; un agent à VLEP réglementaire mesuré hors contrôle réglementaire coche « Hors arrêté », pour que ses résultats aient leur partie.',
+    'Rapport Word : le titre « 3. » resté vide (partie évaluation initiale retirée) n’apparaît plus dans le rapport ni dans le sommaire.',
+    'Fusion du fichier d’un collègue : une mission d’une ancienne version (jours de prélèvement sans identifiant) est réunie jour par jour, sans mélanger les jours.'
+  ] },
   { version: '2.40', date: '22/10/2026', items: [
     'À plusieurs sur une mission : menu ⋯ › « Fusionner le fichier d’un collègue » (proposé aussi quand on importe une mission déjà présente). Les saisies des deux téléphones sont réunies jour par jour, avec les blancs, les conditions ambiantes et les prélèvements ajoutés ; un jour saisi des deux côtés garde la saisie la plus récente et est signalé dans le bilan.',
     'Mission : bandeau « À vérifier » en haut de la page (replié, touchez pour l’ouvrir). Il liste les oublis des prélèvements commencés : prélèvement arrêté mais non validé (ce qui manque), débit hors tolérance, conditions ambiantes du jour, blancs manquants, réf. en double, n° de lot oublié. Chaque ligne ouvre l’écran à corriger ; rien n’est bloquant.',
@@ -198,8 +220,13 @@ function renderNouveautesCard() {
   if (!lignes.length) { if (seen !== APP_VERSION) nvSet(SEEN_VERSION_KEY, APP_VERSION); return ''; }
   var h = '<div class="card news-card"><div class="news-head"><span class="news-badge">Nouveau</span>' +
     '<span class="news-title">Quoi de neuf dans l’appli</span></div><ul class="news-list">';
-  lignes.forEach(function (t) { h += '<li>' + escapeHtml(t) + '</li>'; });
-  h += '</ul><button class="btn btn-gray btn-small" onclick="dismissNouveautes();">J’ai compris</button></div>';
+  // après une longue période sans mise à jour, la carte ne repousse pas l'accueil : les 5 plus récentes, le reste
+  // dans l'historique du guide
+  var MAX = 5, reste = lignes.length - MAX;
+  lignes.slice(0, MAX).forEach(function (t) { h += '<li>' + escapeHtml(t) + '</li>'; });
+  h += '</ul>';
+  if (reste > 0) h += '<button class="btn btn-gray btn-small" onclick="dismissNouveautes();state.view=\'tutoriel\';state.guidePhase=null;state.guideQ=\'\';render();setTimeout(function(){var e=document.querySelector(\'.section-title.mt-12:last-of-type\');if(e)e.scrollIntoView();},50);">+ ' + reste + ' autre' + (reste > 1 ? 's' : '') + ' nouveauté' + (reste > 1 ? 's' : '') + ' (historique du guide)</button>';
+  h += '<button class="btn btn-gray btn-small" onclick="dismissNouveautes();">J’ai compris</button></div>';
   return h;
 }
 

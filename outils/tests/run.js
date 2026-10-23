@@ -23,7 +23,7 @@ const ctx = {
 ctx.window = ctx;
 vm.createContext(ctx);
 ctx.JSZip = require(path.join(racine, 'js', 'jszip.min.js'));
-['js/icons.js', 'js/database.js', 'js/scola-listes.js', 'js/state.js', 'js/prepa.js', 'js/terrain.js', 'js/consignes-agents.js', 'js/releves-analyseur.js', 'js/echantillons.js', 'js/xlsm-moteur.js', 'js/feuille-calcul.js', 'js/veolia.js', 'js/scola-dossier.js', 'js/export-word.js', 'js/docx-moteur.js', 'js/rapport.js', 'js/rapport-resultats.js', 'js/nouveautes.js']
+['js/icons.js', 'js/database.js', 'js/scola-listes.js', 'js/state.js', 'js/prepa.js', 'js/terrain.js', 'js/consignes-agents.js', 'js/releves-analyseur.js', 'js/echantillons.js', 'js/xlsm-moteur.js', 'js/feuille-calcul.js', 'js/veolia.js', 'js/scola-dossier.js', 'js/activite.js', 'js/docx-moteur.js', 'js/rapport.js', 'js/rapport-resultats.js', 'js/nouveautes.js', 'js/guide.js', 'js/quick-entry.js', 'js/import-export.js', 'js/fusion-missions.js', 'js/fiche-supports.js', 'js/regroupement.js']
   .forEach(f => vm.runInContext(fs.readFileSync(path.join(racine, f), 'utf8'), ctx, { filename: f }));
 vm.runInContext('state.agentsDB = JSON.parse(JSON.stringify(BUILTIN_DB));', ctx);
 vm.runInContext(`var _gen = XlsmMoteur.Classeur.prototype.generer; XlsmMoteur.Classeur.prototype.generer = function(t){ return _gen.call(this, t === 'blob' ? 'nodebuffer' : t); };`, ctx);
@@ -116,7 +116,7 @@ egal('débit incomplet : pas de contrôle', G.checkDebitMoyen(hf, '8h', '2', '')
   vrai('en-tête de mission : menu ⋯ fermé par défaut', h1.indexOf('mission-menu') === -1);
   G.state.missionMenuOpen = true;
   const h2 = G.renderMissionHead(mh);
-  vrai('menu ⋯ : e-mail, .json, Word, fusions, GEH, modifier, supprimer', ['sendMissionByMail', 'exportMissionJSON', 'exportActiviteWord', 'showSmartFusionModal', 'startFusionMode', 'addGehTerrain', 'editMissionFromTerrain', 'deleteMissionTerrain'].every(x => h2.indexOf(x) !== -1));
+  vrai('menu ⋯ : e-mail, .json, regrouper, fichier d’un collègue, GEH, modifier, supprimer', ['sendMissionByMail', 'exportMissionJSON', 'ouvrirRegroupement', 'declencherFusionFichier', 'addGehTerrain', 'editMissionFromTerrain', 'deleteMissionTerrain'].every(x => h2.indexOf(x) !== -1));
   G.state.missionMenuOpen = false;
 }
 {
@@ -171,6 +171,94 @@ egal('débit incomplet : pas de contrôle', G.checkDebitMoyen(hf, '8h', '2', '')
   egal('rapport : texte EPI comme la trame', [G.rapportEpiTexte('FFP3'), G.rapportEpiTexte('masque complet P3'), G.rapportEpiTexte('TH3')], ['un demi-masque filtrant de type FFP3', 'un masque complet P3', 'un appareil filtrant à ventilation assistée avec cagoule ou casque de type TH3']);
   vrai('rapport : agent saisi sans accent retrouvé dans la base', !!G.rapportAgentDB('epichlorhydrine'));
 }
+{
+  // prélèvement « non réalisé » hors exports ; agent saisi sans accent remplacé par la fiche de la base
+  const mn = { agents: [{ name: 'epichlorhydrine', isManual: true }], prelevements: [
+    { gehId: 1, agents: [{ name: 'epichlorhydrine' }], subPrelevements: [{ completed: true, agentData: { epichlorhydrine: { refEchantillon: 'E1' } } }, { nonRealise: true }] },
+    { gehId: 1, agents: [{ name: 'acétone' }], subPrelevements: [{ nonRealise: true }] }] };
+  const c = G.missionRealisee(mn);
+  egal('non réalisé : sorti des exports, agent de la base retrouvé', [c.prelevements.length, c.prelevements[0].subPrelevements.length, c.prelevements[0].agents[0].name, Object.keys(c.prelevements[0].subPrelevements[0].agentData)[0], mn.prelevements.length, G.agentBaseProche('acétone')],
+    [1, 1, 'épichlorhydrine', 'épichlorhydrine', 2, null]);
+  // écarts : seuls les non réalisés classés par le technicien, justification reprise
+  const me = { gehs: [{ id: 1, num: 2, name: 'Soudeurs' }], prelevements: [
+    { gehId: 1, type: '8h', agents: [{ name: 'acétone' }], subPrelevements: [{ completed: true }, { nonRealise: true, ecart: 'strategie', ecartMotif: 'Pas d’activité de soudage ce jour-là.' }, { nonRealise: true, ecart: 'strategie', ecartMotif: 'Pas d’activité de soudage ce jour-là.' }] },
+    { gehId: 1, type: 'CT', agents: [{ name: 'acétone' }], subPrelevements: [{ nonRealise: true, ecart: 'contrat' }] },
+    { gehId: 1, type: '8h', agents: [{ name: 'toluène' }], subPrelevements: [{ nonRealise: true }] }] };
+  egal('écarts : phrases rédigées d\'après le choix du technicien', [G.rapportEcarts(me, 'strategie'), G.rapportEcarts(me, 'contrat')], [
+    ['Les mesures d’acétone (8h) pour le GEH 2 « Soudeurs » ne sont pas complètes. Seule 1 mesure sur les 3 prévues a été réalisée (pas d’activité de soudage ce jour-là).'],
+    ['La mesure d’acétone (CT) pour le GEH 2 « Soudeurs » n’a pas été réalisée.']]);
+}
+// gravimétrie : 2 blancs attendus par lot (même agent, même lot), plusieurs lots par mission
+{
+  const pi = 'fraction inhalable de la pollution particulaire (poussières inhalables sur filtre PVC)';
+  const mg = { blancs: [{ ref: 'B1', agents: [pi], lot: 'L1', date: '2026-10-15' }, { ref: 'B2', agents: [pi], lot: 'L2' }, { ref: 'B3', agents: [pi], lot: 'L2' }, { ref: 'B4', agents: ['toluène'], lot: 'L1' }],
+    prelevements: [{ agents: [{ name: pi }, { name: 'toluène' }], subPrelevements: [
+      { date: '2026-10-15', agentData: { [pi]: { refEchantillon: 'E1', lot: 'L1' }, 'toluène': { refEchantillon: 'T1', lot: 'L1' } } },
+      { date: '2026-10-16', agentData: { [pi]: { refEchantillon: 'E2', lot: 'L2' } } },
+      { date: '2026-10-17', agentData: { [pi]: { refEchantillon: 'E3', lot: 'L3' } } },
+      { nonRealise: true, agentData: { [pi]: { refEchantillon: 'E4', lot: 'L4' } } }] }] };
+  egal('gravimétrie : agents reconnus d\'après la base', [G.estGravimetrie(pi), G.estGravimetrie('Aérosols de fluide d\'usinage (Brouillard d\'huiles)'), G.estGravimetrie('toluène')], [true, true, false]);
+  egal('gravimétrie : lots à moins de 2 blancs', G.blancsGraviManquants(mg).map(g => [g.lot, g.blancs.length]), [['L1', 1], ['L3', 0]]);
+  egal('gravimétrie : alerte d\'export pour le lot à 1 blanc', G.fcAlertesBlancsGravi(mg).length, 1);
+  G.state.missions = [Object.assign({ id: 77 }, mg)]; G.state.currentMissionId = 77;
+  const _r = G.render; G.render = () => {}; G.ajouterBlancDuLot(0); G.render = _r;
+  egal('gravimétrie : 2e blanc prérempli (agent, lot, date)', [G.state.showModal, G.state.blancAgents, G.state.blancLot, G.state.blancDate, G.state.blancRef], ['addBlanc', [pi], 'L1', '2026-10-15', '']);
+  G.state.showModal = null; G.state.missions = []; G.state.currentMissionId = null;
+}
+// agents fusionnés sur un même support (même réf.) : le blanc saisi avec l'un d'eux vaut pour le support
+{
+  const mf = { blancs: [{ ref: 'BL1', agents: ['acétone'], lot: 'L9', date: '2026-10-15' }],
+    prelevements: [{ agents: [{ name: 'toluène' }, { name: 'acétone' }, { name: 'xylènes' }], subPrelevements: [
+      { date: '2026-10-15', agentData: { 'toluène': { refEchantillon: 'S1', lot: 'L9' }, 'acétone': { refEchantillon: 'S1' }, 'xylènes': { refEchantillon: 'S2', lot: 'L9' } } }] }] };
+  const p0 = mf.prelevements[0], sb0 = p0.subPrelevements[0];
+  egal('fusion : agents du même support', G.agentsMemeRef(p0, sb0, 'toluène'), ['toluène', 'acétone']);
+  egal('fusion : blanc d\'un autre agent du support retrouvé (lot du support)', (G.findBlancForSupport(mf, sb0, ['toluène', 'acétone']) || {}).ref, 'BL1');
+  egal('fusion : colonne de la feuille liée au blanc', (G.findBlancForSupport(mf, sb0, G.fcAgentsDuSupport(p0, sb0, ['toluène'])) || {}).ref, 'BL1');
+  egal('fusion : seul le support sans blanc signalé', G.fcAlertesBlancs(mf).length === 1 && /xylènes/.test(G.fcAlertesBlancs(mf)[0]), true);
+  egal('blanc : agents de la mission et supports à plusieurs agents proposés', G.blancChoixMission(mf), { agents: ['toluène', 'acétone', 'xylènes'], supports: [['toluène', 'acétone']] });
+}
+// « À vérifier » : oublis des prélèvements commencés seulement (un prélèvement à faire n'est pas un oubli)
+{
+  const mv = { gehs: [{ id: 1, num: 3, name: 'Peintres' }], blancs: [], conditions: [],
+    prelevements: [{ id: 41, gehId: 1, type: '8h', agents: [{ name: 'toluène' }], subPrelevements: [
+      { date: '2026-10-15', operateur: 'A', plages: [{ debut: '08:00', fin: '12:00' }], agentData: { 'toluène': { numPompe: 'P1', debitInitial: '', debitFinal: '', refEchantillon: 'T1' } } },
+      { date: '2026-10-16', plages: [], agentData: {} },
+      { nonRealise: true, plages: [], agentData: {} }] }] };
+  const av = G.aVerifierMission(mv, '2026-10-16').map(x => x.t);
+  vrai('à vérifier : prélèvement arrêté non validé, ce qui manque', av.some(t => /^GEH 3 · toluène · J1 : non validé, manque Débit initial/.test(t)));
+  vrai('à vérifier : conditions ambiantes du jour commencé seulement', av.some(t => /Conditions ambiantes non saisies : 15\/10\/2026$/.test(t)));
+  vrai('à vérifier : échantillon sans blanc', av.some(t => /Aucun blanc terrain saisi/.test(t)));
+  vrai('à vérifier : non réalisé sans écart (facultatif)', av.some(t => /1 prélèvement non réalisé sans écart indiqué/.test(t)));
+  egal('à vérifier : rien sur le prélèvement pas encore commencé', av.filter(t => /J2/.test(t)).length, 0);
+  egal('à vérifier : bandeau absent quand rien à signaler', G.renderAVerifier({ gehs: [], prelevements: [] }), '');
+}
+// fusion d'une même mission saisie sur deux téléphones
+{
+  const base = { id: 500, clientSite: 'Site', preleveur: '', gehs: [{ id: 1, num: 1, name: 'Peintres' }], agents: [{ name: 'toluène' }], blancs: [], conditionsAmbiantes: [],
+    prelevements: [{ id: 51, gehId: 1, type: '8h', agents: [{ name: 'toluène' }], subPrelevements: [1, 2, 3].map(i => ({ id: 510 + i, operateur: '', date: '', plages: [{ debut: '', fin: '' }], observations: '', completed: false, agentData: { 'toluène': { refEchantillon: '', numPompe: '', debitInitial: '', debitFinal: '' } } })) }] };
+  G.daterSaisies([base]);
+  egal('fusion : première empreinte sans date de saisie', [!!base.prelevements[0].subPrelevements[0]._sig, base.prelevements[0].subPrelevements[0]._mod], [true, undefined]);
+  const A = JSON.parse(JSON.stringify(base)), B = JSON.parse(JSON.stringify(base));
+  const saisir = (m, i, op, ref) => { const sb = m.prelevements[0].subPrelevements[i]; sb.operateur = op; sb.date = '2026-10-2' + i; sb.agentData['toluène'].refEchantillon = ref; G.daterSaisies([m]); };
+  saisir(A, 0, 'Alice', 'A1'); saisir(B, 1, 'Bob', 'B2'); saisir(A, 2, 'Alice', 'A3'); saisir(B, 2, 'Bob', 'B3');
+  A.prelevements[0].subPrelevements[2]._mod = 1000; B.prelevements[0].subPrelevements[2]._mod = 2000; // B a saisi J3 après A
+  B.preleveur = 'Bob'; B.blancs.push({ ref: 'BL', agents: ['toluène'], lot: '' }); B.conditionsAmbiantes.push({ date: '2026-10-21', temperature: '20' });
+  B.prelevements.push({ id: 52, gehId: 1, type: 'CT', agents: [{ name: 'toluène' }], subPrelevements: [] });
+  const r = G.fusionnerMissionDans(A, B), s = A.prelevements[0].subPrelevements;
+  egal('fusion : saisies des deux côtés réunies, la plus récente gardée', [s[0].operateur, s[1].operateur, s[2].operateur], ['Alice', 'Bob', 'Bob']);
+  egal('fusion : jour saisi des deux côtés signalé', r.conflits.length === 1 && /J3 : version reçue gardée/.test(r.conflits[0]), true);
+  egal('fusion : blanc, conditions, prélèvement ajouté, champ vide complété', [A.blancs.length, A.conditionsAmbiantes.length, A.prelevements.length, A.preleveur], [1, 1, 2, 'Bob']);
+  { const A2 = { id: 'M', gehs: [], agents: [], blancs: [], conditionsAmbiantes: [], prelevements: [{ id: 1, agents: [{ name: 'a' }], subPrelevements: [{ operateur: 'X', date: '2026-10-14' }, {}] }] };
+    const B2 = { id: 'M', gehs: [], agents: [], prelevements: [{ id: 1, agents: [{ name: 'a' }], subPrelevements: [{ operateur: 'X', date: '2026-10-14' }, { operateur: 'Y', date: '2026-10-15' }] }] };
+    G.fusionnerMissionDans(A2, B2);
+    egal('fusion : jours sans identifiant (ancienne mission) rapprochés par leur rang', A2.prelevements[0].subPrelevements.map(s => s.operateur || ''), ['X', 'Y']); }
+  egal('fusion : refaire la même fusion ne change rien', G.fusionnerMissionDans(A, JSON.parse(JSON.stringify(A))).repris, 0);
+  egal('fusion : fichier reconnu (format .json et QR)', [!!G.missionDepuisDonnees({ _format: 'VLEP_Mission_JSON', mission: A }), !!G.missionDepuisDonnees({ _f: 'VLEP', m: A }), G.missionDepuisDonnees({ x: 1 })], [true, true, null]);
+}
+// prépa automatique : nom de la base sur deux lignes dans la cellule du devis (Butanol (Toxilabo), support PVC)
+egal('prépa devis : précision entre parenthèses rattachée à l\'agent', G.parseAgentNames('Butanol\n(Toxilabo)\nacétone\r\nargent métallique\n(support PVC)\nAnalyse TOXILABO'),
+  ['Butanol\n(Toxilabo)', 'acétone', 'argent métallique\n(support PVC)']);
+vrai('prépa devis : Butanol (Toxilabo) reconnu dans la base', !!G.getAgentFromDB(G.parseAgentNames('Butanol\n(Toxilabo)')[0]));
 egal('résultats : formats Excel affichés à la française', [G.rrFormater(98.2210432, '0.00'), G.rrFormater(0.20462, '0.0%'), G.rrFormater(0.000123, '0.0E+00'), G.rrFormater(1234.5, '#,##0.0'), G.rrFormater(46197, 'dd/mm/yy'), G.rrFormater(46197, 'dd/mm/yyyy'), G.rrFormater(0.5, 'h:mm'), G.rrFormater(12.2776304, 'General'), G.rrFormater(600, '0.00000')],
   ['98,22', '20,5\u00a0%', '1,2E-04', '1\u00a0234,5', '24/06/26', '24/06/2026', '12:00', '12,2776304', '600,00000']);
 egal('débit : virgule ou point, même résultat', G.checkDebitMoyen(hf, '8h', '1.9', '1.92').moy, G.checkDebitMoyen(hf, '8h', '1,9', '1,92').moy);
@@ -187,10 +275,158 @@ const mC = { conditionsAmbiantes: [{ date: '2026-10-14', tempI: '20' }, { date: 
   blancs: [{ ref: 'B1', date: '2026-10-14', lot: 'L14', agents: ['toluène'] }, { ref: 'B2', date: '2026-10-15', lot: 'L15', agents: ['toluène'] }, { ref: 'B3', date: '2026-10-14', agents: ['o-xylène'] }] };
 egal('conditions du jour', G.getConditionsForPrel(mC, { date: '2026-10-15' }).tempI, '25');
 egal('conditions : jamais celles d\'un autre jour', G.getConditionsForPrel(mC, { date: '2026-10-16' }), null);
-egal('blanc du jour', G.getBlancForAgent(mC, 'toluène', '2026-10-15'), 'B2');
-egal('blanc : plusieurs blancs d\'autres jours -> aucun', G.getBlancForAgent(mC, 'toluène', '2026-10-16'), '');
-egal('blanc unique de l\'agent sur la mission', G.getBlancForAgent(mC, 'o-xylène', '2026-10-15'), 'B3');
-egal('lot du blanc', G.findBlancForAgent(mC, 'toluène', '2026-10-14').lot, 'L14');
+// blanc associé = même agent ET même n° de lot que l'échantillon
+G.getBlancForAgent = (m, a, d, l) => { const b = G.findBlancForAgent(m, a, d, l); return b ? (b.ref || '') : ''; };
+egal('blanc : même agent et même lot', G.getBlancForAgent(mC, 'toluène', '2026-10-15', 'L15'), 'B2');
+egal('blanc : lot comparé sans espaces ni majuscules', G.getBlancForAgent(mC, 'toluène', '2026-10-15', ' l 14'), 'B1');
+egal('blanc : même lot, autre jour -> blanc du lot', G.getBlancForAgent(mC, 'toluène', '2026-10-20', 'L14'), 'B1');
+egal('blanc : lot différent -> aucun', G.getBlancForAgent(mC, 'toluène', '2026-10-15', 'L99'), '');
+egal('blanc : échantillon sans lot, blancs avec lot -> aucun', G.getBlancForAgent(mC, 'toluène', '2026-10-15'), '');
+egal('blanc : bon lot mais autre agent -> aucun', G.getBlancForAgent(mC, 'éthylbenzène', '2026-10-15', 'L15'), '');
+egal('blanc sans lot : blanc unique de l\'agent (ancienne saisie)', G.getBlancForAgent(mC, 'o-xylène', '2026-10-15'), 'B3');
+egal('blanc sans lot : échantillon avec lot -> aucun', G.getBlancForAgent(mC, 'o-xylène', '2026-10-15', 'L14'), '');
+// n° de lot en une fois sur plusieurs échantillons et blancs
+{
+  const mL = { blancs: [{ ref: 'BL', agents: ['toluène'] }], prelevements: [{ agents: [{ name: 'toluène' }, { name: 'xylène' }], subPrelevements: [
+    { date: '2026-10-14', agentData: { 'toluène': { refEchantillon: 'E1' }, 'xylène': { refEchantillon: 'E1' } } },
+    { date: '2026-10-15', agentData: { 'toluène': { refEchantillon: 'E2' } }, supportsSupp: [{ agentData: { 'toluène': { refEchantillon: 'E3' } } }] }] }] };
+  egal('lot en masse : lignes (réf. distinctes + blanc)', G.lignesLot(mL).map(x => x.cle), ['e:E1', 'e:E2', 'e:E3', 'b:0']);
+  egal('lot en masse : nombre appliqué', G.appliquerLot(mL, { 'e:E1': true, 'e:E3': true, 'b:0': true }, 'LX'), 3);
+  egal('lot en masse : co-prélèvement, support fractionné et blanc', [mL.prelevements[0].subPrelevements[0].agentData['xylène'].lot, mL.prelevements[0].subPrelevements[1].supportsSupp[0].agentData['toluène'].lot, mL.blancs[0].lot, mL.prelevements[0].subPrelevements[1].agentData['toluène'].lot], ['LX', 'LX', 'LX', undefined]);
+  egal('lot en masse : le blanc suit alors l\'échantillon', G.echantillonsDuBlanc(mL, mL.blancs[0]), 2);
+  egal('lots déjà saisis proposés (sans doublon)', G.lotsConnus({ prelevements: [{ subPrelevements: [{ agentData: { a: { lot: 'L2' }, b: { lot: ' l2 ' } } }] }], blancs: [{ lot: 'L1' }] }), ['L1', 'L2']);
+  // alerte à l'export : E2 (sans lot) n'a pas de blanc, E1/E3 (lot LX) ont BL
+  egal('alerte blancs : échantillon sans blanc du même lot', G.fcAlertesBlancs(mL), ['« toluène », sans n° de lot : 1 échantillon sans blanc du même agent et du même lot, réf. du témoin vide.']);
+  // réf. en double : co-prélèvement (même support) toléré, deux supports ou échantillon + blanc signalés
+  const mD = { gehs: [{ id: 1, num: 1 }], blancs: [{ ref: 'e2', agents: ['toluène'] }], conditionsAmbiantes: [{ date: '2026-10-14' }], prelevements: [{ id: 7, gehId: 1, type: '8h', agents: [{ name: 'toluène' }, { name: 'xylène' }], subPrelevements: [
+    { date: '2026-10-14', dureeExpo: '07:00', coPrelGroups: [['toluène', 'xylène']], agentData: { 'toluène': { refEchantillon: 'E1' }, 'xylène': { refEchantillon: 'E1' } } },
+    { date: '2026-10-15', agentData: { 'toluène': { refEchantillon: 'E2' }, 'xylène': { refEchantillon: 'E3' } } }] }] };
+  egal('réf. en double : seule la réf. sur deux supports est signalée', G.refsEnDouble(mD).map(x => x.ref), ['E2']);
+  egal('alerte réf. en double', G.fcAlertesRefDoublons(mD), ['Réf. « E2 » sur 2 échantillons différents (toluène · 15/10/2026 ; blanc toluène) : un seul figure dans la commande Eurofins.']);
+  egal('alerte conditions ambiantes manquantes', G.fcAlertesConditions(mD), ['Conditions ambiantes non saisies pour le 15/10/2026 : température, pression et humidité vides dans la feuille.']);
+  egal('alerte durée d\'exposition (rappel)', G.fcAlertesDureeExpo(mD), ['1 prélèvement 8 h sans durée d’exposition (GEH 1) : à compléter dans l’appli ou dans la feuille.']);
+  vrai('validation : réf. échantillon exigée, durée d\'exposition jamais exigée', (() => { const f = G.getMissingFields(mD.prelevements[0], { date: '2026-10-15', operateur: 'X', plages: [{ debut: '08:00', fin: '09:00' }], agentData: { 'toluène': { numPompe: '1', debitInitial: '1', debitFinal: '1' }, 'xylène': { numPompe: '1', debitInitial: '1', debitFinal: '1', refEchantillon: 'E9' } } }); return f.length === 1 && /Réf\. échantillon · toluène/.test(f[0]); })());
+  // regrouper des prélèvements
+  {
+    const sub = (o) => Object.assign({ id: Math.random(), plages: [{ debut: '', fin: '' }], agentData: {} }, o || {});
+    const prel = (id, an, subs) => ({ id: id, gehId: 1, type: '8h', isReglementaire: true, agents: [{ name: an }], subPrelevements: subs.map(sub) });
+    const mR = { id: 'R', gehs: [{ id: 1, num: 1, name: 'Peinture' }], prelevements: [prel(1, 'toluène', [{}, {}, {}]), prel(2, 'o-xylène', [{}, {}, {}]), prel(3, 'méthanol', [{}, {}, {}])] };
+    const pr = G.regPropositions(mR)[0];
+    egal('regrouper : propositions (même support, puis tout le GEH)', pr.cartes.map(c => [c.nature, c.ids]), [['support', [1, 2]], ['geh', [1, 2, 3]]]);
+    egal('regrouper : « Tout regrouper » = tout le GEH quand c\'est sûr', G.regActionsGlobales(mR).map(a => a.ids), [[1, 2, 3]]);
+    const g = G.regrouperPrelevements(mR, [mR.prelevements[0], mR.prelevements[1]]);
+    egal('regrouper : un prélèvement, deux agents, même support tous les jours', [mR.prelevements.length, g.agents.length, g.subPrelevements.map(s => (s.coPrelGroups || []).length)], [2, 2, [1, 1, 1]]);
+    vrai('regrouper : liste « 1 support (tube de charbon actif) »', G.regSupportsTexte(g) === '1 support (tube de charbon actif)');
+    // conflits : opérateur différent, jour en plus, réf. différentes sur un même support
+    const a = prel(4, 'toluène', [{ operateur: 'Paul', agentData: { 'toluène': { refEchantillon: 'T1' } } }]);
+    const b = prel(5, 'o-xylène', [{ operateur: 'Marc', observations: 'RAS', agentData: { 'o-xylène': { refEchantillon: 'X1' } } }, { operateur: 'Marc' }]);
+    const an = G.regAnalyse([a, b]);
+    vrai('regrouper : conflit non sûr (opérateur, nombre de jours, réf. différentes)', !an.sur && an.pertes.some(x => /opérateur « Marc » non repris \(« Paul » gardé\)/.test(x)) && an.raisons.some(x => /Nombre de prélèvements différent/.test(x)) && an.raisons.some(x => /supports séparés gardés/.test(x)));
+    const m2 = { prelevements: [a, b] }, g2 = G.regrouperPrelevements(m2, [a, b]);
+    egal('regrouper : rien de perdu (jour en plus ajouté, champ vide complété), réf. différentes -> supports séparés', [g2.subPrelevements.length, g2.subPrelevements[0].observations, g2.subPrelevements[0].operateur, (g2.subPrelevements[0].coPrelGroups || []).length], [2, 'RAS', 'Paul', 0]);
+    vrai('regrouper : supports séparés affichés « 2 supports »', G.regSupportsTexte(g2) === '2 supports');
+    egal('regrouper : GEH différents jamais proposés ensemble', G.regPropositions({ gehs: [], prelevements: [prel(6, 'toluène', [{}]), Object.assign(prel(7, 'o-xylène', [{}]), { gehId: 2 })] }).length, 0);
+  }
+  // saisie rapide : statut réglementaire de la base
+  egal('saisie rapide : réglementaire selon la base', [G.agentEstReglementaire('toluène'), G.agentEstReglementaire('acide acétique')].map(Boolean), [true, !!G.agentEstReglementaire('acide acétique')]);
+  vrai('saisie rapide : plus de puces « ? » ni d\'icône dans les messages', !/<p>\? |alert\(''\+ICONS/.test(fs.readFileSync(path.join(racine, 'js', 'quick-entry.js'), 'utf8')));
+  // rapport : précochage et champs vides
+  {
+    const mRp = { prelevements: [{ isReglementaire: true, agents: [{ name: 'toluène' }], subPrelevements: [{ posteFixe: true }] }, { isReglementaire: true, agents: [{ name: 'fraction alvéolaire de silice cristalline (quartz)' }], subPrelevements: [{}] }, { agents: [{ name: 'acétone' }], subPrelevements: [{ nonRealise: true }] }] };
+    const rp = G.rapportDonnees(mRp);
+    egal('rapport : catégories précochées d\'après la base', Object.keys(rp.categories).sort(), Object.keys(G.rapportCategoriesAuto(mRp)).sort());
+    vrai('rapport : silice et poste fixe précochés, agent non réalisé ignoré', rp.categories.silice && rp.posteFixe === true && G.rapportAgentsMission(mRp).indexOf('acétone') === -1);
+    if (typeof G.render !== 'function') G.render = () => {};
+    const missionsAvant = G.state.missions, courante = G.state.currentMissionId;
+    G.state.missions = [mRp]; mRp.id = 'RP'; G.state.currentMissionId = 'RP';
+    G.rapportBascule('categories', 'horsArrete'); G.rapportMaj('posteFixe', false);
+    mRp.prelevements[0].subPrelevements[0].posteFixe = true;
+    vrai('rapport : une case touchée n\'est plus recalculée', G.rapportDonnees(mRp).categories.horsArrete === true && G.rapportDonnees(mRp).posteFixe === false);
+    G.state.missions = missionsAvant; G.state.currentMissionId = courante;
+    vrai('rapport : mission aux cases déjà cochées à la main non modifiée', (() => { const mm = { rapport: { types: {}, categories: { admises: true } }, prelevements: mRp.prelevements }; const r2 = G.rapportDonnees(mm); return r2.categories.admises && !r2.categories.silice; })());
+    egal('rapport : agent à VLEP réglementaire mesuré hors contrôle réglementaire -> « hors arrêté »', G.rapportCategoriesAuto({ prelevements: [{ isReglementaire: false, agents: [{ name: 'toluène' }], subPrelevements: [{}] }] }), { horsArrete: true });
+    egal('rapport : prélèvement en poste fixe -> aucune catégorie (partie poste fixe)', G.rapportCategoriesAuto({ prelevements: [{ isReglementaire: false, agents: [{ name: 'toluène' }], subPrelevements: [{ posteFixe: true }] }] }), {});
+    egal('rapport : prélèvement réglementaire -> catégorie de la base', G.rapportCategoriesAuto({ prelevements: [{ isReglementaire: true, agents: [{ name: 'toluène' }], subPrelevements: [{}] }] }), { contraignantes: true });
+    egal('rapport : champs vides rappelés', G.rapportChampsVides({ rapport: { types: { campagne1: true }, categories: {}, chrono: 'C1', contrat: 'K', interlocuteur: 'I', redacteur: 'R', valideur: 'V', agence: 'woippy' }, prelevements: [] }), ['Stratégie de prélèvement réalisée par', 'Référence du rapport de stratégie']);
+  }
+  // rapport, tableaux de résultats : groupes sans réf. d'échantillon écartés, agents non utilisés masqués (comme la macro)
+  {
+    const cases = { A10: 'RESULTATS', A11: 'GEH', C11: '1 - Peinture', I11: '2 - intitulé', A12: 'référence de l\'échantillon', C12: 'T-1', E12: 'T-2', A13: 'agent chimique n°1_', C13: 'toluène',
+      A14: 'port d\'un EPI respiratoire n°1_', C14: 'non', A15: 'agent chimique n°2_', A16: 'port d\'un EPI respiratoire n°2_', C16: 'non', A17: 'heure début n°C1-P2_', A20: 'Validation des prélèvements' };
+    const sh = { rows: {}, text: ref => cases[ref] || '' };
+    const cols12 = [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14];
+    egal('résultats : bloc vierge « 2 - intitulé » écarté (Reg)', G.rrColonnesUtiles(sh, cols12, 10, 20, true), [3, 4, 5, 6, 7, 8]);
+    egal('résultats : prélèvements sans réf. écartés (non Reg)', G.rrColonnesUtiles(sh, cols12, 10, 20, false), [3, 4, 5, 6]);
+    egal('résultats : dernier agent utilisé', G.rrDernierAgent(sh, [3, 4, 5, 6, 7, 8], 20), 1);
+    vrai('résultats : lignes de l\'agent n°2 masquées, y compris « non » calculé', G.rrLigneNumeroteeVide(sh, 16, [3], 1) && G.rrLigneNumeroteeVide(sh, 15, [3], 1) && !G.rrLigneNumeroteeVide(sh, 14, [3], 1));
+  }
+  // fiche supports : supports à prévoir d'après les affectations (mission en préparation)
+  {
+    const sil = G.state.agentsDB.find(a => /gravim/i.test(JSON.stringify(a)) && a['Code support'])['Agent chimique'];
+    const mF = { id: 'F', status: 'prepa', gehs: [{ id: 1, num: 1, name: 'Peinture' }, { id: 2, num: 2, name: 'Ponçage' }], agents: [], prelevements: [], agentColors: {},
+      affectations: { 'toluène': { gehs: { 1: { has8h: true, isReg8h: true } } }, 'o-xylène': { gehs: { 1: { has8h: true, isReg8h: true } } }, 'méthanol': { gehs: { 1: { has8h: true, isReg8h: false } } } } };
+    mF.affectations[sil] = { gehs: { 2: { has8h: true, isReg8h: true, nb8h: 16 } } };
+    const f = G.ficheSupports(mF), L = c => f.lignes.filter(l => l.agents.indexOf(c) !== -1)[0];
+    egal('fiche supports : tubes de charbon actif (toluène + o-xylène, 3 prélèvements chacun)', [L('toluène').ech, L('toluène').blancs, L('toluène').echRegroupe], [6, 1, 3]);
+    vrai('fiche supports : même code support = une seule ligne', L('toluène') === L('o-xylène') && L('toluène').code === 'FHL4W');
+    egal('fiche supports : méthanol non réglementaire (1 prélèvement), autre support', [L('méthanol').ech, L('méthanol').blancs, L('méthanol').ref], [1, 1, 'AF']);
+    egal('fiche supports : gravimétrie, 2 blancs par lot de 15 (16 échantillons -> 4 blancs)', [L(sil).ech, L(sil).blancs], [16, 4]);
+    vrai('fiche supports : regroupement proposé (GEH 1, toluène + o-xylène)', f.suggestions.some(s => /GEH 1/.test(s) && /toluène/.test(s) && /o-xylène/.test(s)));
+    egal('fiche supports : la mission préparée n\'est pas modifiée', mF.prelevements.length, 0);
+    vrai('fiche supports : écran rendu (tableau, commentaire de la base)', (() => { G.state.missions = [mF]; G.state.currentMissionId = 'F'; const h = G.renderFicheSupports(); return /Supports à prévoir/.test(h) && /FHL4W/.test(h) && /Par polluant/.test(h); })());
+    egal('fiche supports : blancs, règle', [G.fsBlancs(0, true), G.fsBlancs(15, true), G.fsBlancs(16, true), G.fsBlancs(30, false)], [0, 2, 4, 1]);
+  }
+  // prépa automatique, format 3 : plan d'échantillonnage (plan fictif)
+  {
+    const T = '\t';
+    const plan = ['Jour' + T + 'Agents chimiques' + T + 'N° GEH' + T + 'Nb total de prélèvements' + T + 'Type de VLEP' + T + 'Plage horaire de prélèvement',
+      'J1/J2/J3' + T + '"toluène\r\no-xylène"' + T + '1 - Peintres' + T + '3' + T + '8h' + T + 'En journée',
+      'J2' + T + 'méthanol' + T + 'Peintres' + T + '2' + T + 'CT' + T + 'Sur phase d\'exposition',
+      'J4/J5/J6' + T + 'méthanol' + T + '3' + T + '1' + T + '8h' + T + 'En journée',
+      'J4' + T + 'méthanol' + T + '3' + T + '1' + T + '8h' + T + 'Nettoyage',
+      'Postes fixes',
+      'J1' + T + 'toluène' + T + 'PF - Cabine' + T + '1' + T + '8h' + T + '8h - 16h'].join('\r\n');
+    const pl = G.parsePlanEchantillonnage(plan, '3' + T + 'Mainteneurs');
+    egal('plan : GEH en « n - nom », en nom seul (même GEH), en numéro nommé par la liste, poste fixe', pl.gehs.map(g => g.num + ' ' + g.name + (g.posteFixe ? ' PF' : '')), ['1 Peintres', '2 PF - Cabine PF', '3 Mainteneurs']);
+    egal('plan : jours de chaque prélèvement (un par jour, un seul jour, à placer)', pl.rows.map(r => r.jours.join(',')), ['J1,J2,J3', 'J2,J2', 'J4/J5/J6', 'J4', 'J1']);
+    egal('plan : nombre lu tel quel (2 reste 2)', pl.rows[1].nb, 2);
+    egal('plan : deux agents d\'une même cellule', pl.rows[0].agentNames, ['toluène', 'o-xylène']);
+    const mP = G.createEmptyMission(); mP.id = 'P'; mP.status = 'prepa';
+    const avantM = G.state.missions, avantC = G.state.currentMissionId, avantR = G.render;
+    G.state.missions = [mP]; G.state.currentMissionId = 'P'; G.render = () => {};
+    G.state.prepaAutoData = { format: '3', parsed: pl }; G.applyPrepaAuto();
+    const g3 = mP.gehs.find(g => g.num === 3).id;
+    egal('plan : même agent, même GEH, même type sur deux lignes -> prélèvements additionnés', [mP.affectations['méthanol'].gehs[g3].nb8h, mP.affectations['méthanol'].gehs[g3].jours8h], [2, ['J4/J5/J6', 'J4']]);
+    const c = JSON.parse(JSON.stringify(mP)); G.generatePrelevements(c);
+    const pT = c.prelevements.find(p => p.agents[0].name === 'toluène' && p.subPrelevements.length === 3);
+    egal('plan : jour prévu et plage sur les prélèvements générés', [pT.subPrelevements.map(s => s.jourPrevu), pT.plagePrevue], [['J1', 'J2', 'J3'], 'En journée']);
+    G.state.missions = [c]; G.state.currentMissionId = c.id;
+    vrai('plan : rappel « Prévu au plan » sur le prélèvement', /Prévu au plan : J2 · En journée/.test(G.renderSubPrelForm(pT, pT.subPrelevements[1], 1)));
+    G.state.missions = [mP]; G.state.currentMissionId = 'P';
+    vrai('plan : partie « Postes fixes » -> prélèvement en poste fixe', c.prelevements.some(p => p.subPrelevements.some(s => s.posteFixe)));
+    vrai('plan : poste fixe jamais réglementaire', c.prelevements.filter(p => p.subPrelevements.some(s => s.posteFixe)).every(p => !p.isReglementaire));
+    const fp = G.ficheSupports(mP);
+    egal('plan : fiche supports, pompes par jour prévu', [fp.parJour.J1.pompe, fp.parJour.J2.pompe, fp.parJour['J4/J5/J6'].pompe], [3, 4, 1]);
+    G.state.missions = avantM; G.state.currentMissionId = avantC; G.render = avantR;
+    egal('prépa auto : nombre de prélèvements lu dans la cellule', [G.lireNbPrel('2'), G.lireNbPrel('1 prélèvement'), G.lireNbPrel(''), G.lireNbPrel('x6')], [2, 1, 3, 6]);
+  }
+  // date du prélèvement : à la première saisie, pas à l'ouverture
+  {
+    const sbD = { id: 'd1', plages: [{ debut: '', fin: '' }], agentData: {} }, pD = { id: 9, type: '8h', agents: [{ name: 'toluène' }], subPrelevements: [sbD] };
+    const mD2 = { id: 'D', status: 'validee', gehs: [], prelevements: [pD] }, mPrep = { id: 'E', status: 'prepa', gehs: [], prelevements: [{ id: 8, agents: [], subPrelevements: [{ id: 'e1', operateur: '' }] }] };
+    const avM = G.state.missions, avC = G.state.currentMissionId;
+    G.state.missions = [mD2, mPrep]; G.state.currentMissionId = 'D';
+    G.daterSaisies(G.state.missions);
+    G.renderSubPrelForm(pD, sbD, 0);
+    egal('date : pas remplie à l\'ouverture du prélèvement', sbD.date || '', '');
+    sbD.operateur = 'Paul'; G.daterSaisies(G.state.missions);
+    egal('date : remplie à la première saisie', sbD.date, G.getTodayDate());
+    mPrep.prelevements[0].subPrelevements[0].operateur = 'X'; G.daterSaisies(G.state.missions);
+    egal('date : jamais remplie en préparation', mPrep.prelevements[0].subPrelevements[0].date || '', '');
+    G.state.missions = avM; G.state.currentMissionId = avC;
+  }
+  egal('alerte blancs : aucun blanc saisi', G.fcAlertesBlancs({ blancs: [], prelevements: mL.prelevements }), ['Aucun blanc terrain saisi (Échantillons) : la réf. du témoin restera vide.']);
+}
 
 // Champs manquants : supports suivants, supports liés comptés une fois
 const pM = { agents: [{ name: 'toluène' }, { name: 'o-xylène' }] };
@@ -209,6 +445,12 @@ vrai('service worker : tous les js chargés par index.html sont en cache', (() =
   const idx = fs.readFileSync(path.join(racine, 'index.html'), 'utf8');
   return [...idx.matchAll(/<script src="(js\/[^"]+)"/g)].every(m => sw.indexOf("'./" + m[1] + "'") !== -1);
 })());
+
+// Guide d'utilisation : parcours, recherche sans accents, questions fréquentes
+vrai('guide : rendu avec le sommaire et les 5 étapes du parcours', (() => { G.state.guideQ = ''; G.state.guidePhase = 0; const h = G.renderTutoriel(); return (h.match(/class="guide-etape[ "]/g) || []).length === 6 && h.indexOf('Créer la mission') !== -1; })());
+vrai('guide : sommaire à l\'ouverture, les 5 catégories et la 5e « à tout moment »', (() => { G.state.guidePhase = null; const h = G.guideCorps(); return (h.match(/class="card guide-som/g) || []).length === 5 && /guide-som transverse/.test(h) && h.indexOf('guideAllerPoint(4,0)') !== -1; })());
+vrai('guide : la recherche « debloquer » trouve la procédure Excel et la FAQ', (() => { G.state.guideQ = 'debloquer'; const h = G.guideCorps(); G.state.guideQ = ''; return h.indexOf('<mark>Débloquer</mark>') !== -1 && h.indexOf('Questions fréquentes') !== -1; })());
+vrai('guide : recherche sans résultat signalée', (() => { G.state.guideQ = 'zzzz'; const h = G.guideCorps(); G.state.guideQ = ''; return h.indexOf('Aucun résultat') !== -1; })());
 
 // ---------- 2. Moteur Excel ----------
 const M = G.XlsmMoteur;
@@ -258,7 +500,7 @@ async function finDeBout() {
     m.blancs = [{ref:'BT-1',date:'2026-10-13',lot:'LOT-A',agents:['toluène']}];
     function s(i, agents, deb){ var o={id:i+1,operateur:'Opérateur '+(i+1),date:jours[i%3],plages:[{debut:'08:00',fin:'10:00'},{debut:'13:00',fin:'15:00'}],observations:'RAS J'+(i+1),dureeExpo:'07:30',
         ventEnv:'Local standard industriel',ventGenerale:'oui',ventCaptage:'Inducteur',scolaTache:SCOLA_LISTES.tache[0],scolaMetier:SCOLA_LISTES.metier[0],scolaProcede:SCOLA_LISTES.procede[1],epiType:'sans objet',agentData:{}};
-      agents.forEach(function(a){ o.agentData[a]={numPompe:'P-'+(i+1),debitInitial:deb[0],debitFinal:deb[1],refEchantillon:'REF-'+a.slice(0,3)+'-'+(i+1)}; }); return o; }
+      agents.forEach(function(a){ o.agentData[a]={numPompe:'P-'+(i+1),debitInitial:deb[0],debitFinal:deb[1],refEchantillon:'REF-'+a.slice(0,3)+'-'+(i+1),lot:a==='toluène'?(i===1?'LOT-B':'LOT-A'):''}; }); return o; }
     function p(id,g,type,reg,agents,n,deb){ var x={id:id,gehId:g,type:type,isReglementaire:reg,agents:agents.map(function(a){return {name:a};}),subPrelevements:[]};
       for(var i=0;i<n;i++) x.subPrelevements.push(s(i,agents,deb)); return x; }
     var p1=p(101,1,'8h',true,['toluène'],3,['0,102','0,1']);
@@ -281,7 +523,9 @@ async function finDeBout() {
   const r = await vm.runInContext('construireFeuilleCalcul(__mission, __data)', ctx);
   egal('bout en bout : onglets créés', r.onglets, ['GEH 1 - Tube Reg (3 prélèvements)', 'GEH 1 - Cassette (1 prélèvement)', 'GEH 2 - Tube Reg (multi) (3 prélèvements)',
     'GEH 2 - Tube (séq) (1 prélèvement)', 'GEH 3 - CIP10 silice Reg (3 prélèvements)', 'Analyseurs (1 essai), Acquisition (3 relevés)', 'Eurofins (16 références)']);
-  egal('bout en bout : aucune alerte', r.alertes, []);
+  egal('bout en bout : aucune alerte hors blancs', r.alertes.filter(a => !/réf\. du témoin vide/.test(a)), []);
+  vrai('bout en bout : alerte du toluène lot LOT-B sans blanc', r.alertes.indexOf('« toluène », lot LOT-B : 1 échantillon sans blanc du même agent et du même lot, réf. du témoin vide.') !== -1);
+  vrai('bout en bout : pas d\'alerte pour le lot LOT-A qui a son blanc', !r.alertes.some(a => /LOT-A/.test(a)));
   // Relecture de la feuille générée
   const wb = await M.Classeur.charger(r.blob, ctx.JSZip);
   async function val(onglet, lib, col, opts) {
@@ -297,7 +541,7 @@ async function finDeBout() {
   egal('Tube Reg : libellé du débitmètre', (await wb.onglet(tr)).text('B11'), 'débitmètre à lame de savon ou à piston');
   egal('Tube Reg : n° de débitmètre', await val(tr, 'débitmètre à lame de savon ou à piston', 'C', { col: 'B' }), '24367');
   egal('Tube Reg : lot du blanc', await val(tr, 'n° de lot', 'C', { col: 'B' }), 'LOT-A');
-  egal('Tube Reg : date (texte JJ/MM/AAAA)', await val(tr, 'date de prélèvement', 'G', { col: 'A' }), '15/10/2026');
+  egal('Tube Reg : date (vraie date Excel, 15/10/2026)', await val(tr, 'date de prélèvement', 'G', { col: 'A' }), '46310');
   egal('Tube Reg : plage 1 début (fraction de jour)', Number(await val(tr, 'heure début n°C1-P1_', 'C', { col: 'B' })), 8 / 24);
   egal('Tube Reg : durée d\'exposition', Number(await val(tr, "durée d'exposition (h:min) - VLEP 8h", 'C', { col: 'A' })), 450 / 1440);
   egal('Tube Reg : conditions du jour J2', await val(tr, 'température ambiante (°C)', 'E', { col: 'A' }), '21');
@@ -307,9 +551,13 @@ async function finDeBout() {
   vrai('Tube Reg : lignes du bloc massique masquées', /hidden="1"/.test(sTr.rows[Rtr.massique + 1].attrs));
   egal('Tube Reg : référence', await val(tr, "référence de l'échantillon", 'E', { col: 'A' }), 'REF-tol-2');
   egal('Tube Reg : témoin', await val(tr, 'référence du témoin', 'C', { col: 'A' }), 'BT-1');
+  egal('Tube Reg : pas de témoin sur un autre lot', await val(tr, 'référence du témoin', 'E', { col: 'A' }), '');
+  egal('Tube Reg : lot de l\'échantillon', await val(tr, 'n° de lot', 'E', { col: 'B' }), 'LOT-B');
   egal('Tube Reg : type de VLEP', await val(tr, 'type de VLEP', 'C', { col: 'A' }), '8h');
-  egal('Tube Reg : commentaire', await val(tr, 'commentaire', 'C', { col: 'A' }), 'RAS J1');
+  egal('Tube Reg : commentaire vide (l’activité « RAS J1 » ne va pas dans la feuille)', await val(tr, 'commentaire', 'C', { col: 'A' }), '');
   egal('Scol@ : GES', await val(tr, 'GES *', 'C', { col: 'A' }), '1 - Peinture');
+  { const sc = await wb.onglet('GEH 1 - Cassette'); const rp = Object.keys(sc.rows).map(Number).sort((x, y) => x - y).find(r => sc.text('A' + r).trim() === 'Prélèvement n°'); egal('non Reg : GEH dans la ligne Prélèvement n°', sc.text('C' + rp), '1 - Peinture'); }
+  { const st = (await wb.onglet(tr)).tail; vrai('listes déroulantes : agent (Plage_SubstanceMonDevis) et EPI (Choix_FPA) sur l’onglet créé', st.includes('<formula1>Plage_SubstanceMonDevis</formula1>') && st.includes('<formula1>Choix_FPA</formula1>')); }
   egal('Scol@ : tâche', await val(tr, 'Tâche *', 'C', { col: 'A' }), G.SCOLA_LISTES.tache[0]);
   egal('Scol@ : ventilation', await val(tr, 'Ventilation global *', 'C', { col: 'A' }), "Présence d'une ventilation générale et mécanique");
   egal('Scol@ : protection collective', await val(tr, 'Protection Collective *', 'C', { col: 'A' }), 'Présence de captage localisé inducteur (non enveloppant)');
@@ -339,7 +587,7 @@ async function finDeBout() {
   egal('Analyseurs : type de VLEP', await val(an, 'Type de VLEP', 'C', { col: 'A' }), '8h');
   egal('Analyseurs : Scol@ méthode lecture directe', await val(an, 'Méthode de prélèvement *', 'C', { col: 'A' }), 'Prélèvement réalisé avec un appareil à lecture directe');
   const eur = await wb.onglet('Eurofins');
-  egal('Eurofins : 1re ligne', [eur.text('B4'), eur.text('C4'), eur.text('E4'), eur.text('F4')], ['REF-tol-1', '13/10/2026', 'Echantillon', 'Standard (J0+9)']);
+  egal('Eurofins : 1re ligne', [eur.text('B4'), eur.text('C4'), eur.text('D4'), eur.text('E4'), eur.text('F4')], ['REF-tol-1', '13/10/2026', 'LOT-A', 'Echantillon', 'Standard (J0+9)']);
   egal('Eurofins : blanc avec lot', [eur.text('B19'), eur.text('D19'), eur.text('E19')], ['BT-1', 'LOT-A', 'Blanc']);
   // Fichier : calcChain retiré, recalcul forcé, XML des onglets créés bien formés
   const sc = await wb.onglet('Scol@');
@@ -368,7 +616,8 @@ async function finDeBout() {
       rapport: { chrono: 'CHRONO-9', contrat: 'CONTRAT-7', interlocuteur: 'M. X', redacteur: 'R', valideur: 'V', agence: 'woippy', types: { campagne1: true, periodique: true }, categories: { contraignantes: true, admises: true }, posteFixe: true },
       prelevements: [
         { id: 1, gehId: 1, type: '8h', isReglementaire: true, agents: [{ name: ag1 }], subPrelevements: [{ operateur: 'A', date: '2026-10-15', plages: [{ debut: '08:00', fin: '12:00' }], epiType: 'FFP3', agentData: {} }] },
-        { id: 2, gehId: 1, type: '8h', isReglementaire: false, agents: [{ name: ag2 }], subPrelevements: [{ operateur: 'A', date: '2026-10-15', plages: [{ debut: '08:00', fin: '12:00' }], agentData: {} }] }] };
+        { id: 2, gehId: 1, type: '8h', isReglementaire: false, agents: [{ name: ag2 }], subPrelevements: [{ operateur: 'A', date: '2026-10-15', plages: [{ debut: '08:00', fin: '12:00' }], agentData: {} }, { nonRealise: true, ecart: 'contrat', ecartMotif: 'Machine à l’arrêt' }] },
+        { id: 3, gehId: 1, type: 'CT', isReglementaire: true, agents: [{ name: ag1 }], subPrelevements: [{ nonRealise: true, ecart: 'strategie', ecartMotif: 'Pas de phase de pointe' }] }] };
     G.__trame = trame;
     const rr = await vm.runInContext('construireRapport(__mr, __trame, "nodebuffer")', ctx);
     const doc = await G.DocxMoteur.Document.charger(rr.blob);
@@ -381,6 +630,9 @@ async function finDeBout() {
     vrai('rapport : consignes « copier/coller le tableau » retirées', !paras.some(t => /Copier\/coller le tableau établi/.test(t)));
     vrai('rapport : EPI par GEH (FFP3, FPA 10)', paras.some(t => /GEH 1 « Peintres » portent un demi-masque filtrant de type FFP3/.test(t)) && paras.some(t => /égal à 10\. Ce coefficient/.test(t)));
     vrai('rapport : annexe des tâches remplie', paras.some(t => /^GEH 1 : Peintres/.test(t)));
+    vrai('rapport : écart au contrat rédigé', paras.some(t => /ne sont pas complètes\. Seule 1 mesure sur les 2 prévues a été réalisée \(machine à l’arrêt\)\.$/.test(t)) && !paras.some(t => /^Ecart au contrat\s*:\s*Sans objet/.test(t)));
+    vrai('rapport : écart à la stratégie rédigé dans la partie réglementaire', paras.includes('Les points suivants dérogent au plan d’échantillonnage :') && paras.some(t => /\(CT\) pour le GEH 1 « Peintres » n’a pas été réalisée \(pas de phase de pointe\)\.$/.test(t)));
+    vrai('rapport : aucun titre de niveau 1 vide (titre 3 vidé par la macro retiré, signets entre paragraphes compris)', !X.trouverTous(doc.corps(), 'w:p').some(p => { const pp = X.enfant(p, 'w:pPr'), st = pp && X.enfant(pp, 'w:pStyle'); return st && /^Titre1$/.test(X.attr(st, 'w:val')) && !X.texte(p).trim(); }));
     vrai('rapport : partie poste fixe dans les commentaires', paras.includes('Mesures à poste fixe (hors accréditation)'));
     const pied = doc.pieds().map(a => X.texte(a)).join(' ');
     vrai('rapport : n° d’affaire et chrono en pied de page', /DOSSIER-1/.test(pied) && /N° chrono\s*:\s*CHRONO-9/.test(pied));

@@ -1,0 +1,15 @@
+Contrôle des vraies sorties (Excel et Word installés sur le poste) — à refaire avant une diffusion.
+
+1. Feuille de calcul de la mission d'essai :
+   node outils/feuille-calcul/generer-test.js modele/feuille-calcul-vlep.xlsm <dossier>\test-feuille.xlsm
+2. Ouverture dans Excel (réparation, cellules en erreur), copie recalculée comme si le technicien l'enregistrait :
+   powershell -ExecutionPolicy Bypass -File outils\verification\controle-excel.ps1 -Fichier <dossier>\test-feuille.xlsm -Sortie <dossier>\test-feuille-calculee.xlsm
+   Attendu : « Pas de réparation. » ; seule erreur connue : Liste_Scola!CM2 (#N/A), présente dans le modèle vierge.
+3. Rapport Word avec cette feuille :
+   node outils/verification/generer-rapport.js <racine de l'appli> <dossier>\test-feuille-calculee.xlsm <dossier>\test-rapport.docx
+   Attendu : aucune alerte dans « Résultats ».
+4. Ouverture dans Word, champs mis à jour, export PDF à relire :
+   powershell -ExecutionPolicy Bypass -File outils\verification\controle-word.ps1 -Fichier <dossier>\test-rapport.docx -Pdf <dossier>\test-rapport.pdf
+   Attendu : aucune « Erreur ! » ; un « XXXX » reste (exemple de la trame en annexe 4, laissé au technicien).
+
+Hors navigateur, les tableaux de résultats sont des tableaux Word ; dans l'appli ce sont des images (même sélection de lignes et colonnes).

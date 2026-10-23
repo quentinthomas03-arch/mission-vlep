@@ -232,6 +232,43 @@ function rrLots(sheet, rRes, rVal) {
   }
   return lots;
 }
+// Colonnes utiles d'un lot : groupes (un GEH de 6 colonnes en Reg, un prélèvement de 2 colonnes sinon) ayant au moins
+// une réf. d'échantillon dans le bloc RESULTATS. Le bloc vierge « 2 - intitulé » que l'appli laisse dans un onglet à un
+// seul GEH, ou les prélèvements non utilisés d'un onglet non Reg, ne sont donc pas repris dans le rapport (la feuille,
+// elle, n'est pas modifiée). Sans ligne de réf. (onglet Analyseurs), toutes les colonnes sont gardées.
+function rrColonnesUtiles(sheet, cols, rRes, rVal, reg) {
+  var rRef = [];
+  for (var r = rRes; r < rVal; r++) if (/^(référence de l'échantillon|n° d'essai)/i.test(sheet.text('A' + r).trim())) rRef.push(r);
+  if (!rRef.length) return cols;
+  var pas = reg ? 6 : 2, out = [];
+  for (var i = 0; i < cols.length; i += pas) {
+    var g = cols.slice(i, i + pas);
+    var ref = g.some(function (c) { return rRef.some(function (r) { var t = String(sheet.text(XlsmMoteur.colStr(c) + r)).trim(); return t && t !== '0'; }); });
+    if (ref) out = out.concat(g);
+  }
+  return out;
+}
+// Plus grand numéro d'agent utilisé (« agent chimique n°k_ » renseigné) sur ces colonnes, comme la macro qui masque les
+// lignes « n°k_ » des agents suivants ; null si l'onglet n'a pas de lignes numérotées par agent
+function rrDernierAgent(sheet, cols, fin) {
+  var max = null;
+  for (var r = 1; r <= fin; r++) {
+    var m = /^agent chimique n°(\d+)_/i.exec(sheet.text('A' + r).trim());
+    if (!m) continue;
+    if (max === null) max = 0;
+    if (cols.some(function (c) { return String(sheet.text(XlsmMoteur.colStr(c) + r)).trim(); }) && +m[1] > max) max = +m[1];
+  }
+  return max;
+}
+// Ligne numérotée à masquer : agent « n°k_ » au-delà du dernier agent utilisé, ou ligne « n°… » vide sur ces colonnes
+function rrLigneNumeroteeVide(sheet, r, cols, dernierAgent) {
+  var lib = rrLibelle(sheet, r);
+  if (!/n°C\d+-P\d+_|n°\d+_/.test(lib)) return false;
+  var k = /(^|[^C\d])n°(\d+)_/.exec(lib);
+  if (k && dernierAgent !== null) return +k[2] > dernierAgent;
+  return !cols.some(function (c) { var v = rrValeur(sheet, XlsmMoteur.colStr(c) + r); return v.type === 'nombre' || (v.type === 'texte' && v.brut.trim()); });
+}
+
 // Type de prélèvement des colonnes d'un lot non Reg (ligne « type de prélèvement », 2 colonnes par prélèvement)
 function rrTypes(sheet, cols, rRes, rVal) {
   var rT = null;
@@ -425,7 +462,9 @@ function rrOnglets(wb) {
       var rRes = rrLigneDe(sh, 'RESULTATS'), rVal = rrLigneDe(sh, 'Validation des prélèvements'), rCalc = rrLigneDe(sh, 'Calcul d\'incertitudes');
       if (!rRes || !rVal) return;
       if (n !== 'Analyseurs' && RR_ONGLETS.indexOf(n) !== -1 && !rrAReference(sh, rRes, rVal)) return;
-      var lots = rrLots(sh, rRes, rVal).map(function (cols) { return { cols: cols, types: /Reg/.test(a1) ? null : rrTypes(sh, cols, rRes, rVal) }; });
+      var lots = rrLots(sh, rRes, rVal).map(function (cols) { return rrColonnesUtiles(sh, cols, rRes, rVal, /Reg/.test(a1)); })
+        .filter(function (cols) { return cols.length; })
+        .map(function (cols) { return { cols: cols, types: /Reg/.test(a1) ? null : rrTypes(sh, cols, rRes, rVal) }; });
       if (lots.length) out.push({ nom: n, modele: a1, reg: /Reg/.test(a1), sheet: sh, info: rrInfosOnglet(sh), rRes: rRes, rVal: rVal, rCalc: rCalc || rVal, lots: lots });
     });
   });
@@ -454,14 +493,9 @@ function rrGroupeInfos(o, cols) {
 }
 // Lignes du détail d'un lot : comme la macro, lignes numérotées (n°Cx-Py_, n°x_) vides sur le lot masquées
 function rrLignesDetail(o, cols) {
-  var sh = o.sheet, fin = o.rCalc - 2, rows = [];
+  var sh = o.sheet, fin = o.rCalc - 2, rows = [], dernier = rrDernierAgent(sh, cols, fin);
   for (var r = 1; r <= fin; r++) {
-    if (rrLigneCachee(sh, r)) continue;
-    var lib = rrLibelle(sh, r);
-    if (/n°C\d+-P\d+_|n°\d+_/.test(lib)) {
-      var plein = cols.some(function (c) { var v = rrValeur(sh, XlsmMoteur.colStr(c) + r); return v.type === 'nombre' || (v.type === 'texte' && v.brut.trim()); });
-      if (!plein) continue;
-    }
+    if (rrLigneCachee(sh, r) || rrLigneNumeroteeVide(sh, r, cols, dernier)) continue;
     rows.push(r);
   }
   return rows;
@@ -551,20 +585,24 @@ function rapportInsererResultats(doc, wbFeuille, m) {
       return inf.geh ? rapportEtapeAgentFeuille(m, inf.geh, inf.agents) : null;
     };
     onglets.forEach(function (o) {
-      var rowsRes = []; for (var r = o.rRes; r < o.rVal; r++) if (!rrLigneCachee(o.sheet, r)) rowsRes.push(r);
+      var lignesRes = function (cs) {
+        var d = rrDernierAgent(o.sheet, cs, o.rCalc - 2), out = [];
+        for (var r = o.rRes; r < o.rVal; r++) if (!rrLigneCachee(o.sheet, r) && !rrLigneNumeroteeVide(o.sheet, r, cs, d)) out.push(r);
+        return out;
+      };
       var aDonnees = function (cs) { return cs.some(function (c) { for (var r = o.rRes + 1; r < o.rVal; r++) { var v = rrValeur(o.sheet, XlsmMoteur.colStr(c) + r); if (v.type === 'nombre' || (v.type === 'texte' && v.brut.trim())) return true; } return false; }); };
       o.lots.forEach(function (lot) {
         if (o.reg) {
           // 2 groupes de 6 colonnes (un GEH et un type de VLEP chacun) : lot entier s'ils vont dans la même partie
           var gr = [lot.cols.slice(0, 6), lot.cols.slice(6, 12)].filter(aDonnees).map(function (cs) { return { cols: cs, etape: etapeGroupe(o, cs) }; });
           if (!gr.length) return;
-          if (gr.every(function (g) { return g.etape === gr[0].etape; })) dReg.push({ o: o, rows: rowsRes, cols: [1, 2].concat(lot.cols), etape: gr[0].etape });
-          else gr.forEach(function (g) { dReg.push({ o: o, rows: rowsRes, cols: [1, 2].concat(g.cols), etape: g.etape }); });
+          if (gr.every(function (g) { return g.etape === gr[0].etape; })) dReg.push({ o: o, rows: lignesRes(lot.cols), cols: [1, 2].concat(lot.cols), etape: gr[0].etape });
+          else gr.forEach(function (g) { dReg.push({ o: o, rows: lignesRes(g.cols), cols: [1, 2].concat(g.cols), etape: g.etape }); });
           return;
         }
         var pf = lot.cols.filter(function (c, i) { return /poste fixe/i.test(lot.types[i]); }), ind = lot.cols.filter(function (c, i) { return !/poste fixe/i.test(lot.types[i]); });
-        if (pf.length && aDonnees(pf)) dPf.push({ o: o, rows: rowsRes, cols: [1, 2].concat(pf) });
-        if (ind.length && aDonnees(ind)) dHors.push({ o: o, rows: rowsRes, cols: [1, 2].concat(ind) });
+        if (pf.length && aDonnees(pf)) dPf.push({ o: o, rows: lignesRes(pf), cols: [1, 2].concat(pf) });
+        if (ind.length && aDonnees(ind)) dHors.push({ o: o, rows: lignesRes(ind), cols: [1, 2].concat(ind) });
       });
     });
     var placer = function (cible, descs, quoi, cle) {

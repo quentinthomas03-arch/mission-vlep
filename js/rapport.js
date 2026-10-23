@@ -164,21 +164,33 @@ function rapportAgentsMission(m) {
   });
   return out;
 }
-// Catégories de la carte « Agents contrôlés » déduites de la base des agents. « Hors arrêté du 15/12/09 » reste
-// au choix du technicien.
+// Catégories de la carte « Agents contrôlés », d'après chaque prélèvement réalisé (ou à réaliser) : un prélèvement
+// réglementaire va dans la partie de l'arrêté (contraignantes / indicatives selon la base), un prélèvement non
+// réglementaire dans la partie hors arrêté (poussières, CMR, admises, ou « hors arrêté » pour un agent à VLEP
+// réglementaire mesuré hors contrôle réglementaire) : les résultats de la feuille ont ainsi toujours leur partie.
 function rapportCategoriesAuto(m) {
   var c = {};
-  rapportAgentsMission(m).forEach(function (an) {
-    var ag = rapportAgentDB(an);
-    if (!ag) return;
-    if (/pollution particulaire/i.test(an)) { c.poussieres = true; return; }
-    if (/silice cristalline/i.test(an)) c.silice = true;
-    var cat = rapportCategorie(ag);
-    if (cat === 'contraignante') { c.contraignantes = true; return; }
-    if (cat === 'indicative') { c.indicatives = true; return; }
-    var cmr = String(ag['CMR (règlement CLP)'] || '').trim();
-    if (cmr && cmr !== '-') { c.cmr = true; return; }
-    if (ag['VLEP 8h (mg/m3)'] || ag['VLEP CT (mg/m3)']) c.admises = true;
+  (m.prelevements || []).forEach(function (p) {
+    var faits = (p.subPrelevements || []).filter(function (sb) { return !sb.nonRealise; });
+    if (!faits.length) return;
+    // poste fixe : partie « Mesures à poste fixe » (case dédiée), pas une catégorie d'agents contrôlés
+    if (faits.every(function (sb) { return sb.posteFixe; })) return;
+    (p.agents || []).forEach(function (a) {
+      var an = a.name, ag = rapportAgentDB(an);
+      if (/silice cristalline/i.test(an)) c.silice = true;
+      if (!ag) return;
+      var cat = rapportCategorie(ag), pouss = /pollution particulaire/i.test(an);
+      if (p.isReglementaire) {
+        if (cat === 'indicative') c.indicatives = true; else c.contraignantes = true;
+        if (pouss) c.poussieres = true;
+        return;
+      }
+      if (pouss) { c.poussieres = true; return; }
+      if (cat !== 'admise') { c.horsArrete = true; return; }
+      var cmr = String(ag['CMR (règlement CLP)'] || '').trim();
+      if (cmr && cmr !== '-') { c.cmr = true; return; }
+      if (ag['VLEP 8h (mg/m3)'] || ag['VLEP CT (mg/m3)']) c.admises = true; else c.horsArrete = true;
+    });
   });
   return c;
 }
@@ -241,7 +253,7 @@ function renderRapportPrepa(m) {
     });
     h += '</div>';
   }
-  h += '<div class="field"><label class="label">Agents contrôlés</label>' + (r.categoriesAuto ? '<p class="subtitle" style="margin:0 0 6px;">Cochés d’après les agents de la mission (base des agents) ; « Hors arrêté » reste à cocher si besoin.</p>' : '') + '<div class="row">';
+  h += '<div class="field"><label class="label">Agents contrôlés</label>' + (r.categoriesAuto ? '<p class="subtitle" style="margin:0 0 6px;">Cochés d’après les prélèvements de la mission (réglementaires ou non) et la base des agents ; modifiables.</p>' : '') + '<div class="row">';
   RAPPORT_CATEGORIES.forEach(function (c) { h += puce(r.categories[c.id], 'rapportBascule(\'categories\',\'' + c.id + '\');', c.label); });
   h += '</div></div><div class="field" style="margin-bottom:0;"><label class="label">Autres mesures</label><div class="row">';
   h += puce(r.posteFixe, 'rapportMaj(\'posteFixe\',' + (r.posteFixe ? 'false' : 'true') + ');render();', 'Mesures à poste fixe (hors accréditation)');
@@ -498,7 +510,10 @@ function rapportTitresVides(doc) {
     if (!/^(Titre|Heading)\d$/i.test(v)) return;
     if (X.texte(p).trim() || X.trouverTous(p, 'w:drawing').length || X.trouverTous(p, 'w:sectPr').length) return;
     // repères de signets encore utiles : reportés au début du paragraphe suivant
-    var suivant = p.parent.kids[p.parent.kids.indexOf(p) + 1];
+    // (repères de signets posés entre deux paragraphes, comme après le titre 3 vidé par la macro, sautés)
+    var freres = p.parent.kids, k0 = freres.indexOf(p) + 1;
+    while (k0 < freres.length && (freres[k0].name === 'w:bookmarkStart' || freres[k0].name === 'w:bookmarkEnd')) k0++;
+    var suivant = freres[k0];
     var reperes = p.kids.filter(function (k) { return k.name === 'w:bookmarkStart' || k.name === 'w:bookmarkEnd'; });
     if (reperes.length && (!suivant || suivant.name !== 'w:p')) return;
     reperes.reverse().forEach(function (k) { X.retirer(k); var ppr2 = X.enfant(suivant, 'w:pPr'); if (ppr2) X.insererApres(ppr2, k); else { k.parent = suivant; suivant.kids.unshift(k); } });

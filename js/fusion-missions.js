@@ -17,6 +17,8 @@ function fmEmpreinte(sb){
 }
 // Appelé à chaque enregistrement des missions : un jour modifié depuis le dernier enregistrement reçoit
 // l'heure de la modification. Premier passage (missions d'avant cette version) : empreinte seulement.
+// Date du prélèvement : posée à la première vraie saisie sur le terrain (pas à la simple ouverture du prélèvement,
+// ni en préparation), quelle que soit la saisie (champ, chronomètre, dictée, J-1, validation, non réalisé).
 function daterSaisies(missions){
   var t=Date.now();
   (missions||[]).forEach(function(m){
@@ -24,6 +26,10 @@ function daterSaisies(missions){
       (p.subPrelevements||[]).forEach(function(sb){
         var e=fmEmpreinte(sb);
         if(sb._sig===e)return;
+        if(sb._sig&&m.status!=='prepa'&&!sb.date&&(sb.completed||sb.nonRealise||(typeof sbADesDonnees==='function'&&sbADesDonnees(sb)))){
+          sb.date=getTodayDate();
+          e=fmEmpreinte(sb);
+        }
         if(sb._sig)sb._mod=t;
         sb._sig=e;
       });
@@ -62,7 +68,9 @@ function fusionnerMissionDans(cible,inc){
     });
     (pi.subPrelevements||[]).forEach(function(si,k){
       var j=-1;
-      pl.subPrelevements.forEach(function(x,n){if(x.id===si.id)j=n;});
+      // jour sans identifiant (mission d'une ancienne version) : rapproché par son rang, jamais par « undefined »
+      if(si.id===undefined||si.id===null)j=k<pl.subPrelevements.length?k:-1;
+      else pl.subPrelevements.forEach(function(x,n){if(x.id===si.id)j=n;});
       if(j===-1){pl.subPrelevements.push(fmCopie(si));r.ajoutes++;return;}
       var sl=pl.subPrelevements[j];
       if(fmEmpreinte(sl)===fmEmpreinte(si)){r.identiques++;return;}

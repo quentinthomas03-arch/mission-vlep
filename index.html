@@ -375,6 +375,40 @@
     @keyframes splash-pop { 0% { opacity: 0; transform: scale(0.5); } 100% { opacity: 1; transform: scale(1); } }
     @keyframes splash-fade { 0% { opacity: 0; transform: translateY(8px); } 100% { opacity: 1; transform: translateY(0); } }
 .blanc-pense-bete { margin: 4px 0 10px; padding: 8px 10px; border-left: 3px solid var(--primary); background: rgba(0,163,163,0.06); border-radius: 0 8px 8px 0; font-size: 12px; line-height: 1.45; color: #334155; }
+/* === Regrouper des prélèvements (js/regroupement.js) === */
+.reg-carte { padding: 12px 14px; }
+.reg-carte.reg-support { border-left: 3px solid var(--primary); }
+.reg-ligne { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; padding: 5px 0; cursor: pointer; }
+.reg-ligne input { margin-top: 2px; flex-shrink: 0; }
+.reg-global { border-bottom: 1px solid var(--border-subtle); padding: 8px 0; }
+.reg-texte { font-size: 12px; color: var(--text-muted); margin: 6px 0 0; }
+.reg-alerte { margin-top: 8px; padding: 8px 10px; border-left: 3px solid #d97706; background: #fffbeb; border-radius: 0 8px 8px 0; font-size: 12px; color: #92400e; line-height: 1.45; }
+.reg-deja { font-size: 11px; color: var(--text-muted); }
+.reg-libre { padding: 8px 0; border-top: 1px solid var(--border-subtle); }
+.reg-libre:first-of-type { border-top: none; }
+.reg-libre-titre { font-size: 12px; font-weight: 700; color: var(--primary); margin-bottom: 2px; }
+.prel-separer { width: auto !important; margin: 0 4px 0 0 !important; padding: 6px 10px !important; font-size: 12px !important; }
+/* === Fiche supports (js/fiche-supports.js) === */
+.fs-note { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.45; }
+.fs-tableau-carte { padding: 8px; overflow-x: auto; }
+.fs-tableau { width: 100%; border-collapse: collapse; font-size: 12px; }
+.fs-tableau th { text-align: left; font-size: 11px; color: var(--text-muted); font-weight: 600; padding: 6px; border-bottom: 1px solid var(--border-subtle); }
+.fs-tableau td { padding: 7px 6px; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+.fs-tableau td:nth-child(n+3), .fs-tableau th:nth-child(n+3) { text-align: center; }
+.fs-agents { font-size: 11px; color: var(--text-muted); }
+.fs-conseil { border-left: 3px solid var(--primary); font-size: 12px; line-height: 1.5; }
+.fs-conseil p { margin: 6px 0 0; } .fs-conseil ul { margin: 6px 0 0 18px; padding: 0; }
+.fs-agent-nom { font-weight: 700; font-size: 14px; margin-bottom: 6px; }
+.fs-ligne { display: flex; gap: 10px; font-size: 12px; padding: 3px 0; border-top: 1px solid var(--border-subtle); }
+.fs-ligne span:first-child { flex: 0 0 110px; color: var(--text-muted); }
+.fs-commentaire { margin-top: 8px; padding: 8px 10px; border-left: 3px solid var(--primary); background: rgba(0,163,163,0.06); border-radius: 0 8px 8px 0; font-size: 12px; line-height: 1.45; white-space: pre-wrap; }
+.fs-alerte { color: #b45309; font-size: 12px; }
+@media print {
+  body { background: #fff !important; }
+  .no-print, .home-tabbar, #splash { display: none !important; }
+  .card { box-shadow: none !important; border: 1px solid #ddd !important; break-inside: avoid; backdrop-filter: none !important; background: #fff !important; }
+  .fs-commentaire-saisie { border: none; }
+}
 /* === Guide d'utilisation (js/guide.js) === */
 .guide-parcours { display: flex; gap: 4px; margin: 4px 0 10px; position: relative; }
 .guide-parcours::before { content: ''; position: absolute; left: 10%; right: 10%; top: 17px; height: 2px; background: var(--border-subtle); }
@@ -463,6 +497,8 @@
   <script src="js/envoi-mail.js"></script>
   <script src="js/nouveautes.js"></script>
   <script src="js/guide.js"></script>
+  <script src="js/fiche-supports.js"></script>
+  <script src="js/regroupement.js"></script>
   <script src="js/timers.js"></script>
   <script src="js/app.js"></script>
 
