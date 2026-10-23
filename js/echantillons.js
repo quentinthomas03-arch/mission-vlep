@@ -5,7 +5,10 @@
 function renderConditions(){
   var m=getCurrentMission();
   if(!m){state.view='terrain-mission';render();return'';}
-  var h='<button class="back-btn" onclick="state.view=\'terrain-mission\';render();">'+ICONS.arrowLeft+' Mission</button><div class="card"><h2>'+ICONS.thermometer+' Conditions ambiantes</h2><p class="subtitle">Par jour de prélèvement</p><button class="btn btn-primary mt-12" onclick="addCondition();">+ Ajouter un jour</button></div>';
+  var h='<button class="back-btn" onclick="state.view=\'terrain-mission\';render();">'+ICONS.arrowLeft+' Mission</button><div class="card"><h2>'+ICONS.thermometer+' Conditions ambiantes</h2><p class="subtitle">Par jour de prélèvement</p>';
+  var manquants=joursSansConditions(m);
+  if(manquants.length)h+='<button class="btn btn-primary mt-12" onclick="ajouterJoursConditions();">'+ICONS.plus+' Ajouter '+(manquants.length>1?'les jours de prélèvement':'le jour de prélèvement')+' ('+manquants.map(function(d){return formatDateFR(d).slice(0,5);}).join(', ')+')</button>';
+  h+='<button class="btn btn-gray'+(manquants.length?'':' mt-12')+'" onclick="addCondition();">'+ICONS.plus+' Ajouter un autre jour</button></div>';
   if(!m.conditionsAmbiantes)m.conditionsAmbiantes=[];
   if(m.conditionsAmbiantes.length===0)h+='<div class="empty-state"><p>Aucune condition saisie</p></div>';
   else m.conditionsAmbiantes.forEach(function(c,i){
@@ -26,10 +29,29 @@ function renderConditions(){
   return h;
 }
 
+// Jours de prélèvement (dates saisies, non réalisés exclus) sans conditions ambiantes, dans l'ordre
+function joursSansConditions(m){
+  var j=[];
+  (m.prelevements||[]).forEach(function(p){(p.subPrelevements||[]).forEach(function(sb){
+    if(!sb.nonRealise&&sb.date&&j.indexOf(sb.date)===-1&&!getConditionsForPrel(m,sb))j.push(sb.date);
+  });});
+  return j.sort();
+}
+function ajouterJoursConditions(){
+  var m=getCurrentMission();if(!m)return;
+  if(!m.conditionsAmbiantes)m.conditionsAmbiantes=[];
+  joursSansConditions(m).forEach(function(d){m.conditionsAmbiantes.push({date:d,tempI:'',tempF:'',pressionI:'',pressionF:'',humiditeI:'',humiditeF:''});});
+  m.conditionsAmbiantes.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
+  saveData('vlep_missions_v3',state.missions);
+  render();
+}
+
+// Jour hors prélèvements saisis : la date du jour s'il n'est pas déjà dans la liste, sinon à choisir
 function addCondition(){
   var m=getCurrentMission();if(!m)return;
   if(!m.conditionsAmbiantes)m.conditionsAmbiantes=[];
-  m.conditionsAmbiantes.push({date:new Date().toISOString().split('T')[0],tempI:'',tempF:'',pressionI:'',pressionF:'',humiditeI:'',humiditeF:''});
+  var auj=getTodayDate(),deja=m.conditionsAmbiantes.some(function(c){return c.date===auj;});
+  m.conditionsAmbiantes.push({date:deja?'':auj,tempI:'',tempF:'',pressionI:'',pressionF:'',humiditeI:'',humiditeF:''});
   saveData('vlep_missions_v3',state.missions);
   render();
 }
@@ -55,7 +77,7 @@ function renderListeEchantillons(){
   h+='<div class="row mb-12"><button class="btn btn-gray" onclick="state.showModal=\'addBlanc\';state.blancAgentSearch=\'\';state.blancAgents=[];if(!state.blancDate)state.blancDate=getTodayDate();render();">+ Blanc terrain</button><button class="btn btn-gray" onclick="ouvrirLotEnMasse();">N° de lot…</button>'+(typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true?'<button class="btn btn-primary" onclick="exportFeuilleCalcul();">'+ICONS.sheet+' Feuille de calcul</button>':'')+'</div>';
   h+='<div class="row mb-12"><span style="font-size:13px;margin-right:8px;">Trier par :</span><button class="btn btn-small '+(state.echantillonSort==='date'?'btn-blue':'btn-gray')+'" onclick="state.echantillonSort=\'date\';render();">Date</button><button class="btn btn-small '+(state.echantillonSort==='agent'?'btn-blue':'btn-gray')+'" onclick="state.echantillonSort=\'agent\';render();">Agent</button></div>';
   
-  // FIX #2: Regrouper par référence échantillon
+  // une ligne par référence (agents d'un même support réunis)
   var byRef={};
   m.prelevements.forEach(function(p){
     p.subPrelevements.filter(function(s0){return !s0.nonRealise;}).reduce(function(acc,s0){return acc.concat(expandSubSupports(s0));},[]).forEach(function(sb){
@@ -238,7 +260,7 @@ function appliquerLot(m,sel,lot){
   return n;
 }
 
-// FIX #3: Modal blanc avec recherche corrigée
+// Fenêtre « Blanc terrain »
 function renderAddBlancModal(){
   var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>+ Blanc terrain</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div>';
   h+='<div class="field"><label class="label">Référence échantillon *</label><input type="text" class="input" id="blanc-ref" placeholder="Ex: BT-001" value="'+escapeHtml(state.blancRef||'')+'" oninput="state.blancRef=this.value;"></div>';
@@ -295,7 +317,7 @@ function renderAddBlancModal(){
   return h;
 }
 
-// FIX #3: Handler de recherche blanc sans render() complet
+// Recherche d'agent du blanc : seuls les résultats sont redessinés (le champ garde le focus)
 function handleBlancAgentSearch(value){
   state.blancAgentSearch=value;
   updateBlancSearchResults();
@@ -381,10 +403,10 @@ function checkBlancWarnings(agents){
     }
   });
   if(Object.keys(debits).length>1){
-    warnings.push('⚠️ Débits différents : '+Object.keys(debits).map(function(d){return d+' L/min ('+debits[d].join(', ')+')';}).join(' vs '));
+    warnings.push('Débits différents : '+Object.keys(debits).map(function(d){return d+' L/min ('+debits[d].join(', ')+')';}).join(' vs '));
   }
   if(Object.keys(codesPretrait).length>1){
-    warnings.push('⚠️ Codes prétraitement différents : '+Object.keys(codesPretrait).map(function(c){return c+' ('+codesPretrait[c].join(', ')+')';}).join(' vs '));
+    warnings.push('Codes prétraitement différents : '+Object.keys(codesPretrait).map(function(c){return c+' ('+codesPretrait[c].join(', ')+')';}).join(' vs '));
   }
   return warnings;
 }

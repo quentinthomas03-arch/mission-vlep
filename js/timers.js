@@ -3,9 +3,9 @@
 // Chronomètres CT 15min, dictée vocale améliorée
 
 // ===================================================
-// DICTÉE VOCALE - Version améliorée
-// Corrections : bug de duplication, affichage live,
-// auto-relance, commandes ponctuation
+// DICTÉE VOCALE (observations)
+// Écoute continue relancée après chaque silence, texte provisoire affiché en direct, commandes de ponctuation,
+// morceaux cumulés de Chrome sur Android fusionnés (dicteeFusion)
 // ===================================================
 
 var activeDictation = null;
@@ -30,8 +30,8 @@ function applyPonctuationCommands(text) {
   PONCTUATION_COMMANDS.forEach(function(cmd) {
     text = text.replace(cmd.pattern, cmd.replacement);
   });
-  // Nettoyer les espaces multiples sauf les sauts de ligne
-  text = text.replace(/ {2,}/g, ' ');
+  // Nettoyer les espaces multiples sauf les sauts de ligne ; pas d'espace avant une virgule, un point ou « ) »
+  text = text.replace(/ {2,}/g, ' ').replace(/ +([,.)])/g, '$1');
   return text;
 }
 
@@ -54,7 +54,7 @@ function showDictationPanel(prelId, subIdx) {
     '<div style="display:flex;align-items:center;gap:10px;">',
       '<div id="dictation-dot" style="width:14px;height:14px;border-radius:50%;background:#ef4444;animation:dictPulse 1s infinite;flex-shrink:0;"></div>',
       '<span style="font-weight:700;font-size:14px;">Dictée en cours...</span>',
-      '<button onclick="stopDictation();" style="margin-left:auto;background:#ef4444;color:white;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">⏹ Stop</button>',
+      '<button onclick="stopDictation();" style="margin-left:auto;background:#ef4444;color:white;border:none;border-radius:8px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">Stop</button>',
     '</div>',
     '<div id="dictation-interim" style="',
       'background:#0f172a;border-radius:8px;padding:10px 12px;',
@@ -129,6 +129,24 @@ function toggleDictation(prelId, subIdx) {
   startDictationSession(prelId, subIdx, key);
 }
 
+// Fusion des résultats définitifs d'une écoute. Safari et Chrome sur ordinateur envoient des phrases successives
+// (« bonjour », « je suis là ») ; Chrome sur Android envoie souvent des morceaux cumulés (« bonjour », « bonjour je »,
+// « bonjour je suis là ») ou répète la phrase : un morceau qui reprend le texte déjà reconnu le remplace au lieu de
+// s'y ajouter, une répétition exacte est ignorée.
+function dicteeFusion(finals) {
+  var acc = '';
+  (finals || []).forEach(function (t) {
+    t = String(t || '').trim();
+    if (!t) return;
+    var a = acc.toLowerCase(), b = t.toLowerCase();
+    if (!acc) acc = t;
+    else if (b.indexOf(a) === 0) acc = t;                 // morceau cumulé : remplace
+    else if (a.slice(-b.length) === b) return;             // répétition de la fin : ignorée
+    else acc += ' ' + t;                                   // phrase suivante
+  });
+  return acc;
+}
+
 function startDictationSession(prelId, subIdx, key) {
   var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
@@ -153,76 +171,57 @@ function startDictationSession(prelId, subIdx, key) {
     prelId: prelId,
     subIdx: subIdx,
     recognition: recognition,
-    confirmedText: confirmedText, // texte validé définitivement
+    base: confirmedText,   // texte du champ avant cette écoute (et des écoutes précédentes, après relance)
+    courant: '',           // texte reconnu pendant l'écoute en cours (brut, sans ponctuation)
     stopped: false
   };
+  session.texte = function () { return session.base + applyPonctuationCommands(session.courant); };
 
   activeDictation = session;
 
-  // ââ€â‚¬ââ€â‚¬ââ€â‚¬ GESTIONNAIRE PRINCIPAL : résultats ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬
+  // --- Résultats : relus en entier à chaque fois (pas seulement depuis resultIndex) et fusionnés par
+  // dicteeFusion, qui gère les morceaux cumulés envoyés par Chrome sur Android. ---
   recognition.onresult = function(event) {
-    var interimTranscript = '';
-    var newFinalText = '';
-
-    for (var i = event.resultIndex; i < event.results.length; i++) {
-      var result = event.results[i];
-      var transcript = result[0].transcript;
-
-      if (result.isFinal) {
-        // Résultat définitif : appliquer les commandes de ponctuation
-        newFinalText += applyPonctuationCommands(transcript);
-      } else {
-        // Résultat interimaire : affichage uniquement, pas de ponctuation
-        interimTranscript += transcript;
-      }
+    var finals = [], interim = '';
+    for (var i = 0; i < event.results.length; i++) {
+      var r = event.results[i];
+      if (r.isFinal) finals.push(r[0].transcript);
+      else interim = r[0].transcript;
     }
-
-    // Accumuler le texte final validé
-    if (newFinalText) {
-      session.confirmedText += newFinalText;
-      // Mettre à jour le champ et sauvegarder
-      if (textarea) {
-        textarea.value = session.confirmedText;
-      }
-      updateSubFieldWithAutoDate(prelId, subIdx, 'observations', session.confirmedText);
+    var courant = dicteeFusion(finals);
+    if (courant !== session.courant) {
+      session.courant = courant;
+      updateSubFieldWithAutoDate(prelId, subIdx, 'observations', session.texte());
     }
-
-    // Afficher : texte confirmé + interim en cours
-    var displayText = session.confirmedText + interimTranscript;
-    if (textarea) {
-      textarea.value = displayText;
-    }
-
-    // Mettre à jour le panel visuel
-    updateDictationPanel(interimTranscript || newFinalText, !interimTranscript);
+    // texte provisoire : sans ce qui est déjà validé (Android le répète en tête)
+    var dernier = finals.length ? finals[finals.length - 1].trim() : '';
+    if (dernier && interim.trim().toLowerCase().indexOf(dernier.toLowerCase()) === 0) interim = interim.trim().slice(dernier.length);
+    if (textarea) textarea.value = session.texte() + (interim.trim() ? (session.courant ? ' ' : '') + interim.trim() : '');
+    updateDictationPanel(interim.trim() || applyPonctuationCommands(courant), !interim.trim());
   };
 
-  // ââ€â‚¬ââ€â‚¬ââ€â‚¬ FIN DE SESSION : auto-relance si pas stoppé volontairement ââ€â‚¬ââ€â‚¬ââ€â‚¬
+  // --- Fin d'écoute : relance automatique tant que le technicien n'a pas touché « Stop » ---
   recognition.onend = function() {
     var btn = document.getElementById('dict-btn-' + prelId + '-' + subIdx);
+    // ce qui a été reconnu devient la base de l'écoute suivante
+    if (session.courant.trim()) { session.base = session.texte().replace(/\s*$/, ' '); session.courant = ''; }
 
     if (session.stopped) {
-      // Arrêt volontaire
       activeDictation = null;
       if (btn) btn.classList.remove('recording');
       removeDictationPanel();
-      // Sauvegarder la valeur finale proprement
-      if (textarea) {
-        var finalVal = session.confirmedText.trimEnd();
-        textarea.value = finalVal;
-        updateSubFieldWithAutoDate(prelId, subIdx, 'observations', finalVal);
-      }
+      var finalVal = session.base.trimEnd();
+      if (textarea) textarea.value = finalVal;
+      updateSubFieldWithAutoDate(prelId, subIdx, 'observations', finalVal);
       return;
     }
 
-    // Auto-relance après silence (comportement Android Chrome)
-    // Petit délai pour éviter l'erreur "already started"
+    // relance après un silence (Android coupe l'écoute) ; petit délai contre l'erreur « already started »
     setTimeout(function() {
       if (!session.stopped && activeDictation && activeDictation.key === key) {
         try {
           recognition.start();
         } catch(e) {
-          // Si échec de relance, créer une nouvelle session
           activeDictation = null;
           if (btn) btn.classList.remove('recording');
           removeDictationPanel();
@@ -232,36 +231,16 @@ function startDictationSession(prelId, subIdx, key) {
     }, 200);
   };
 
-  // ââ€â‚¬ââ€â‚¬ââ€â‚¬ ERREURS ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬ââ€â‚¬
+  // --- Erreurs ---
   recognition.onerror = function(event) {
     var btn = document.getElementById('dict-btn-' + prelId + '-' + subIdx);
-
-    if (event.error === 'no-speech') {
-      // Silence : normal sur le terrain, on laisse l'auto-relance gérer
-      return;
+    // silence, arrêt volontaire, réseau : la relance de onend s'en charge
+    if (event.error === 'no-speech' || event.error === 'aborted' || event.error === 'network') return;
+    if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+      alert('Micro refusé : autorisez le micro pour ce site dans les réglages du navigateur.');
+    } else {
+      console.warn('Dictée - erreur:', event.error);
     }
-
-    if (event.error === 'aborted') {
-      // Arrêt propre, géré par onend
-      return;
-    }
-
-    if (event.error === 'not-allowed') {
-      alert('Microphone refusé. Vérifiez les permissions dans les réglages Chrome.');
-      session.stopped = true;
-      activeDictation = null;
-      if (btn) btn.classList.remove('recording');
-      removeDictationPanel();
-      return;
-    }
-
-    if (event.error === 'network') {
-      // Erreur réseau : tenter de relancer
-      return;
-    }
-
-    // Autres erreurs : afficher et stopper
-    console.warn('Dictée - erreur:', event.error);
     session.stopped = true;
     activeDictation = null;
     if (btn) btn.classList.remove('recording');
@@ -433,14 +412,14 @@ function getTimerDisplay(prelId, subIdx) {
   return [
     '<div class="ct-timer-box" style="background:' + (isOver ? '#fef2f2' : '#f0fdf4') + ';border:2px solid ' + (isOver ? '#ef4444' : '#22c55e') + ';border-radius:10px;padding:12px;margin:8px 0;">',
       '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">',
-        '<span style="font-weight:700;color:' + (isOver ? '#ef4444' : '#16a34a') + ';">⏱ Chrono CT</span>',
+        '<span style="font-weight:700;color:' + (isOver ? '#ef4444' : '#16a34a') + ';display:inline-flex;align-items:center;gap:6px;"><span style="display:inline-flex;width:16px;height:16px;">' + ICONS.clock + '</span>Chrono CT</span>',
         '<span id="ct-timer-' + key + '" style="font-size:24px;font-weight:700;font-family:monospace;color:' + (isOver ? '#ef4444' : '#16a34a') + ';">' + formatCTTime(elapsed) + '</span>',
       '</div>',
       '<div style="background:#e5e7eb;border-radius:4px;height:6px;margin-bottom:10px;">',
         '<div style="background:' + (isOver ? '#ef4444' : '#22c55e') + ';height:6px;border-radius:4px;width:' + pct.toFixed(1) + '%;transition:width 1s;"></div>',
       '</div>',
-      (isOver ? '<div style="font-size:11px;color:#ef4444;font-weight:700;text-align:center;margin-bottom:8px;">⚠️ 15 min dépassées</div>' : '<div style="font-size:11px;color:#6b7280;text-align:center;margin-bottom:8px;">Durée max CT : 15 min</div>'),
-      '<button class="btn btn-danger" style="width:100%;" onclick="stopCTTimer(' + prelId + ',' + subIdx + ');">⏹ Arrêter</button>',
+      (isOver ? '<div style="font-size:11px;color:#ef4444;font-weight:700;text-align:center;margin-bottom:8px;">15 min dépassées</div>' : '<div style="font-size:11px;color:#6b7280;text-align:center;margin-bottom:8px;">Durée max CT : 15 min</div>'),
+      '<button class="btn btn-danger" style="width:100%;" onclick="stopCTTimer(' + prelId + ',' + subIdx + ');">Arrêter le chrono</button>',
     '</div>'
   ].join('');
 }

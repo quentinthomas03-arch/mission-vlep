@@ -6,10 +6,25 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.44';
+var APP_VERSION = '2.46';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.46', date: '23/10/2026', items: [
+    'Scol@ par GEH (écran de la mission, sous « Conditions ambiantes ») : tâche, métier, procédé, lieu, ventilation et captage saisis une fois pour le GEH et recopiés dans tous ses prélèvements, y compris ceux ajoutés ensuite. Un prélèvement changé à la main garde sa valeur (« Appliquer à tous » pour l’aligner). La ligne indique les GEH encore à compléter.',
+    'Préparation : « Reprendre la feuille de calcul de l’an dernier ». Choisissez la feuille de calcul (.xlsm) de la campagne précédente : GEH, agents, 8h / CT, réglementaire ou non, nombre de prélèvements, EPI, durée d’exposition et Scol@ (tâche, métier, procédé, lieu, ventilation, captage) sont repris, comme « Extraire les données de l’ancien fichier » de la feuille. Le Scol@ rempli sur un seul bloc d’un GEH est recopié sur ses autres prélèvements. Rien des mesures (opérateurs, pompes, heures, débits, réf.) n’est repris.',
+    'Feuille de calcul : plus de colonnes vides. Les blocs du modèle non utilisés (« 2 - intitulé », prélèvements en trop) sont retirés, et un jour prévu sans aucune saisie (ni heures, ni réf., ni débit) n’est plus écrit : il est signalé à l’export (à marquer « Non réalisé » s’il n’a pas été fait).',
+    'Saisie Scol@ dans Excel : les onglets modèles vierges (« Tube Reg », « Cassette »…) ne sont plus proposés, ils sont supprimés comme le fait le formulaire « Ajouter » de la feuille.',
+    'Rapport Word : les jours sans référence d’échantillon d’un GEH ne sont plus repris dans les tableaux de résultats.'
+  ] },
+  { version: '2.45', date: '23/10/2026', items: [
+    'Dictée vocale des observations sur Android : les phrases ne se répètent plus (Chrome sur Android envoie des morceaux cumulés, désormais fusionnés) ; « virgule » et « point » collés au mot précédent.',
+    'Même support : la fenêtre coche d’office les agents que la base place sur le même support, et prévient si un agent coché a un autre support dans la base.',
+    'Ajouter un prélèvement sur le terrain : statut réglementaire tiré de la base et nombre de prélèvements au choix (1, 2 ou 3), comme en préparation.',
+    'Conditions ambiantes : un bouton ajoute d’un coup les jours de prélèvement qui n’ont pas encore de conditions (avant : toujours la date du jour).',
+    'Affectations : « Régl. / Non régl. » et « 3 prél. » écrits en clair, le GEH sur sa ligne.',
+    'Nettoyage : envoi par QR code (jamais branché) et ancien écran d’import de la base retirés ; icônes de l’appli à la place des emojis (chrono CT, avertissements).'
+  ] },
   { version: '2.44', date: '23/10/2026', items: [
     'Regrouper des prélèvements (menu ⋯, remplace « Fusionner intelligemment » et « Fusion manuelle ») : par GEH, les agents d’un même support (un seul support par jour, « Même support » coché d’office) puis « tout le GEH » quand c’est sans risque ; « Tout regrouper » applique en une fois les propositions sûres, après une liste à cocher. Saisies en conflit et jours différents sont affichés avant de valider ; rien n’est perdu : les jours en plus sont ajoutés, les champs vides complétés.',
     'Liste de la mission : un prélèvement regroupé indique « 1 support (tube de charbon actif) » ou « 2 supports », avec un bouton « Séparer » en clair. « Fusionner le fichier d’un collègue » devient « Réunir le fichier d’un collègue ».',

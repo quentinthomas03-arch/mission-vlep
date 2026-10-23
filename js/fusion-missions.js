@@ -1,6 +1,6 @@
 // fusion-missions.js - Travailler à plusieurs sur une même mission (même principe que l'appli Aération)
 //
-// Déroulé type : le technicien A prépare la mission et l'envoie (.json, e-mail, QR) au technicien B ; chacun
+// Déroulé type : le technicien A prépare la mission et l'envoie (.json ou e-mail) au technicien B ; chacun
 // saisit ses prélèvements ; B renvoie son fichier et A le FUSIONNE dans sa mission au lieu de l'écraser.
 // Seulement pour une même mission partagée (même identifiant) : deux missions créées séparément pour le
 // même site ne sont pas rapprochées.
@@ -110,7 +110,7 @@ function fusionnerMissionDans(cible,inc){
 function fusionBilanTexte(r){
   var l=['Fusion terminée :','• '+r.repris+' jour(s) de prélèvement repris du fichier reçu','• '+r.ajoutes+' élément(s) ajouté(s) (prélèvements, jours, blancs, conditions)','• '+r.identiques+' inchangé(s)'];
   if(r.conflits.length){
-    l.push('','⚠️ Saisis sur les deux téléphones (la saisie la plus récente est gardée, à vérifier) :');
+    l.push('','À vérifier, saisis sur les deux téléphones (la saisie la plus récente est gardée, à vérifier) :');
     r.conflits.slice(0,8).forEach(function(c){l.push('- '+c);});
     if(r.conflits.length>8)l.push('- … et '+(r.conflits.length-8)+' autre(s)');
   }

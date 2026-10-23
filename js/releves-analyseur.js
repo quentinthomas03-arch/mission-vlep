@@ -115,8 +115,8 @@ function renderRelevesAnalyseur(p, idx, an, sb, ad) {
     var f = function (s) { return s.slice(8, 10) + '/' + s.slice(5, 7) + ' ' + s.slice(11, 16); };
     h += '<div style="font-size:11px;color:var(--text-muted);margin-top:4px;">' + r.total + ' relevés (' + escapeHtml(ad.relevesColonne || '') + ') du ' + f(r.debut) + ' au ' + f(r.fin) + '</div>';
     if (r.n) h += '<div style="font-size:12px;font-weight:600;color:#047857;margin-top:2px;">Moyenne sur les plages : ' + (Math.round(r.moy * 10) / 10).toString().replace('.', ',') + ' ppm (' + r.n + ' relevés)</div>';
-    else h += '<div style="font-size:11px;color:#b45309;margin-top:2px;">⚠️ Aucun relevé dans les plages saisies : vérifier la date, les plages ou l’heure de l’appareil.</div>';
-    if (r.minuit) h += '<div style="font-size:11px;color:#b45309;margin-top:2px;">⚠️ Mesure à cheval sur minuit : la feuille de calcul ne sait pas faire la moyenne sur ces plages, à vérifier dans l’onglet Acquisition.</div>';
+    else h += '<div style="font-size:11px;color:#b45309;margin-top:2px;">Aucun relevé dans les plages saisies : vérifier la date, les plages ou l’heure de l’appareil.</div>';
+    if (r.minuit) h += '<div style="font-size:11px;color:#b45309;margin-top:2px;">Mesure à cheval sur minuit : la feuille de calcul ne sait pas faire la moyenne sur ces plages, à vérifier dans l’onglet Acquisition.</div>';
   }
   return h + '</div>';
 }

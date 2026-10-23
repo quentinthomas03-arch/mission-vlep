@@ -100,7 +100,7 @@ function renderConsignesAgent(m, p, sb, an) {
   var h = '';
   lignes.forEach(function (l) {
     var alerte = l.niveau === 'alerte';
-    h += '<div style="font-size:11px;line-height:1.4;padding:6px 8px;margin:4px 0;border-radius:6px;background:' + (alerte ? '#fef2f2' : '#fffbeb') + ';color:' + (alerte ? '#b91c1c' : '#92400e') + ';">' + (alerte ? '⚠️ ' : 'ℹ️ ') + escapeHtml(l.texte) + '</div>';
+    h += '<div style="font-size:11px;line-height:1.4;padding:6px 8px;margin:4px 0;border-radius:6px;background:' + (alerte ? '#fef2f2' : '#fffbeb') + ';color:' + (alerte ? '#b91c1c' : '#92400e') + ';">' + escapeHtml(l.texte) + '</div>';
   });
   // commentaire complet consultable si ses consignes ne sont pas déjà affichées en entier
   var affiche = lignes.some(function (l) { return l.texte === com; });

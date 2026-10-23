@@ -97,6 +97,7 @@ function validateMission(id){
   if(!m)return;
   var avant=JSON.parse(JSON.stringify(m.prelevements||[]));
   var retires=generatePrelevements(m);
+  if(typeof scolaGehCompleter==='function')scolaGehCompleter(m); // Scol@ par GEH déjà saisi (reprise de l'an dernier…)
   if(retires.length){
     var noms=retires.map(function(p){return '• GEH '+p.gehNum+' – '+(p.agents||[]).map(function(a){return a.name;}).join(' + ')+' ('+p.type+')';}).join('\n');
     if(!confirm('Ces prélèvements déjà saisis n\'ont plus de GEH ou d\'agent dans la préparation et seront supprimés :\n\n'+noms+'\n\nContinuer ?')){m.prelevements=avant;render();return;}
@@ -124,7 +125,7 @@ function prelASaisie(p){
   });
 }
 
-// FIX #8: Le statut réglementaire est maintenant géré indépendamment pour 8h et CT
+// Statut réglementaire propre au 8h et au CT de chaque affectation
 // Mission déjà commencée (retour en préparation pour modifier les GEH, agents ou affectations) : les prélèvements
 // existants sont gardés tels quels (saisie, fusions, prélèvements ajoutés sur le terrain), seuls les nouveaux sont
 // ajoutés. Renvoie les prélèvements saisis qui n'ont plus de GEH ou d'agent (à confirmer avant suppression).
@@ -153,6 +154,7 @@ function generatePrelevements(m){
           var sb={id:generateId(),operateur:'',date:'',plages:[{debut:'',fin:''}],observations:'',completed:false,agentData:{}};
           if(ga.jours8h&&ga.jours8h[s])sb.jourPrevu=ga.jours8h[s];
           if(ga.posteFixe)sb.posteFixe=true;
+          appliquerReprise(sb,ga,'8h',s);
           sb.agentData[an]={refEchantillon:'',numPompe:'',debitInitial:'',debitFinal:''};
           p.subPrelevements.push(sb);
         }
@@ -167,6 +169,7 @@ function generatePrelevements(m){
           var sbCT={id:generateId(),operateur:'',date:'',plages:[{debut:'',fin:''}],observations:'',completed:false,agentData:{}};
           if(ga.joursCT&&ga.joursCT[sCT])sbCT.jourPrevu=ga.joursCT[sCT];
           if(ga.posteFixe)sbCT.posteFixe=true;
+          appliquerReprise(sbCT,ga,'CT',sCT);
           sbCT.agentData[an]={refEchantillon:'',numPompe:'',debitInitial:'',debitFinal:''};
           pct.subPrelevements.push(sbCT);
         }
@@ -237,6 +240,8 @@ function renderPrepaMission(){
   h+=renderMissionFileButtons(m);
   if(state._returnToTerrain)h+='<button class="btn btn-primary mt-8" onclick="returnToTerrain();">'+ICONS.check+' Retour au terrain</button>';
   if(m.status==='prepa')h+='<button class="btn btn-gray mt-8" onclick="state.showModal=\'prepaAuto\';state.prepaAutoData=null;render();">'+ICONS.zap+' Prépa automatique (devis)</button>';
+  if(m.status==='prepa'&&typeof repriseChoisirFichier==='function')h+='<button class="btn btn-gray mt-8" onclick="repriseChoisirFichier();">'+ICONS.folder+' Reprendre la feuille de calcul de l’an dernier</button>';
+  if(state.showModal==='reprise'&&typeof renderRepriseModal==='function')h+=renderRepriseModal(m);
   if(typeof renderVeoliaPrepa==='function'&&typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true)h+=renderVeoliaPrepa(m);
   if(state.showModal==='editInfo')h+=renderEditInfoModal(m);
   if(state.showModal==='prepaAuto')h+=renderPrepaAutoModal(m);
@@ -714,11 +719,27 @@ function applyPrepaAuto(){
   
   var confirm1=confirm('Appliquer la prépa automatique ?\n\nCela va remplacer les GEH, agents et affectations actuels.\n\n'+p.gehs.length+' GEH · '+p.agents.length+' agents');
   if(!confirm1)return;
-  
+  appliquerPlanPrepa(m,p);
+
+  saveData('vlep_missions_v3',state.missions);
+  state.showModal=null;
+  state.prepaAutoData=null;
+  render();
+
+  var totalPrel=countPrelevements(m);
+  alert('Prépa automatique appliquée !\n\n'+m.gehs.filter(function(g){return g.name;}).length+' GEH\n'+m.agents.length+' agents\n'+totalPrel+' prélèvements\n\nVérifiez les affectations et validez quand tout est bon.');
+}
+
+// Plan (prépa automatique ou reprise de la feuille de l'an dernier) -> GEH, agents et affectations de la mission.
+// r.isReg : statut imposé par la source (feuille de l'an dernier), sinon celui de la base ; r.reprise : saisies de
+// chaque prélèvement (Scol@, EPI, durée d'exposition) recopiées à la validation
+function appliquerPlanPrepa(m,p){
   // 1. Créer les GEH
   m.gehs=[];
   p.gehs.forEach(function(g){
-    m.gehs.push({id:generateId(),num:g.num,name:g.name});
+    var ng={id:generateId(),num:g.num,name:g.name};
+    if(g.scola&&Object.keys(g.scola).length)ng.scola=JSON.parse(JSON.stringify(g.scola)); // Scol@ par GEH (reprise)
+    m.gehs.push(ng);
   });
   p.rows.forEach(function(r){r.nb=r.nb||3;});
   
@@ -767,20 +788,22 @@ function applyPrepaAuto(){
         if(gaf['has'+T]){gaf['nb'+T]=(gaf['nb'+T]||0)+r.nb;}
         else{gaf['has'+T]=true;gaf['nb'+T]=r.nb;}
         // poste fixe : mesure d'ambiance hors accréditation, jamais réglementaire
-        gaf['isReg'+T]=r.posteFixe?false:agentEstReglementaire(an);
+        gaf['isReg'+T]=r.posteFixe?false:(r.isReg!==undefined?r.isReg:agentEstReglementaire(an));
         if(r.jours){gaf['jours'+T]=(gaf['jours'+T]||[]).concat(r.jours);if(r.plage)gaf['plage'+T]=r.plage;}
+        if(r.reprise&&r.reprise.length)gaf['reprise'+T]=(gaf['reprise'+T]||[]).concat(r.reprise);
         if(r.posteFixe)gaf.posteFixe=true;
       });
     });
   });
-  
-  saveData('vlep_missions_v3',state.missions);
-  state.showModal=null;
-  state.prepaAutoData=null;
-  render();
-  
-  var totalPrel=countPrelevements(m);
-  alert('Prépa automatique appliquée !\n\n'+m.gehs.filter(function(g){return g.name;}).length+' GEH\n'+m.agents.length+' agents\n'+totalPrel+' prélèvements\n\nVérifiez les affectations et validez quand tout est bon.');
+}
+
+// Saisies reprises de la feuille de l'an dernier (gaf.reprise8h / repriseCT) -> prélèvement n°s (le 1er à défaut)
+var REPRISE_CHAMPS=['scolaTache','scolaMetier','scolaProcede','ventEnv','ventGenerale','ventCaptage','epiType','dureeExpo'];
+function appliquerReprise(sb,ga,type,s){
+  var l=ga['reprise'+type];
+  if(!l||!l.length)return;
+  var j=l[s]||l[0];
+  REPRISE_CHAMPS.forEach(function(k){if(j[k])sb[k]=j[k];});
 }
 
 function unvalidateMission(id){
@@ -809,7 +832,7 @@ function deleteMission(id){
   }
 }
 
-// FIX #3: Correction du bug de recherche d'agents - pas de render() complet
+// Recherche d'agents : seuls les résultats sont redessinés (le champ garde le focus)
 function renderPrepaAgents(){
   var m=getCurrentMission();
   if(!m){state.view='prepa-list';render();return'';}
@@ -835,13 +858,13 @@ function renderPrepaAgents(){
     var c=getAgentColor(m,a.name);
     var h8=hasVLEP8h(a.name)||a.isManual;
     var hc=hasVLEPCT(a.name)||a.isManual;
-    h+='<div class="agent-item"><div class="agent-color" style="background:'+c+';"></div><div class="agent-name">'+escapeHtml(a.name)+(a.isManual?' <small>(manuel)</small>':'')+(typeof consigneSansLabo==='function'&&consigneSansLabo(a.name)?' <small style="color:#dc2626;font-weight:600;">⚠️ aucun laboratoire ne l’analyse</small>':'')+'</div><div class="agent-badges"><span class="agent-badge agent-badge-8h '+(a.is8h?'active':'')+'" onclick="toggleAgent8h('+i+');">8h</span><span class="agent-badge agent-badge-ct '+(a.isCT?'active':'')+'" onclick="toggleAgentCT('+i+');">CT</span></div><button class="agent-delete" onclick="removeAgent('+i+');">'+ICONS.trash+'</button></div>';
+    h+='<div class="agent-item"><div class="agent-color" style="background:'+c+';"></div><div class="agent-name">'+escapeHtml(a.name)+(a.isManual?' <small>(manuel)</small>':'')+(typeof consigneSansLabo==='function'&&consigneSansLabo(a.name)?' <small style="color:#dc2626;font-weight:600;">aucun laboratoire ne l’analyse</small>':'')+'</div><div class="agent-badges"><span class="agent-badge agent-badge-8h '+(a.is8h?'active':'')+'" onclick="toggleAgent8h('+i+');">8h</span><span class="agent-badge agent-badge-ct '+(a.isCT?'active':'')+'" onclick="toggleAgentCT('+i+');">CT</span></div><button class="agent-delete" onclick="removeAgent('+i+');">'+ICONS.trash+'</button></div>';
   });
   if(state.showModal==='addManual')h+=renderAddManualModal();
   return h;
 }
 
-// FIX #3: Nouveau handler qui ne fait pas de render() complet
+// Clic sur un résultat de recherche
 function handleAgentSearchInput(value){
   state.searchText=value;
   updateSearchResultsOnly();
@@ -1049,17 +1072,19 @@ function renderPrepaAffectations(){
       var can8h=ag.is8h;
       var canCT=ag.isCT;
       h+='<div class="affect-geh-row"><div class="affect-geh-name">'+g.num+'. '+escapeHtml(g.name)+'</div><div class="affect-geh-badges">';
+      h+='<span class="affect-groupe">';
       h+='<span class="affect-mini-badge '+(gaf.has8h?'active-8h':'')+' '+(!can8h?'disabled':'')+'" onclick="toggleGehAffect(\''+escapeJs(ag.name)+'\','+g.id+',\'8h\');">8h</span>';
       if(gaf.has8h){
-        h+='<button class="affect-reg-toggle-mini '+(gaf.isReg8h?'':'nonreg')+'" onclick="toggleGehAffectReg(\''+escapeJs(ag.name)+'\','+g.id+',\'8h\');" title="'+(gaf.isReg8h?'8h Réglementaire':'8h Non réglementaire')+'">'+(gaf.isReg8h?'R':'NR')+'</button>';
-        h+='<button class="affect-reg-toggle-mini nb" onclick="toggleGehAffectNb(\''+escapeJs(ag.name)+'\','+g.id+',\'8h\');" title="Nombre de prélèvements">×'+nbPrelPrevu(gaf,'8h')+'</button>';
+        h+='<button class="affect-reg-toggle-mini '+(gaf.isReg8h?'':'nonreg')+'" onclick="toggleGehAffectReg(\''+escapeJs(ag.name)+'\','+g.id+',\'8h\');" title="'+(gaf.isReg8h?'8h réglementaire (toucher pour changer)':'8h non réglementaire (toucher pour changer)')+'">'+(gaf.isReg8h?'Régl.':'Non régl.')+'</button>';
+        h+='<button class="affect-reg-toggle-mini nb" onclick="toggleGehAffectNb(\''+escapeJs(ag.name)+'\','+g.id+',\'8h\');" title="Nombre de prélèvements (toucher pour changer)">'+nbPrelPrevu(gaf,'8h')+' prél.</button>';
       }
+      h+='</span><span class="affect-groupe">';
       h+='<span class="affect-mini-badge '+(gaf.hasCT?'active-ct':'')+' '+(!canCT?'disabled':'')+'" onclick="toggleGehAffect(\''+escapeJs(ag.name)+'\','+g.id+',\'CT\');">CT</span>';
       if(gaf.hasCT){
-        h+='<button class="affect-reg-toggle-mini '+(gaf.isRegCT?'':'nonreg')+'" onclick="toggleGehAffectReg(\''+escapeJs(ag.name)+'\','+g.id+',\'CT\');" title="'+(gaf.isRegCT?'CT Réglementaire':'CT Non réglementaire')+'">'+(gaf.isRegCT?'R':'NR')+'</button>';
-        h+='<button class="affect-reg-toggle-mini nb" onclick="toggleGehAffectNb(\''+escapeJs(ag.name)+'\','+g.id+',\'CT\');" title="Nombre de prélèvements">×'+nbPrelPrevu(gaf,'CT')+'</button>';
+        h+='<button class="affect-reg-toggle-mini '+(gaf.isRegCT?'':'nonreg')+'" onclick="toggleGehAffectReg(\''+escapeJs(ag.name)+'\','+g.id+',\'CT\');" title="'+(gaf.isRegCT?'CT réglementaire (toucher pour changer)':'CT non réglementaire (toucher pour changer)')+'">'+(gaf.isRegCT?'Régl.':'Non régl.')+'</button>';
+        h+='<button class="affect-reg-toggle-mini nb" onclick="toggleGehAffectNb(\''+escapeJs(ag.name)+'\','+g.id+',\'CT\');" title="Nombre de prélèvements (toucher pour changer)">'+nbPrelPrevu(gaf,'CT')+' prél.</button>';
       }
-      h+='</div></div>';
+      h+='</span></div></div>';
     });
     h+='</div>';
   });

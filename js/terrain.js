@@ -23,6 +23,7 @@ function renderTerrainMission(){
   h+=renderMissionHead(m);
   h+=renderAVerifier(m);
   h+='<div class="row-card" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+'<span class="row-card-label">Conditions ambiantes</span>'+ICONS.chevronRight+'</div>';
+  if(typeof renderScolaGehLigne==='function')h+=renderScolaGehLigne(m);
   var byGeh={};
   m.prelevements.forEach(function(p){var k=p.gehId;if(!byGeh[k])byGeh[k]=[];byGeh[k].push(p);});
   m.gehs.filter(function(g){return g.name;}).forEach(function(g){
@@ -267,9 +268,9 @@ function renderAddPrelTerrainModal(){
   
   // Réglementaire
   h+='<div class="field"><label class="label">Statut</label><div class="row">';
-  h+='<button class="btn btn-small '+(d.isReg?'btn-success':'btn-gray')+'" onclick="state.newPrelData.isReg=true;render();">Réglementaire</button>';
-  h+='<button class="btn btn-small '+(!d.isReg?'btn-orange':'btn-gray')+'" onclick="state.newPrelData.isReg=false;render();">Non-réglementaire</button>';
-  h+='</div></div>';
+  h+='<button class="btn btn-small '+(d.isReg?'btn-success':'btn-gray')+'" onclick="state.newPrelData.isReg=true;state.newPrelData.regManuel=true;render();">Réglementaire</button>';
+  h+='<button class="btn btn-small '+(!d.isReg?'btn-orange':'btn-gray')+'" onclick="state.newPrelData.isReg=false;state.newPrelData.regManuel=true;render();">Non-réglementaire</button>';
+  h+='</div>'+(d.agents.length&&!d.regManuel?'<p class="subtitle" style="margin:4px 0 0;">D’après la base des agents.</p>':'')+'</div>';
   
   // Agents
   h+='<div class="field"><label class="label">Agent(s) chimique(s) *</label>';
@@ -296,9 +297,11 @@ function renderAddPrelTerrainModal(){
     h+='</div></div>';
   }
   
-  // Nombre de sous-prélèvements
-  var subCount=d.isReg&&d.type==='8h'?3:1;
-  h+='<div class="info-box info-box-success mt-12"><p>'+subCount+' sous-prélèvement(s) seront créés</p></div>';
+  // Nombre de prélèvements : 3 en réglementaire, 1 sinon, modifiable (comme l'affectation en préparation)
+  var subCount=nbNouveauPrel(d);
+  h+='<div class="field mt-12"><label class="label">Nombre de prélèvements</label><div class="row">';
+  [1,2,3].forEach(function(n){h+='<button class="btn btn-small '+(subCount===n?'btn-primary':'btn-gray')+'" onclick="state.newPrelData.nb='+n+';render();">'+n+'</button>';});
+  h+='</div>'+(d.isReg&&subCount<3?'<p class="subtitle" style="margin:4px 0 0;">Réglementaire à moins de 3 prélèvements : justification demandée sur le terrain.</p>':'')+'</div>';
   
   var canAdd=d.gehId&&d.agents.length>0;
   h+='<div class="row mt-12"><button class="btn btn-gray" onclick="state.showModal=null;state.newPrelData=null;render();">Annuler</button><button class="btn btn-primary" '+(canAdd?'':'disabled')+' onclick="addPrelTerrain();">Ajouter</button></div></div></div>';
@@ -331,6 +334,8 @@ function addNewPrelAgent(name){
   var color=AGENT_COLORS[state.newPrelData.agents.length%AGENT_COLORS.length];
   state.newPrelData.agents.push({name:name,color:color});
   state.newPrelData.agentSearch='';
+  // statut réglementaire tiré de la base (tant que le technicien ne l'a pas choisi), comme en préparation
+  if(!state.newPrelData.regManuel)state.newPrelData.isReg=state.newPrelData.agents.every(function(a){return agentEstReglementaire(a.name);});
   render();
 }
 
@@ -340,6 +345,9 @@ function removeNewPrelAgent(i){
   render();
 }
 
+// Nombre de prélèvements d'un prélèvement ajouté sur le terrain : choisi, sinon 3 en réglementaire et 1 sinon
+function nbNouveauPrel(d){ return d.nb||(d.isReg?3:1); }
+
 function addPrelTerrain(){
   var m=getCurrentMission();if(!m)return;
   var d=state.newPrelData;
@@ -348,7 +356,7 @@ function addPrelTerrain(){
   var geh=m.gehs.find(function(g){return String(g.id)===String(d.gehId);});
   if(!geh)return;
   
-  var subCount=d.isReg&&d.type==='8h'?3:1;
+  var subCount=nbNouveauPrel(d);
   var newPrel={
     id:generateId(),
     gehId:geh.id,
@@ -359,6 +367,7 @@ function addPrelTerrain(){
     isReglementaire:d.isReg,
     subPrelevements:[]
   };
+  if(d.isReg&&subCount<3)newPrel.justifNb=JUSTIF_NB_DEFAUT;
   
   for(var i=0;i<subCount;i++){
     var sub={id:generateId(),operateur:'',date:'',plages:[{debut:'',fin:''}],observations:'',completed:false,agentData:{},epiType:'sans objet',epiDuree:''};
@@ -369,6 +378,7 @@ function addPrelTerrain(){
   }
   
   m.prelevements.push(newPrel);
+  if(typeof scolaGehCompleter==='function')scolaGehCompleter(m); // Scol@ du GEH déjà saisi
   state.expandedGeh[geh.id]=true;
   updateMissionStatus(m);
   saveData('vlep_missions_v3',state.missions);
@@ -435,7 +445,7 @@ function defusionPrel(prelId){
 
 function openPrel(pid){
   state.currentPrelId=pid;
-  // Point 3 : rester sur le dernier jour utilisé (J1/J2/J3) au lieu de retomber sur J1.
+  // rester sur le dernier jour ouvert (J1/J2/J3) au lieu de revenir à J1
   // L'index est borné au nombre de sous-prélèvements du prélèvement ouvert
   // (un prélèvement non-réglementaire n'a qu'un seul jour) sans effacer le jour mémorisé.
   var mOpen=getCurrentMission();
@@ -639,7 +649,7 @@ function renderMissingFieldsModal(){
   if(!sb)return '';
   var missing=getMissingFields(p,sb);
   var h='<div class="modal show" onclick="if(event.target===this){closeMissingFieldsModal();}"><div class="modal-content">';
-  h+='<div class="modal-header"><h2>⚠️ Champs manquants</h2><button class="close-btn" onclick="closeMissingFieldsModal();">×</button></div>';
+  h+='<div class="modal-header"><h2>Champs manquants</h2><button class="close-btn" onclick="closeMissingFieldsModal();">×</button></div>';
   if(missing.length===0){
     h+='<p style="color:#16a34a;text-align:center;padding:16px;">✓ Tous les champs requis sont remplis</p>';
   }else{
@@ -703,7 +713,7 @@ function renderTerrainPrel(){
   return h;
 }
 
-// FIX #4 & #5: Ajout des boutons "Copier J-1" et auto-date
+// Formulaire d'un jour de prélèvement (boutons J-1, date posée à la première saisie)
 function renderSubPrelForm(p,sb,idx){
   var m=getCurrentMission();
   var canCopyFromPrevious=idx>0;
@@ -804,7 +814,7 @@ function renderSubPrelForm(p,sb,idx){
         if(isLinked){
           // boutons portés par les pastilles ci-dessus
         }else{
-          h+='<button class="btn btn-small btn-blue" style="margin-left:auto;font-size:11px;padding:2px 8px;" onclick="showLinkAgentModal('+p.id+','+idx+',\''+escapeJs(aname)+'\');">🔗 Même support</button>';
+          h+='<button class="btn btn-small btn-blue" style="margin-left:auto;font-size:11px;padding:2px 8px;" onclick="showLinkAgentModal('+p.id+','+idx+',\''+escapeJs(aname)+'\');">'+ICONS.link+' Même support</button>';
         }
       }
       h+='</div>';
@@ -835,7 +845,7 @@ function renderSubPrelForm(p,sb,idx){
         h+='<div class="multi-agent-row"><label>Vitesse finale (tr/min)</label><input type="text" inputmode="decimal" class="input '+(warnF?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitFinal||'')+'" placeholder="tr/min" onchange="updateAgentDataSynced('+p.id+','+idx+',\''+escapeJs(aname)+'\',\'debitFinal\',this.value);renderDebitVariation('+p.id+','+idx+',\''+escapeJs(aname)+'\');">';
         if(ecartF!==null){h+='<span class="debit-variation '+(warnF?'warning':'')+'">Δ '+ecartF.toFixed(0)+' tr/min</span>';}
         h+='</div>';
-        if(hasWarning){h+='<div style="color:#dc2626;font-size:11px;padding:4px 0;">⚠️ Écart > 200 tr/min par rapport à la vitesse de référence</div>';}
+        if(hasWarning){h+='<div style="color:#dc2626;font-size:11px;padding:4px 0;">Écart > 200 tr/min par rapport à la vitesse de référence</div>';}
       }else{
         // Contrôle pour chaque agent du support (les débits attendus peuvent différer)
         var ctrls=(isLinked?grpOrdered.map(function(x){return x.name;}):[aname]).map(function(n){
@@ -849,7 +859,7 @@ function renderSubPrelForm(p,sb,idx){
         if(variation!==null){h+='<span class="debit-variation '+(hasWarning?'warning':'')+'">Δ '+variation.toFixed(1)+'%</span>';}
         h+='</div>';
         if(hasWarning){
-          h+='<div style="color:#dc2626;font-size:11px;padding:4px 0;">⚠️ Écart entre débit initial et final > 5 %</div>';
+          h+='<div style="color:#dc2626;font-size:11px;padding:4px 0;">Écart entre débit initial et final > 5 %</div>';
         }
         var dejaAffiche={};
         ctrls.forEach(function(ctrl){
@@ -858,7 +868,7 @@ function renderSubPrelForm(p,sb,idx){
           dejaAffiche[attendu]=true;
           var hors=ctrl.horsTolerance;
           var qui=ctrls.length>1?' · '+escapeHtml(ctrls.filter(function(c){return c.range.min===ctrl.range.min&&c.range.max===ctrl.range.max;}).map(function(c){return c.agent;}).join(', ')):'';
-          h+='<div style="color:'+(hors?'#dc2626':'var(--text-muted)')+';font-size:11px;padding:4px 0;">'+(hors?'⚠️ ':'')+'Débit moyen '+formatDebit(ctrl.moy)+' L/min '+(hors?'hors':'dans')+' tolérance (attendu '+attendu+' ± 5 %, '+(p.type==='CT'?'CT':'8h')+')'+qui+'</div>';
+          h+='<div style="color:'+(hors?'#dc2626':'var(--text-muted)')+';font-size:11px;padding:4px 0;">'+'Débit moyen '+formatDebit(ctrl.moy)+' L/min '+(hors?'hors':'dans')+' tolérance (attendu '+attendu+' ± 5 %, '+(p.type==='CT'?'CT':'8h')+')'+qui+'</div>';
         });
       }
       
@@ -885,7 +895,7 @@ function renderSubPrelForm(p,sb,idx){
     if(timerRunning){
       h+=getTimerDisplay(p.id,idx);
     }else{
-      h+='<button class="btn btn-primary" style="width:100%;margin:8px 0;" onclick="startCTTimer('+p.id+','+idx+');">▶️ Démarrer chrono CT</button>';
+      h+='<button class="btn btn-primary" style="width:100%;margin:8px 0;" onclick="startCTTimer('+p.id+','+idx+');">'+ICONS.play+' Démarrer le chrono CT</button>';
     }
   }
   
@@ -1005,7 +1015,7 @@ function renderSubPrelForm(p,sb,idx){
   return h;
 }
 
-// FIX #4: Fonctions pour copier depuis J-1
+// J-1 : reprendre la valeur du jour précédent
 function copyFromPrevious(pid,idx,field){
   if(idx<=0)return;
   var m=getCurrentMission();if(!m)return;
@@ -1032,7 +1042,7 @@ function copyAgentDataFromPrevious(pid,idx,agentName,field){
     if(!currentSub.agentData[agentName])currentSub.agentData[agentName]={};
     var copiedVal=prevSub.agentData[agentName][field];
     currentSub.agentData[agentName][field]=copiedVal;
-    // Point 1 : propager aux autres agents co-prélevés du même support (même jour),
+    // propagée aux autres agents du même support (même jour),
     // comme la saisie manuelle (updateAgentDataSynced) — évite de cliquer J-1 sur chaque ligne.
     var coMembers=getCoPrelGroupMembers(currentSub,agentName);
     if(coMembers.length>1){
@@ -1086,19 +1096,25 @@ function renderScolaChamps(p,sb,idx){
   return h;
 }
 
-// Recherche dans une liste Scol@ sans tout redessiner (garde le clavier ouvert)
-function scolaRechercher(pid,idx,cle,valeur){
-  var box=document.getElementById('scola-res-'+cle);
-  if(!box)return;
+// 8 premiers libellés de la liste Scol@ (tâche, métier) contenant tous les mots saisis ; null si rien de saisi
+function scolaResultats(cle,valeur){
   var c=SCOLA_CHAMPS.find(function(x){return x.cle===cle;});
   var mots=scolaNorm(valeur).split(/\s+/).filter(function(w){return w.length>=2;});
-  if(!mots.length){box.innerHTML='';return;}
-  var res=[];
-  var liste=SCOLA_LISTES[c.liste];
+  if(!c||!mots.length)return null;
+  var res=[],liste=SCOLA_LISTES[c.liste];
   for(var i=0;i<liste.length&&res.length<8;i++){
     var n=scolaNorm(liste[i]);
     if(mots.every(function(w){return n.indexOf(w)!==-1;}))res.push(liste[i]);
   }
+  return res;
+}
+
+// Recherche dans une liste Scol@ sans tout redessiner (garde le clavier ouvert)
+function scolaRechercher(pid,idx,cle,valeur){
+  var box=document.getElementById('scola-res-'+cle);
+  if(!box)return;
+  var res=scolaResultats(cle,valeur);
+  if(res===null){box.innerHTML='';return;}
   var h='';
   if(!res.length)h='<div style="font-size:12px;color:var(--text-muted);padding:4px;">Aucun résultat dans la liste Scol@</div>';
   else{
@@ -1144,7 +1160,7 @@ function copyConditionsFrom(pid,idx){
   render();
 }
 
-// FIX #5: Fonctions avec auto-date
+// Saisies qui posent la date du jour si elle est vide
 function getTodayDate(){
   var d=new Date();
   return d.toISOString().split('T')[0];
@@ -1353,7 +1369,7 @@ function updateMissionStatus(m){
   else m.status='encours';
 }
 
-// FIX #7: Conditions ambiantes responsive mobile
+// Conditions ambiantes
 
 // ===== CO-PRÉLÈVEMENT : MÊME SUPPORT =====
 
@@ -1383,55 +1399,6 @@ function agentsShareSamePhysicalSupport(name1,name2){
   var cp1=((a1['Code prétraitement']||'')+'').trim();
   var cp2=((a2['Code prétraitement']||'')+'').trim();
   return cs1!==''&&cs1===cs2&&cp1===cp2;
-}
-
-function checkMatchingSupports(){
-  var pid=state.coPrelTargetPid;
-  var agentName=state.coPrelTargetAgent;
-  var m=getCurrentMission();if(!m)return;
-  var p=m.prelevements.find(function(x){return x.id===pid;});
-  if(!p)return;
-  if(!state.coPrelSelection)state.coPrelSelection={};
-  p.agents.forEach(function(a){
-    if(a.name!==agentName&&agentsShareSamePhysicalSupport(agentName,a.name)){
-      state.coPrelSelection[a.name]=true;
-    }
-  });
-  render();
-}
-
-function linkAgentsOnSupport(pid,subIdx,agentName,targetName){
-  var m=getCurrentMission();if(!m)return;
-  var p=m.prelevements.find(function(x){return x.id===pid;});
-  if(!p)return;
-  var sb=p.subPrelevements[subIdx];
-  if(!sb.coPrelGroups)sb.coPrelGroups=[];
-  var gi1=getCoPrelGroupIndex(sb,agentName);
-  var gi2=getCoPrelGroupIndex(sb,targetName);
-  if(gi1===-1&&gi2===-1){
-    sb.coPrelGroups.push([agentName,targetName]);
-  }else if(gi1!==-1&&gi2===-1){
-    sb.coPrelGroups[gi1].push(targetName);
-  }else if(gi1===-1&&gi2!==-1){
-    sb.coPrelGroups[gi2].push(agentName);
-  }else if(gi1!==gi2){
-    var merged=sb.coPrelGroups[gi1].concat(sb.coPrelGroups[gi2]);
-    var hi=Math.max(gi1,gi2);var lo=Math.min(gi1,gi2);
-    sb.coPrelGroups.splice(hi,1);
-    sb.coPrelGroups.splice(lo,1);
-    sb.coPrelGroups.push(merged);
-  }
-  // Synchro des données depuis agentName vers targetName
-  if(!sb.agentData)sb.agentData={};
-  if(!sb.agentData[agentName])sb.agentData[agentName]={};
-  if(!sb.agentData[targetName])sb.agentData[targetName]={};
-  var src=sb.agentData[agentName];
-  ['numPompe','debitInitial','debitFinal','refEchantillon','lot'].forEach(function(f){
-    if(src[f])sb.agentData[targetName][f]=src[f];
-  });
-  saveData('vlep_missions_v3',state.missions);
-  state.showModal=null;
-  render();
 }
 
 function unlinkAgentFromSupport(pid,subIdx,agentName){
@@ -1500,6 +1467,10 @@ function showLinkAgentModal(pid,subIdx,agentName){
       members.forEach(function(n){
         if(n!==agentName)state.coPrelSelection[n]=true;
       });
+      // rien de lié encore : agents de même support d'après la base précochés (modifiable)
+      if(members.length<2)p.agents.forEach(function(a){
+        if(a.name!==agentName&&!isAnalyseurAgent(a.name)&&agentsShareSamePhysicalSupport(agentName,a.name))state.coPrelSelection[a.name]=true;
+      });
     }
   }
   // Propagation par défaut activée (utile pour réglementaire J1/J2/J3)
@@ -1515,52 +1486,36 @@ function renderLinkAgentModal(){
   var m=getCurrentMission();if(!m)return'';
   var p=m.prelevements.find(function(x){return x.id===pid;});
   if(!p)return'';
-  var sb=p.subPrelevements[subIdx];
-  var otherAgents=p.agents.filter(function(a){return a.name!==agentName;});
+  var otherAgents=p.agents.filter(function(a){return a.name!==agentName&&!isAnalyseurAgent(a.name);});
   var selection=state.coPrelSelection||{};
   var nbSubs=p.subPrelevements.length;
   var propagate=state.coPrelPropagateAll!==false;
-  var h='<div class="modal show" onclick="if(event.target===this){closeCoPrelModal();}"><div class="modal-content"><div class="modal-header"><h2>🔗 Même support</h2><button class="close-btn" onclick="closeCoPrelModal();">×</button></div>';
-  h+='<div class="info-box mb-12"><p>Agents partageant le même support physique que <strong>'+escapeHtml(agentName)+'</strong> :</p></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){closeCoPrelModal();}"><div class="modal-content"><div class="modal-header"><h2>'+ICONS.link+' Même support</h2><button class="close-btn" onclick="closeCoPrelModal();">×</button></div>';
+  h+='<p class="subtitle" style="margin-bottom:8px;">Agents prélevés sur le même support que <strong>'+escapeHtml(agentName)+'</strong> : un seul tube ou filtre, une seule pompe, une seule réf. d’échantillon.</p>';
   if(otherAgents.length===0){
-    h+='<p style="color:#6b7280;text-align:center;padding:16px;">Aucun autre agent dans ce prélèvement</p>';
-    h+='<button class="btn btn-gray mt-12" style="width:100%;" onclick="closeCoPrelModal();">Fermer</button>';
-  }else{
-    // Détection d'agents partageant support + prétraitement (purement informative)
-    var matchCount=0;
-    otherAgents.forEach(function(a){
-      if(agentsShareSamePhysicalSupport(agentName,a.name))matchCount++;
-    });
-    if(matchCount>0){
-      h+='<div style="background:#fef3c7;border:1px solid #fcd34d;border-radius:6px;padding:8px 10px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;">';
-      h+='<span style="font-size:12px;color:#92400e;">🎯 '+matchCount+' agent'+(matchCount>1?'s':'')+' avec support + prétraitement identiques</span>';
-      h+='<button class="btn btn-small" style="font-size:11px;padding:2px 8px;background:#f59e0b;color:white;border:none;border-radius:4px;" onclick="checkMatchingSupports();">Cocher</button>';
-      h+='</div>';
-    }
-    otherAgents.forEach(function(a){
-      var isChecked=!!selection[a.name];
-      var matches=agentsShareSamePhysicalSupport(agentName,a.name);
-      h+='<label style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;">';
-      h+='<input type="checkbox" '+(isChecked?'checked':'')+' onchange="toggleCoPrelSelection(\''+escapeJs(a.name)+'\');" style="width:20px;height:20px;cursor:pointer;flex-shrink:0;">';
-      h+='<div style="width:10px;height:10px;border-radius:50%;background:'+(a.color||'#3b82f6')+';flex-shrink:0;"></div>';
-      h+='<span style="flex:1;">'+escapeHtml(a.name)+'</span>';
-      if(matches)h+='<span style="font-size:10px;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px;font-weight:600;flex-shrink:0;">🎯 Support identique</span>';
-      h+='</label>';
-    });
-    if(nbSubs>1){
-      h+='<label style="display:flex;align-items:center;gap:10px;padding:12px 0;margin-top:8px;border-top:2px solid var(--border);cursor:pointer;background:#f9fafb;border-radius:4px;padding:12px 8px;">';
-      h+='<input type="checkbox" '+(propagate?'checked':'')+' onchange="toggleCoPrelPropagate();" style="width:20px;height:20px;cursor:pointer;flex-shrink:0;">';
-      h+='<span style="font-size:14px;font-weight:500;">Appliquer à tous les sous-prélèvements (J1 à J'+nbSubs+')</span>';
-      h+='</label>';
-    }
-    var selectedCount=Object.keys(selection).length;
-    h+='<div class="row mt-12" style="gap:8px;">';
-    h+='<button class="btn btn-gray" style="flex:1;" onclick="closeCoPrelModal();">Annuler</button>';
-    h+='<button class="btn btn-blue" style="flex:1;" onclick="applyCoPrelSelection();">✓ Valider ('+selectedCount+')</button>';
-    h+='</div>';
+    h+='<p class="subtitle" style="text-align:center;padding:16px;">Aucun autre agent dans ce prélèvement.</p>';
+    h+='<button class="btn btn-gray mt-12" onclick="closeCoPrelModal();">Fermer</button>';
+    return h+'</div></div>';
   }
-  h+='</div></div>';
-  return h;
+  var horsBase=[];
+  otherAgents.forEach(function(a){
+    var coche=!!selection[a.name],meme=agentsShareSamePhysicalSupport(agentName,a.name);
+    if(coche&&!meme)horsBase.push(a.name);
+    h+='<label class="reg-ligne" style="padding:9px 0;border-bottom:1px solid var(--border-subtle);align-items:center;">';
+    h+='<input type="checkbox" '+(coche?'checked':'')+' onchange="toggleCoPrelSelection(\''+escapeJs(a.name)+'\');" style="width:20px;height:20px;">';
+    h+='<span style="width:10px;height:10px;border-radius:50%;background:'+(a.color||'#3b82f6')+';flex-shrink:0;"></span>';
+    h+='<span style="flex:1;">'+escapeHtml(a.name)+'<br><span class="reg-deja">'+(meme?'même support dans la base':'autre support dans la base')+'</span></span></label>';
+  });
+  if(horsBase.length)h+='<div class="reg-alerte">'+escapeHtml(horsBase.join(', '))+' : support différent dans la base (code support ou prétraitement). À cocher seulement si c’est vraiment le même tube ou filtre.</div>';
+  if(nbSubs>1){
+    h+='<label class="reg-ligne" style="padding:10px 0;margin-top:6px;align-items:center;">';
+    h+='<input type="checkbox" '+(propagate?'checked':'')+' onchange="toggleCoPrelPropagate();" style="width:20px;height:20px;">';
+    h+='<span>Pour tous les jours (J1 à J'+nbSubs+')</span></label>';
+  }
+  var n=Object.keys(selection).filter(function(k){return selection[k];}).length;
+  h+='<div class="row mt-12"><button class="btn btn-gray" onclick="closeCoPrelModal();">Annuler</button>';
+  h+='<button class="btn btn-success" onclick="applyCoPrelSelection();">Valider'+(n?' ('+(n+1)+' agents)':' (aucun lien)')+'</button></div>';
+  return h+'</div></div>';
 }
 
 function closeCoPrelModal(){
@@ -1695,9 +1650,9 @@ function renderSupportsSupp(p,sb,idx){
       h+='<div class="multi-agent-row"><label>'+(isTachy?'Vitesse':'Débit')+' final'+(isTachy?'e':'')+'</label><input type="text" inputmode="decimal" class="input '+(horsTol?'debit-input warning':'')+'" style="flex:1;" value="'+escapeHtml(ad.debitFinal||'')+'" placeholder="'+u+'" onchange="'+call('debitFinal')+'render();">';
       if(variation!==null)h+='<span class="debit-variation '+(variation>5?'warning':'')+'">Δ '+variation.toFixed(1)+'%</span>';
       h+='</div>';
-      if(variation!==null&&variation>5)h+='<div style="color:#dc2626;font-size:11px;padding:4px 0;">⚠️ Écart entre débit initial et final > 5 %</div>';
+      if(variation!==null&&variation>5)h+='<div style="color:#dc2626;font-size:11px;padding:4px 0;">Écart entre débit initial et final > 5 %</div>';
       ctrls.forEach(function(c){
-        h+='<div style="color:'+(c.horsTolerance?'#dc2626':'var(--text-muted)')+';font-size:11px;padding:4px 0;">'+(c.horsTolerance?'⚠️ ':'')+'Débit moyen '+formatDebit(c.moy)+' L/min '+(c.horsTolerance?'hors':'dans')+' tolérance (attendu '+formatDebit(c.range.min)+(c.range.min!==c.range.max?' – '+formatDebit(c.range.max):'')+' L/min ± 5 %)</div>';
+        h+='<div style="color:'+(c.horsTolerance?'#dc2626':'var(--text-muted)')+';font-size:11px;padding:4px 0;">'+'Débit moyen '+formatDebit(c.moy)+' L/min '+(c.horsTolerance?'hors':'dans')+' tolérance (attendu '+formatDebit(c.range.min)+(c.range.min!==c.range.max?' – '+formatDebit(c.range.max):'')+' L/min ± 5 %)</div>';
       });
       h+='<div class="multi-agent-row"><label>Réf. échant.</label><input type="text" value="'+escapeHtml(ad.refEchantillon||'')+'" placeholder="Référence..." onchange="'+call('refEchantillon')+'render();"></div>';
       h+=infoRefDouble(getCurrentMission()||{},ad.refEchantillon);

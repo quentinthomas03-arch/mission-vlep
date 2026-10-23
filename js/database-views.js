@@ -30,7 +30,7 @@ function updateDbResults(){
     if(cmr)h+='<div class="agent-card-field full"><div class="agent-card-field-label">CMR</div><div class="agent-card-field-value cmr">'+escapeHtml(cmr)+'</div></div>';
     h+='<div class="agent-card-field"><div class="agent-card-field-label">VLEP 8h</div><div class="agent-card-field-value highlight">'+escapeHtml(a['VLEP 8h (mg/m3)']||'-')+' mg/m³</div></div><div class="agent-card-field"><div class="agent-card-field-label">VLEP CT</div><div class="agent-card-field-value highlight">'+escapeHtml(a['VLEP CT (mg/m3)']||'-')+' mg/m³</div></div>';
     h+='<div class="agent-card-field"><div class="agent-card-field-label">Débit max 8h</div><div class="agent-card-field-value">'+escapeHtml(a['débit max  8h (L/min)']||a['débit max 8h (L/min)']||'-')+' L/min</div></div><div class="agent-card-field"><div class="agent-card-field-label">Débit max CT</div><div class="agent-card-field-value">'+escapeHtml(a['débit max CT (L/min)']||'-')+' L/min</div></div>';
-    // FIX #1: Code analytique avec les deux noms de colonnes
+    // code analytique (deux noms de colonne possibles selon la version de la base)
     var codeAnalyse=getCodeAnalytique(a);
     if(codeAnalyse)h+='<div class="agent-card-field full"><div class="agent-card-field-label">Code analyse</div><div class="agent-card-field-value">'+escapeHtml(codeAnalyse)+'</div></div>';
     var pos=a['positionnement du support']||'';
@@ -44,54 +44,6 @@ function updateDbResults(){
     h+='<div class="agent-card-field"><div class="agent-card-field-label">Code support</div><div class="agent-card-field-value">'+escapeHtml(a['Code support']||'-')+'</div></div><div class="agent-card-field"><div class="agent-card-field-label">Code prétraitement</div><div class="agent-card-field-value">'+escapeHtml(a['Code prétraitement']||'-')+'</div></div></div></div>';
   });
   r.innerHTML=h;
-}
-
-function renderDbFull(){
-  var h='<button class="back-btn" onclick="state.view=\'home\';render();">'+ICONS.arrowLeft+' Accueil</button><div class="card"><div style="display:flex;justify-content:space-between;align-items:center;"><div><h1>'+ICONS.database+' Base de données complète</h1><p class="subtitle">'+state.agentsDB.length+' agents</p></div><button class="btn btn-blue btn-small" onclick="state.showModal=\'importDB\';render();">'+ICONS.upload+' Importer</button></div></div>';
-  if(state.agentsDB.length===0)h+='<div class="empty-state"><div class="empty-state-icon">'+ICONS.database+'</div><p>Aucune donnée</p></div>';
-  if(state.showModal==='importDB')h+='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Importer</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="info-box"><p>1. Ouvrez Excel</p><p>2. Sélectionnez A à AU (sauf C)</p><p>3. Copiez et collez ci-dessous</p></div><textarea class="input" id="importDBText" rows="8" placeholder="Collez ici..."></textarea><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-blue" onclick="importDB();">Importer</button></div></div></div>';
-  return h;
-}
-
-function importDB(){
-  var t=document.getElementById('importDBText').value;
-  if(!t.trim()){alert('Collez vos données');return;}
-  try{
-    var rw=[],cr='',iq=false;
-    for(var i=0;i<t.length;i++){
-      var c=t[i];
-      if(c==='"'){iq=!iq;cr+=c;}
-      else if(c==='\n'&&!iq){if(cr.trim())rw.push(cr);cr='';}
-      else cr+=c;
-    }
-    if(cr.trim())rw.push(cr);
-    var pr=function(ln){
-      var cl=[],ce='',q=false;
-      for(var i=0;i<ln.length;i++){
-        var c=ln[i];
-        if(c==='"')q=!q;
-        else if(c==='\t'&&!q){cl.push(ce.replace(/^"|"$/g,'').trim());ce='';}
-        else ce+=c;
-      }
-      cl.push(ce.replace(/^"|"$/g,'').trim());
-      return cl;
-    };
-    var hd=pr(rw[0]);
-    var db=[];
-    for(var j=1;j<rw.length;j++){
-      var vl=pr(rw[j]);
-      var ob={};
-      for(var k=0;k<hd.length&&k<=50;k++){if(hd[k])ob[hd[k]]=vl[k]||'';}
-      if(ob['Agent chimique'])db.push(ob);
-    }
-    state.agentsDB=db;
-    saveData('vlep_database',db);
-    // base intégrée en vigueur au moment de l'import (voir loadData)
-    try{localStorage.setItem('vlep_database_base',typeof BUILTIN_DB_VERSION!=='undefined'?BUILTIN_DB_VERSION:'');}catch(e){}
-    state.showModal=null;
-    alert('✓ '+db.length+' agents importés !');
-    render();
-  }catch(e){alert('Erreur: '+e.message);}
 }
 
 loadData();

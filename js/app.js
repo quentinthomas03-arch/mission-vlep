@@ -16,13 +16,13 @@ function render(){
     case'terrain-prel':h=renderTerrainPrel();break;
     case'conditions':h=renderConditions();break;
     case'db-terrain':h=renderDbTerrain();break;
-    case'db-full':h=renderDbFull();break;
     case'liste-echantillons':h=renderListeEchantillons();break;
     case'rapport-donnees':h=renderRapportDonnees();break;
     case'quick-entry':h=renderQuickEntry();break;
     case'tutoriel':h=renderTutoriel();break;
     case'fiche-supports':h=renderFicheSupports();break;
     case'regroupement':h=renderRegroupement();break;
+    case'scola-geh':h=renderScolaGeh();break;
     default:h=renderHome();
   }
   document.getElementById('app').innerHTML=h;
@@ -136,7 +136,7 @@ window.addEventListener('popstate', function(event) {
     } else {
       state.view = 'terrain-mission';
     }
-  } else if (state.view === 'conditions' || state.view === 'liste-echantillons' || state.view === 'rapport-donnees') {
+  } else if (state.view === 'conditions' || state.view === 'scola-geh' || state.view === 'liste-echantillons' || state.view === 'rapport-donnees') {
     // Depuis conditions ou échantillons, retour à terrain-mission
     state.view = 'terrain-mission';
   } else if (state.view.startsWith('db-') || state.view === 'quick-entry') {

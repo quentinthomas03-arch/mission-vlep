@@ -189,7 +189,7 @@ function fcRemplirColonne(s, R, col, ctx) {
   function set(row, v) { if (row && v !== null && v !== undefined && v !== '') s.set(col + row, v); }
   var regionHaut = R.resultats || 9999;
 
-  set(f(eg('opérateur'), { col: 'A' }), sb.operateur || '');
+  set(f(eg('opérateur'), { col: 'A' }), String(sb.operateur || '').trim());
   // onglets non réglementaires : « individuel » (opérateur, par défaut) ou « à poste fixe »
   set(f(eg('type de prélèvement'), { col: 'A' }), sb.posteFixe ? 'à poste fixe' : 'individuel');
   // onglet Véolia : agent et support viennent du protocole du site
@@ -477,6 +477,9 @@ function fcRemplirOnglet(s, o, m) {
   var besoin = o.reg ? o.series.length : cols.length;
   var dispo = fcCapacite(s, R, largeur);
   for (var b = dispo; b < besoin; b++) s.copyColumns(3, largeur, 3 + b * largeur);
+  // blocs du modèle non utilisés (« 2 - intitulé », prélèvements vides) retirés : sinon le formulaire Scol@ les
+  // propose et le rapport les reprend, comme « Supprimer GEH » le ferait dans Excel
+  if (dispo > besoin) s.truncateColumns(2 + besoin * largeur);
   if (R.preleveur) s.set('C' + R.preleveur, m.preleveur || '');
   if (R.site) s.set('C' + R.site, m.clientSite || '');
   fcDebitmetre(s, R, m);
@@ -589,18 +592,22 @@ function fcChargerModele() {
   return _fcModele;
 }
 
-// Onglets modèles laissés vierges (« Tube Reg », « Cassette (séq) »…) : masqués à l'ouverture, comme les macros
-// d'extraction qui ne lisent que les onglets visibles. L'onglet affiché est le premier onglet rempli.
+// Onglets modèles laissés vierges (« Tube Reg », « Cassette (séq) »…) : supprimés, comme le formulaire « Ajouter »
+// de la feuille le fait pour les types non utilisés (masqués, ils restaient proposés dans la saisie Scol@, qui liste
+// tous les onglets d'après leur case A1). L'onglet affiché est le premier onglet rempli.
 var FC_MODELE_RE = /^(Cassette\+tube|Cassette|Tube|Fibres|CIP10 sf silice|CIP10 silice|Cyclone silice)( Reg)?( \((séq|multi)\))?$/;
 var FC_ONGLETS_FIXES = ['Hist. Version', 'Eurofins', 'Scol@', 'Scol@_Prélèvement', 'FPA'];
 function fcMasquerModeles(wb, analyseursRemplis) {
   var modeles = Object.keys(wb.paths).filter(function (n) {
     return FC_MODELE_RE.test(n) || (!analyseursRemplis && (n === 'Analyseurs' || n === 'Acquisition'));
   });
-  wb.masquerOnglets(modeles);
-  var visibles = wb.ongletsVisibles().filter(function (n) { return FC_ONGLETS_FIXES.indexOf(n) === -1; });
-  var premier = visibles.filter(function (n) { return /^GEH /.test(n); })[0] || visibles[0];
-  return premier ? wb.activerOnglet(premier) : null;
+  var chain = Promise.resolve();
+  modeles.forEach(function (n) { chain = chain.then(function () { return wb.supprimerOnglet(n); }); });
+  return chain.then(function () {
+    var visibles = wb.ongletsVisibles().filter(function (n) { return FC_ONGLETS_FIXES.indexOf(n) === -1; });
+    var premier = visibles.filter(function (n) { return /^GEH /.test(n); })[0] || visibles[0];
+    return premier ? wb.activerOnglet(premier) : null;
+  });
 }
 
 // Échantillons dont la case « réf. du témoin » restera vide (aucun blanc du même agent et du même n° de lot),
@@ -673,10 +680,38 @@ function fcAlertesDureeExpo(m) {
   return [n + ' prélèvement' + (n > 1 ? 's' : '') + ' 8 h sans durée d’exposition' + (gehs.length ? ' (GEH ' + gehs.join(', ') + ')' : '') + ' : à compléter dans l’appli ou dans la feuille.'];
 }
 
+// Prélèvement commencé : heures, réf. d'échantillon, débit ou relevé saisis, ou validé. Un jour prévu resté vide
+// (date, opérateur ou pompe recopiés d'avance seulement) n'a rien à faire dans la feuille : colonne vide dans le
+// formulaire Scol@ et dans le rapport.
+var FC_CHAMPS_PREPARES = ['numPompe', 'debitRef', 'lot', 'bouteilleZero', 'bouteilleEtalon', 'gazEtalon', 'attenduZero', 'attenduEtalon'];
+function fcAvecMesure(sb) {
+  if (!sb) return false;
+  if (sb.completed) return true;
+  if ((sb.plages || []).some(function (pl) { return pl.debut || pl.fin; })) return true;
+  return Object.keys(sb.agentData || {}).some(function (an) {
+    var d = sb.agentData[an] || {};
+    return Object.keys(d).some(function (k) { return FC_CHAMPS_PREPARES.indexOf(k) === -1 && String(d[k] == null ? '' : d[k]).trim(); });
+  });
+}
+// Retire de la copie de mission les prélèvements prévus sans aucune saisie ; renvoie leur nombre
+function fcRetirerJoursVides(m) {
+  var n = 0;
+  m.prelevements = (m.prelevements || []).map(function (p) {
+    var faits = (p.subPrelevements || []).filter(fcAvecMesure);
+    n += (p.subPrelevements || []).length - faits.length;
+    p.subPrelevements = faits;
+    return p;
+  }).filter(function (p) { return p.subPrelevements.length; });
+  return n;
+}
+
 // Construit la feuille de calcul remplie ; renvoie {blob, filename, onglets, alertes}
 function construireFeuilleCalcul(m, donneesModele) {
-  if (typeof missionRealisee === 'function') m = missionRealisee(m);
+  m = typeof missionRealisee === 'function' ? missionRealisee(m) : JSON.parse(JSON.stringify(m));
+  if (typeof scolaGehCompleter === 'function') scolaGehCompleter(m); // Scol@ par GEH dans les prélèvements restés vides
+  var vides = fcRetirerJoursVides(m);
   var plan = fcPlan(m);
+  if (vides) plan.alertes.push(vides + ' prélèvement' + (vides > 1 ? 's' : '') + ' prévu' + (vides > 1 ? 's' : '') + ' sans aucune saisie (ni heures, ni réf., ni débit) : laissé' + (vides > 1 ? 's' : '') + ' hors de la feuille. S’il n’a pas été fait, le marquer « Non réalisé ».');
   // type de débitmètre non choisi (Infos mission) : massique par défaut, comme avant, mais signalé
   if (!m.debitmetreType) plan.alertes.push('Type de débitmètre non choisi (Infos mission) : « massique » retenu. Si c’est un débitmètre à piston ou à lame de savon, le choisir et regénérer (débits et volumes en dépendent).');
   [fcAlertesConditions(m), fcAlertesRefDoublons(m), fcAlertesBlancs(m), fcAlertesBlancsGravi(m), fcAlertesDureeExpo(m)].forEach(function (l) { l.forEach(function (a) { plan.alertes.push(a); }); });

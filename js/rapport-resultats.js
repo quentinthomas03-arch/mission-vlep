@@ -232,19 +232,22 @@ function rrLots(sheet, rRes, rVal) {
   }
   return lots;
 }
-// Colonnes utiles d'un lot : groupes (un GEH de 6 colonnes en Reg, un prélèvement de 2 colonnes sinon) ayant au moins
-// une réf. d'échantillon dans le bloc RESULTATS. Le bloc vierge « 2 - intitulé » que l'appli laisse dans un onglet à un
-// seul GEH, ou les prélèvements non utilisés d'un onglet non Reg, ne sont donc pas repris dans le rapport (la feuille,
-// elle, n'est pas modifiée). Sans ligne de réf. (onglet Analyseurs), toutes les colonnes sont gardées.
+// Colonnes utiles d'un lot : prélèvements (2 colonnes) ayant une réf. d'échantillon dans le bloc RESULTATS. Le bloc
+// vierge « 2 - intitulé » d'un onglet Reg, les jours non faits d'un GEH (J3 vide…) ou les prélèvements non utilisés
+// d'un onglet non Reg ne sont donc pas repris dans le rapport. En Reg, la 1re paire d'un GEH gardé reste toujours :
+// elle porte le GEH et l'agent (cellules fusionnées sur le bloc). Sans ligne de réf. (Analyseurs), tout est gardé.
 function rrColonnesUtiles(sheet, cols, rRes, rVal, reg) {
   var rRef = [];
   for (var r = rRes; r < rVal; r++) if (/^(référence de l'échantillon|n° d'essai)/i.test(sheet.text('A' + r).trim())) rRef.push(r);
   if (!rRef.length) return cols;
+  var aRef = function (c) { return rRef.some(function (r) { var t = String(sheet.text(XlsmMoteur.colStr(c) + r)).trim(); return t && t !== '0'; }); };
   var pas = reg ? 6 : 2, out = [];
   for (var i = 0; i < cols.length; i += pas) {
-    var g = cols.slice(i, i + pas);
-    var ref = g.some(function (c) { return rRef.some(function (r) { var t = String(sheet.text(XlsmMoteur.colStr(c) + r)).trim(); return t && t !== '0'; }); });
-    if (ref) out = out.concat(g);
+    var g = cols.slice(i, i + pas), paires = [];
+    for (var j = 0; j < g.length; j += 2) if (g.slice(j, j + 2).some(aRef)) paires.push(j);
+    if (!paires.length) continue;
+    if (paires[0] !== 0) paires.unshift(0);
+    paires.forEach(function (j) { out = out.concat(g.slice(j, j + 2)); });
   }
   return out;
 }
