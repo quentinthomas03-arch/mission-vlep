@@ -2,26 +2,60 @@
 // © 2025 Quentin THOMAS
 // Création, édition, gestion agents, GEH, affectations, validation
 
+// Accueil : bandeau, mission à reprendre, les trois temps (préparation, terrain, bureau), la base de données (la
+// « bible » du technicien sur site, mise en avant), puis nouveautés sur une ligne et actions secondaires
+function missionDerniereActivite(m){
+  var t=Date.parse(m.createdAt||'')||0;
+  (m.prelevements||[]).forEach(function(p){(p.subPrelevements||[]).forEach(function(sb){if(sb._mod&&sb._mod>t)t=sb._mod;});});
+  return t;
+}
+function missionAReprendre(){
+  var l=(state.missions||[]).filter(function(m){return m.status!=='terminee';});
+  if(!l.length)return null;
+  return l.slice().sort(function(a,b){return missionDerniereActivite(b)-missionDerniereActivite(a);})[0];
+}
+function renderAccueilReprendre(){
+  var m=missionAReprendre();
+  if(!m)return '';
+  var t=0,d=0;
+  (m.prelevements||[]).forEach(function(p){(p.subPrelevements||[]).forEach(function(s){if(s.nonRealise)return;t++;if(s.completed)d++;});});
+  var pct=t?Math.round(d/t*100):0,prepa=m.status==='prepa';
+  var h='<div class="accueil-reprendre"><div class="accueil-reprendre-kicker">Reprendre</div><div class="accueil-reprendre-titre">'+escapeHtml(m.clientSite||'Sans nom')+'</div>';
+  if(prepa)h+='<div class="accueil-reprendre-info">En préparation · '+(m.gehs||[]).filter(function(g){return g.name;}).length+' GEH · '+t+' prélèvements prévus</div>';
+  else h+='<div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;"></div></div><div class="accueil-reprendre-info">'+d+' / '+t+' prélèvements terrain</div>';
+  h+='<div class="accueil-reprendre-boutons">';
+  if(prepa)h+='<button class="btn btn-primary btn-small" onclick="openMission('+m.id+');">'+ICONS.building+' Préparation</button>';
+  else h+='<button class="btn btn-primary btn-small" onclick="goToTerrain('+m.id+');">'+ICONS.clipboard+' Terrain</button><button class="btn btn-gray btn-small" onclick="ouvrirBureau('+m.id+');">'+ICONS.fileText+' Bureau</button>';
+  return h+'</div></div>';
+}
+// Champ de recherche de l'accueil : ouvre la base, clavier prêt (la recherche se fait dans l'écran de la base)
+function accueilOuvrirBase(){
+  state.view='db-terrain';render();window.scrollTo(0,0);
+  setTimeout(function(){var i=document.getElementById('db-search-input');if(i)i.focus();},60);
+}
 function renderHome(){
   var mp=state.missions.filter(function(m){return m.status==='prepa';}).length;
   var mt=state.missions.filter(function(m){return m.status==='validee'||m.status==='encours';}).length;
-  var h='<div class="card"><h1>'+ICONS.flask+' VLEP Mission</h1><p class="subtitle">Contrôle des valeurs limites d’exposition professionnelle</p></div>';
-  h+=renderNouveautesCard();
-  var row=function(onclick,icon,label,sub,count){
-    return '<div class="nav-item" onclick="'+onclick+'"><div class="nav-icon">'+icon+'</div><div class="nav-label">'+label+'<div class="nav-sub">'+sub+'</div></div>'+(count?'<div class="nav-count">'+count+'</div>':'')+ICONS.chevronRight+'</div>';
-  };
-  h+='<div class="nav-menu">';
-  h+=row('state.view=\'prepa-list\';render();',ICONS.building,'1. Préparation mission','GEH, agents, affectations',mp);
-  h+=row('state.view=\'terrain-list\';render();',ICONS.clipboard,'2. Saisie terrain','Missions prêtes, saisie rapide',mt);
-  h+=row('state.view=\'bureau-list\';render();',ICONS.fileText,'3. Bureau','Scol@, feuille de calcul, rapport Word',typeof bureauMissions==='function'?bureauMissions().length:0);
-  h+='</div><div class="nav-menu">';
-  h+=row('state.showModal=\'importChoice\';render();',ICONS.upload,'Importer une mission','Fichier .json reçu par e-mail',0);
-  h+=row('state.view=\'db-terrain\';render();',ICONS.search,'Base de données','Agents, méthodes, débits',state.agentsDB.length);
-  h+='</div>';
+  var mb=typeof bureauMissions==='function'?bureauMissions().length:0;
+  var enCours=state.missions.filter(function(m){return m.status!=='terminee';}).length;
+  var h='<div class="card mission-head accueil-tete"><div class="mission-hero"><div class="mission-hero-text"><div class="mission-hero-kicker">Contrôle des VLEP</div><h1>Appli VLEP</h1>';
+  h+='<div class="mission-hero-meta"><span>'+(enCours?enCours+' mission'+(enCours>1?'s':'')+' en cours':'Aucune mission en cours')+'</span></div></div></div></div>';
+  h+=renderAccueilReprendre();
+  var tuile=function(onclick,icon,label,n){return '<button type="button" class="accueil-etape" onclick="'+onclick+'">'+icon+'<span>'+label+'</span><strong>'+n+'</strong></button>';};
+  h+='<div class="accueil-etapes">'+
+    tuile('state.view=\'prepa-list\';render();',ICONS.building,'Préparation',mp)+
+    tuile('state.view=\'terrain-list\';render();',ICONS.clipboard,'Terrain',mt)+
+    tuile('state.view=\'bureau-list\';render();',ICONS.fileText,'Bureau',mb)+'</div>';
+  // base de données : la bible du technicien sur site
+  h+='<div class="accueil-base"><div class="accueil-base-tete">'+ICONS.search+'<div><div class="accueil-base-titre">Base de données</div><div class="accueil-base-sous">'+state.agentsDB.length+' agents · VLEP, supports, débits, conservation, consignes</div></div></div>';
+  h+='<input type="search" class="input" placeholder="Rechercher un agent, un n° CAS…" readonly onfocus="this.blur();accueilOuvrirBase();" onclick="accueilOuvrirBase();"></div>';
+  h+=renderNouveautesCard(true);
+  h+='<div class="accueil-actions"><button type="button" onclick="state.showModal=\'importChoice\';render();">'+ICONS.upload+'<span>Importer</span></button>'+
+    '<button type="button" onclick="state.view=\'tutoriel\';state.guidePhase=null;state.guideOuvert=null;state.guideQ=\'\';render();window.scrollTo(0,0);">'+ICONS.book+'<span>Guide</span></button></div>';
   h+='<input type="file" id="import-mission-input" accept=".json" style="display:none;" onchange="handleImportMission(event);">';
   if(state.showModal==='importChoice'){state.showModal=null;triggerImportMission();}
-  if(typeof renderJaugeStockage==='function')h+=renderJaugeStockage();
-  h+='<div class="home-tabbar"><button class="home-tab-btn" onclick="state.view=\'tutoriel\';state.guidePhase=null;state.guideOuvert=null;state.guideQ=\'\';render();window.scrollTo(0,0);">'+ICONS.book+'<span>Guide</span></button></div>';
+  // jauge de stockage : seulement quand le téléphone commence à se remplir
+  if(typeof renderJaugeStockage==='function')h+=renderJaugeStockage(true);
   h+='<div class="version-info">Version '+APP_VERSION+' © 2025 Quentin THOMAS</div>';
   return h;
 }

@@ -6,10 +6,18 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.50';
+var APP_VERSION = '2.52';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.52', date: '24/10/2026', items: [
+    'Nouvel accueil : la dernière mission en cours se reprend d’un toucher (« Reprendre », avec l’avancement du terrain), puis les trois temps Préparation, Terrain et Bureau avec leur nombre de missions.',
+    'La base de données est mise en avant sur l’accueil : touchez « Rechercher un agent, un n° CAS… » pour l’ouvrir, clavier prêt.',
+    'Les nouveautés tiennent sur une ligne (« Voir » pour les lire) ; la jauge de stockage n’apparaît plus que lorsque le téléphone approche de la limite.'
+  ] },
+  { version: '2.51', date: '24/10/2026', items: [
+    'L’application s’appelle désormais « Appli VLEP » (écran d’accueil, icône du téléphone, fichiers de mission .json). Les missions en cours et les fichiers déjà envoyés restent reconnus.'
+  ] },
   { version: '2.50', date: '24/10/2026', items: [
     'Accueil en trois temps : 1. Préparation, 2. Saisie terrain, 3. Bureau. Le Bureau regroupe ce qui se fait après le terrain : dossier Scol@, Scol@ par GEH, feuille de calcul et rapport Word. Le terrain ne garde que la saisie sur site (bouton « Bureau » en tête de mission pour y passer).',
     'Ventilation et captage : observés sur le site, ils se saisissent une fois par GEH, en tête du GEH sur le terrain, et sont recopiés dans ses prélèvements. Scol@ en tire le lieu, la ventilation et la protection collective : rien n’est à ressaisir au Bureau, où ils sont rappelés avec les EPI.',
@@ -252,7 +260,7 @@ function nvTexte(it) { return typeof it === 'string' ? it : it.t; }
 function nvDepModele(it) { return typeof it !== 'string' && !!it.modele; }
 function nvModeleDispo() { return typeof FC_MODELE_DISPO !== 'undefined' && FC_MODELE_DISPO === true; }
 
-function renderNouveautesCard() {
+function renderNouveautesCard(enLigne) {
   var seen = nvGet(SEEN_VERSION_KEY), modeleVu = nvGet(SEEN_MODELE_KEY) === '1', dispo = nvModeleDispo();
   // Tout premier lancement (aucune mission) : pas de « nouveautés » pour quelqu'un qui découvre l'appli
   if (!seen && !state.missions.length) { nvSet(SEEN_VERSION_KEY, APP_VERSION); if (dispo) nvSet(SEEN_MODELE_KEY, '1'); return ''; }
@@ -265,6 +273,7 @@ function renderNouveautesCard() {
     });
   });
   if (!lignes.length) { if (seen !== APP_VERSION) nvSet(SEEN_VERSION_KEY, APP_VERSION); return ''; }
+  if (enLigne && !state.nvOuvert) return '<button type="button" class="news-ligne" onclick="state.nvOuvert=true;render();"><span class="news-badge">Nouveau</span><span class="news-ligne-texte">' + lignes.length + ' nouveauté' + (lignes.length > 1 ? 's' : '') + ' dans l’appli</span><span class="news-ligne-voir">Voir</span></button>';
   var h = '<div class="card news-card"><div class="news-head"><span class="news-badge">Nouveau</span>' +
     '<span class="news-title">Quoi de neuf dans l’appli</span></div><ul class="news-list">';
   // après une longue période sans mise à jour, la carte ne repousse pas l'accueil : les 5 plus récentes, le reste
@@ -278,6 +287,7 @@ function renderNouveautesCard() {
 }
 
 function dismissNouveautes() {
+  state.nvOuvert = false;
   nvSet(SEEN_VERSION_KEY, APP_VERSION);
   if (nvModeleDispo()) nvSet(SEEN_MODELE_KEY, '1');
   render();

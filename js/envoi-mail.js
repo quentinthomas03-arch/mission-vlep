@@ -54,7 +54,7 @@ function sendMissionByMail(id) {
   var built = buildMissionJSON(m);
   var draft = missionMailDraft(m, 'Mission VLEP',
     'Ci-joint le fichier de la mission VLEP' + (m.clientSite ? ' du site ' + m.clientSite : '') + ' (' + built.filename + ').\n' +
-    'Pour l’ouvrir : appli VLEP Mission, « Importer une mission ».');
+    'Pour l’ouvrir : Appli VLEP, « Importer une mission ».');
   sendFileByMail(built.blob, built.filename, 'application/json', draft);
 }
 

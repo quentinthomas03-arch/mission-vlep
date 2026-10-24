@@ -1,5 +1,5 @@
 /*
- * VLEP Mission v3.9 - database.js
+ * Appli VLEP - database.js
  * © 2025 Quentin THOMAS - Tous droits réservés
  * Base de données agents chimiques intégrée
  * Mise à jour depuis Base de données + Annexes MonDevis - Version 86.xlsm (outils/generer-base.py)

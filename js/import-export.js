@@ -11,7 +11,7 @@ function buildMissionJSON(m){
   var exportData={_format:'VLEP_Mission_JSON',_version:'1.0',_exportDate:new Date().toISOString(),_author:'Quentin THOMAS',mission:JSON.parse(JSON.stringify(m))};
   var json=JSON.stringify(exportData,null,2);
   var safeName=(m.clientSite||'mission').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüçÀÂÄÉÈÊËÏÎÔÙÛÜÇ _-]/g,'').replace(/\s+/g,'_').substring(0,40);
-  return {blob:new Blob([json],{type:'application/json'}),filename:'VLEP_Mission_'+safeName+'_'+String(m.id).slice(-6)+'.json'};
+  return {blob:new Blob([json],{type:'application/json'}),filename:'Appli_VLEP_'+safeName+'_'+String(m.id).slice(-6)+'.json'};
 }
 
 function exportMissionJSON(id){
@@ -56,8 +56,9 @@ function stockageUtilise() {
 }
 function tailleMission(m) { try { return JSON.stringify(m).length; } catch (e) { return 0; } }
 function formatMo(n) { return n < 100000 ? Math.max(1, Math.round(n / 1000)) + ' Ko' : (n / 1000000).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' Mo'; }
-function renderJaugeStockage() {
+function renderJaugeStockage(siAlerte) {
   var u = stockageUtilise(), pct = Math.min(100, Math.round(u * 100 / STOCKAGE_LIMITE)), alerte = pct >= 70;
+  if (siAlerte && !alerte) return '';
   var h = '<div class="jauge-stockage' + (alerte ? ' alerte' : '') + '"><div class="jauge-stockage-texte"><span>Stockage du téléphone</span><span>' + formatMo(u) + ' sur environ ' + formatMo(STOCKAGE_LIMITE) + '</span></div><div class="jauge-stockage-barre"><span style="width:' + pct + '%;"></span></div>';
   if (alerte) {
     var lourdes = (state.missions || []).slice().sort(function (a, b) { return tailleMission(b) - tailleMission(a); }).slice(0, 3);
@@ -127,7 +128,7 @@ function importMissionFromText(text){
     var data=JSON.parse(text);
     var mission=missionDepuisDonnees(data);
     if(!mission){
-      alert('Format non reconnu.\n\nAssurez-vous d\'importer des données VLEP Mission.');
+      alert('Format non reconnu.\n\nAssurez-vous d\'importer une mission de l\'Appli VLEP.');
       return;
     }
     // Mission déjà sur le téléphone (fichier d'un collègue) : fusion proposée avant l'écrasement
