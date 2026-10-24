@@ -274,6 +274,12 @@ function getDebitmetreType(m){
   return (m&&m.debitmetreType==='piston')?'piston':'massique';
 }
 
+// Débitmètre affiché avec son type (il conditionne débits et volumes de la feuille) : « DM-24367 · massique »
+function debitmetreTexte(m){
+  var t=DEBITMETRE_TYPES.filter(function(x){return x.value===m.debitmetreType;})[0];
+  return [m.debitmetre||'',t?t.label.toLowerCase():'type non choisi'].filter(Boolean).join(' · ');
+}
+
 function renderDebitmetreTypeSelect(id,value,onchange){
   var h='<select class="input" id="'+id+'"'+(onchange?' onchange="'+onchange+'"':'')+'>';
   if(!value)h+='<option value="" selected>Type à choisir…</option>';

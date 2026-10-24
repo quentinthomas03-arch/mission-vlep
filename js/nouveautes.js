@@ -14,6 +14,9 @@ var NOUVEAUTES = [
     'Rechercher dans la mission : un champ au-dessus des GEH retrouve un prélèvement par réf. d’échantillon, opérateur, n° de pompe, agent ou n° de lot (sans accents). Un toucher ouvre le jour.',
     'Stockage du téléphone : une jauge en bas de l’accueil ; au-delà de 70 %, elle cite les missions les plus lourdes. « Archiver la mission » (menu ⋯) enregistre le .json puis retire la mission du téléphone ; elle se réimporte depuis l’accueil.',
     'Dossier Scol@ (n° de dossier, établissement, site accrédité) : se saisit maintenant en préparation de la mission, dès le devis, et non plus dans l’écran Rapport Word, qui le rappelle (« Modifier »). Il remplit l’en-tête Scol@ de la feuille de calcul : s’il est incomplet, la génération de la feuille le signale.',
+    'Prélèvement : quand le jour suit son GEH (Scol@ par GEH), environnement, ventilation, captage, tâche, métier et procédé tiennent en une ligne « Comme le GEH » ; « Modifier pour ce jour » rouvre le formulaire. Environ un quart de défilement en moins par jour.',
+    'Débitmètre affiché avec son type (« DM-24367 · massique ») en préparation et en tête de mission : il conditionne débits et volumes de la feuille.',
+    'Rapport Word : « Rédigé par » prérempli avec le préleveur, « Validé par » retenu pour les missions suivantes (comme l’agence).',
     'Ouverture plus rapide : l’animation d’accueil complète une fois par jour, puis l’appli s’ouvre aussitôt (environ 0,5 s au lieu de 2,4 s).'
   ] },
   { version: '2.48', date: '24/10/2026', items: [

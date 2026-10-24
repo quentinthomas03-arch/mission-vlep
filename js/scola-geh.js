@@ -56,6 +56,22 @@ function scolaGehCompleter(m) {
   });
 }
 
+// Formulaire du jour : environnement, ventilation, captage, tâche, métier et procédé repliés en une ligne quand le jour
+// suit exactement son GEH (valeurs par défaut comprises) ; un écart, ou un GEH sans saisie, montre le formulaire complet
+var SG_JOUR = ['ventEnv', 'ventEnvAutre', 'ventGenerale', 'ventGeneraleAutre', 'ventCaptage', 'ventCaptageAutre', 'scolaTache', 'scolaMetier', 'scolaProcede'];
+var SG_DEFAUTS = { ventEnv: 'Local standard industriel', ventGenerale: 'non', ventCaptage: 'Non' };
+function sbSuitGeh(m, p, sb) {
+  var g = (m.gehs || []).filter(function (x) { return String(x.id) === String(p.gehId); })[0];
+  var s = g && g.scola;
+  if (!s || !SG_ESSENTIELS.some(function (c) { return s[c[0]]; })) return null;
+  var eff = function (o, k) { return String(o[k] || SG_DEFAUTS[k] || '').trim(); };
+  if (!SG_JOUR.every(function (k) { return eff(sb, k) === eff(s, k); })) return null;
+  var autre = function (k) { return eff(s, k) === 'Autre' || eff(s, k) === 'autre' ? eff(s, k + 'Autre') || 'autre' : eff(s, k); };
+  var resume = [autre('ventEnv'), 'ventilation générale ' + (eff(s, 'ventGenerale') === 'autre' ? eff(s, 'ventGeneraleAutre') || 'autre' : eff(s, 'ventGenerale')), 'captage ' + autre('ventCaptage').toLowerCase()]
+    .concat(['scolaTache', 'scolaMetier', 'scolaProcede'].map(function (k) { return eff(s, k); }).filter(Boolean));
+  return { g: g, resume: resume };
+}
+
 function sgGeh(gid) { var m = getCurrentMission(); return m ? { m: m, g: (m.gehs || []).filter(function (x) { return String(x.id) === String(gid); })[0] } : {}; }
 function scolaGehMaj(gid, k, v) {
   var o = sgGeh(gid); if (!o.g) return;

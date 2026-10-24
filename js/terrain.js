@@ -195,7 +195,7 @@ function renderMissionHead(m){
   dates.sort();
   var fr=function(x){return x?x.slice(8,10)+'/'+x.slice(5,7)+'/'+x.slice(0,4):'';};
   var periode=dates.length?(dates[0]===dates[dates.length-1]?fr(dates[0]):fr(dates[0])+' → '+fr(dates[dates.length-1])):'';
-  var meta=[periode?'<span>'+ICONS.clock+periode+'</span>':'',m.preleveur?'<span>'+ICONS.user+escapeHtml(m.preleveur)+'</span>':'',m.debitmetre?'<span>'+ICONS.tool+escapeHtml(m.debitmetre)+'</span>':'',m.tachymetre?'<span>'+ICONS.tool+'Tachym. '+escapeHtml(m.tachymetre)+'</span>':''].join('');
+  var meta=[periode?'<span>'+ICONS.clock+periode+'</span>':'',m.preleveur?'<span>'+ICONS.user+escapeHtml(m.preleveur)+'</span>':'','<span>'+ICONS.tool+escapeHtml(debitmetreTexte(m))+'</span>',m.tachymetre?'<span>'+ICONS.tool+'Tachym. '+escapeHtml(m.tachymetre)+'</span>':''].join('');
   var h='<div class="card mission-head"><div class="mission-hero"><div class="mission-hero-text">';
   h+='<div class="mission-hero-kicker">'+(m.scolaDossier?'Dossier '+escapeHtml(m.scolaDossier):'Mission')+'</div>';
   h+='<h1>'+escapeHtml(m.clientSite||'Sans nom')+'</h1>';
@@ -971,6 +971,12 @@ function renderSubPrelForm(p,sb,idx){
   }
   h+='</div>';
 
+  // Jour qui suit son GEH (Scol@ par GEH) : environnement, ventilation, captage, tâche, métier, procédé en une ligne
+  var cleGeh=p.id+'-'+idx,suit=typeof sbSuitGeh==='function'?sbSuitGeh(m,p,sb):null;
+  if(suit&&!(state.sbGehOuvert&&state.sbGehOuvert[cleGeh])){
+    h+='<div class="field"><label class="label">Ventilation, captage et Scol@</label><div class="suit-geh"><span><strong>Comme le GEH '+escapeHtml(String(suit.g.num))+'</strong> : '+escapeHtml(suit.resume.join(' · '))+'</span>';
+    h+='<button type="button" class="btn btn-gray btn-small" style="width:auto;margin:0;" onclick="if(!state.sbGehOuvert)state.sbGehOuvert={};state.sbGehOuvert[\''+cleGeh+'\']=true;render();">Modifier pour ce jour</button></div></div>';
+  }else{
   // Ventilation et captage (Point 2)
   var srcCond=findConditionsSource(m,p,idx);
   h+='<div class="field"><div class="field-header"><label class="label">Ventilation et captage</label>';
@@ -1019,6 +1025,7 @@ function renderSubPrelForm(p,sb,idx){
 
   // Scol@ : tâche, métier, type de procédé (listes Scol@), repris dans le bloc Scol@ de la feuille de calcul
   h+=renderScolaChamps(p,sb,idx);
+  }
 
   // Prélèvement prévu mais pas fait (pas d'exposition ce jour-là…) : sorti des compteurs et des exports
   if(sb.nonRealise){

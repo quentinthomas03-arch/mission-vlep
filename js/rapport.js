@@ -202,6 +202,8 @@ function rapportChampsVides(m) {
   return vides;
 }
 
+var RAPPORT_VALIDEUR_KEY = 'vlep_rapport_valideur';
+function rapportValideurParDefaut() { try { return localStorage.getItem(RAPPORT_VALIDEUR_KEY) || ''; } catch (e) { return ''; } }
 function rapportAgenceParDefaut() { try { return localStorage.getItem(RAPPORT_AGENCE_KEY) || ''; } catch (e) { return ''; } }
 function rapportAgence(r) { return RAPPORT_AGENCES.filter(function (a) { return a.id === r.agence; })[0] || null; }
 
@@ -210,6 +212,10 @@ function rapportAgence(r) { return RAPPORT_AGENCES.filter(function (a) { return 
 function renderRapportPrepa(m) {
   var r = rapportDonnees(m);
   if (!r.agence && rapportAgenceParDefaut()) { r.agence = rapportAgenceParDefaut(); saveData('vlep_missions_v3', state.missions); }
+  // rédacteur = préleveur de la mission, valideur = celui du rapport précédent ; seulement si jamais saisis (un champ
+  // vidé exprès reste vide)
+  if (r.redacteur === undefined && m.preleveur) { r.redacteur = m.preleveur; saveData('vlep_missions_v3', state.missions); }
+  if (r.valideur === undefined && rapportValideurParDefaut()) { r.valideur = rapportValideurParDefaut(); saveData('vlep_missions_v3', state.missions); }
   var puce = function (actif, onclick, label) {
     return '<button type="button" class="btn btn-small ' + (actif ? 'btn-primary' : 'btn-gray') + '" style="margin:0;" onclick="' + onclick + '">' + escapeHtml(label) + '</button>';
   };
@@ -270,6 +276,7 @@ function rapportMaj(cle, v) {
   var r = rapportDonnees(m);
   r[cle] = typeof v === 'string' ? v.trim() : v;
   if (cle === 'posteFixe') r.posteFixeAuto = false;
+  if (cle === 'valideur' && r.valideur) { try { localStorage.setItem(RAPPORT_VALIDEUR_KEY, r.valideur); } catch (e) {} } // missions suivantes
   saveData('vlep_missions_v3', state.missions);
 }
 
