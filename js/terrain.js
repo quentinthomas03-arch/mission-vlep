@@ -22,8 +22,14 @@ function renderTerrainMission(){
   var h='<button class="back-btn" onclick="state.view=\'terrain-list\';state.currentMissionId=null;state.missionMenuOpen=false;render();">'+ICONS.arrowLeft+' Missions</button>';
   h+=renderMissionHead(m);
   h+=renderAVerifier(m);
+  if(typeof renderRappelSauvegarde==='function')h+=renderRappelSauvegarde(m);
+  if(typeof ouvrirTournee==='function')h+='<div class="row-card" onclick="ouvrirTournee();">'+ICONS.clock+'<span class="row-card-label">Tournée du jour</span><span class="row-card-state">poser / arrêter les pompes</span>'+ICONS.chevronRight+'</div>';
   h+='<div class="row-card" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+'<span class="row-card-label">Conditions ambiantes</span>'+ICONS.chevronRight+'</div>';
   if(typeof renderScolaGehLigne==='function')h+=renderScolaGehLigne(m);
+  // recherche : réf. d'échantillon, opérateur, n° de pompe, agent, n° de lot (résultats mis à jour sans re-render)
+  var q=state.rechercheMission||'';
+  h+='<div class="recherche-mission"><input type="search" class="input" placeholder="Rechercher : réf., opérateur, pompe, agent, lot" value="'+escapeHtml(q)+'" oninput="state.rechercheMission=this.value;var r=document.getElementById(\'recherche-resultats\');if(r)r.innerHTML=renderRechercheResultats(getCurrentMission(),this.value);var g=document.getElementById(\'liste-geh\');if(g)g.style.display=this.value.trim()?\'none\':\'\';"></div>';
+  h+='<div id="recherche-resultats">'+renderRechercheResultats(m,q)+'</div><div id="liste-geh"'+(q.trim()?' style="display:none;"':'')+'>';
   var byGeh={};
   m.prelevements.forEach(function(p){var k=p.gehId;if(!byGeh[k])byGeh[k]=[];byGeh[k].push(p);});
   m.gehs.filter(function(g){return g.name;}).forEach(function(g){
@@ -52,11 +58,47 @@ function renderTerrainMission(){
     h+='</div></div>';
   });
   
+  h+='</div>';
   h+='<button class="add-link" onclick="state.showModal=\'addPrelTerrain\';render();">'+ICONS.plus+' Ajouter un prélèvement</button>';
   // Modals
   if(state.showModal==='addGehTerrain')h+=renderAddGehTerrainModal();
   if(state.showModal==='addPrelTerrain')h+=renderAddPrelTerrainModal();
   
+  return h;
+}
+
+// Recherche dans la mission : un résultat par jour de prélèvement (ou support suivant) qui contient la saisie,
+// sans tenir compte des accents ni des majuscules. Un toucher ouvre le jour.
+function rechercheNorm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();}
+function rechercherMission(m,q){
+  var n=rechercheNorm(q),out=[];
+  if(!m||n.length<2)return out;
+  (m.prelevements||[]).forEach(function(p){
+    var g=(m.gehs||[]).filter(function(x){return x.id===p.gehId;})[0];
+    (p.subPrelevements||[]).forEach(function(sb,i){
+      var trouve=[];
+      var voir=function(lib,v){if(v&&rechercheNorm(v).indexOf(n)!==-1&&trouve.indexOf(lib+' '+v)===-1)trouve.push(lib+' '+v);};
+      voir('opérateur',sb.operateur);
+      [sb].concat(getSupportsSupp(sb)).forEach(function(s){
+        Object.keys(s.agentData||{}).forEach(function(an){var ad=s.agentData[an]||{};voir('réf.',ad.refEchantillon);voir('pompe',ad.numPompe);voir('lot',ad.lot);});
+      });
+      (p.agents||[]).forEach(function(a){voir('agent',a.name);});
+      if(trouve.length)out.push({p:p,idx:i,sb:sb,geh:g?g.num:'',trouve:trouve});
+    });
+  });
+  return out;
+}
+function renderRechercheResultats(m,q){
+  if(!q||rechercheNorm(q).length<2)return '';
+  var r=rechercherMission(m,q);
+  if(!r.length)return '<div class="empty-state" style="padding:12px;"><p>Aucun prélèvement ne contient « '+escapeHtml(q)+' »</p></div>';
+  var h='<div class="recherche-nb">'+r.length+' jour'+(r.length>1?'s':'')+' de prélèvement</div>';
+  r.slice(0,60).forEach(function(x){
+    var etat=x.sb.nonRealise?'non réalisé':(x.sb.completed?'validé':'');
+    h+='<button type="button" class="a-verifier-item recherche-item" onclick="state.rechercheMission=\'\';openPrel('+x.p.id+');state.activeSubIndex='+x.idx+';state.lastDayIndex='+x.idx+';render();">'+
+      '<strong>GEH '+escapeHtml(String(x.geh))+' · '+escapeHtml((x.p.agents||[]).map(function(a){return a.name;}).join(' + '))+' · J'+(x.idx+1)+(x.sb.date?' · '+formatDateFR(x.sb.date):'')+(etat?' · '+etat:'')+'</strong>'+
+      '<span>'+escapeHtml(x.trouve.join(' · '))+'</span></button>';
+  });
   return h;
 }
 
@@ -176,6 +218,7 @@ function renderMissionHead(m){
       item('state.showModal=\'addGehTerrain\';render();',ICONS.plus,'Ajouter un GEH')+
       item('editMissionFromTerrain();',ICONS.edit,'Modifier la mission')+
       item('unvalidateMissionFromTerrain();',ICONS.arrowLeft,'Repasser en préparation')+
+      item('archiverMission('+m.id+');',ICONS.download,'Archiver la mission<span class="menu-row-sub">Enregistrée en .json puis retirée du téléphone</span>')+
       item('deleteMissionTerrain();',ICONS.trash,'Supprimer la mission','danger')+
       '</div>';
   }
@@ -1161,9 +1204,10 @@ function copyConditionsFrom(pid,idx){
 }
 
 // Saisies qui posent la date du jour si elle est vide
+// Date locale (toISOString donnait la date UTC : entre minuit et 2 h, un poste de nuit était daté de la veille)
 function getTodayDate(){
-  var d=new Date();
-  return d.toISOString().split('T')[0];
+  var d=new Date(),p=function(n){return (n<10?'0':'')+n;};
+  return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
 }
 
 function autoFillDate(p,idx){
@@ -1183,18 +1227,6 @@ function updateSubFieldWithAutoDate(pid,idx,f,v){
   }
 }
 
-function updateAgentDataWithAutoDate(pid,idx,an,f,v){
-  var m=getCurrentMission();if(!m)return;
-  var p=m.prelevements.find(function(x){return x.id===pid;});
-  if(p){
-    if(!p.subPrelevements[idx].agentData)p.subPrelevements[idx].agentData={};
-    if(!p.subPrelevements[idx].agentData[an])p.subPrelevements[idx].agentData[an]={};
-    p.subPrelevements[idx].agentData[an][f]=v;
-    autoFillDate(p,idx);
-    saveData('vlep_missions_v3',state.missions);
-  }
-}
-
 function updatePlageWithAutoDate(pid,idx,pi,f,v){
   var m=getCurrentMission();if(!m)return;
   var p=m.prelevements.find(function(x){return x.id===pid;});
@@ -1206,36 +1238,12 @@ function updatePlageWithAutoDate(pid,idx,pi,f,v){
   }
 }
 
-function handleDebitInput(input){
-  var v=input.value;
-  v=v.replace(/[^0-9.,]/g,'');
-  v=v.replace(',','.');
-  input.value=v;
-}
-
 function renderDebitVariation(pid,idx,aname){render();}
 
 function updateSubField(pid,idx,f,v){
   var m=getCurrentMission();if(!m)return;
   var p=m.prelevements.find(function(x){return x.id===pid;});
   if(p){p.subPrelevements[idx][f]=v;saveData('vlep_missions_v3',state.missions);}
-}
-
-function updateAgentData(pid,idx,an,f,v){
-  var m=getCurrentMission();if(!m)return;
-  var p=m.prelevements.find(function(x){return x.id===pid;});
-  if(p){
-    if(!p.subPrelevements[idx].agentData)p.subPrelevements[idx].agentData={};
-    if(!p.subPrelevements[idx].agentData[an])p.subPrelevements[idx].agentData[an]={};
-    p.subPrelevements[idx].agentData[an][f]=v;
-    saveData('vlep_missions_v3',state.missions);
-  }
-}
-
-function updatePlage(pid,idx,pi,f,v){
-  var m=getCurrentMission();if(!m)return;
-  var p=m.prelevements.find(function(x){return x.id===pid;});
-  if(p){p.subPrelevements[idx].plages[pi][f]=v;saveData('vlep_missions_v3',state.missions);render();}
 }
 
 function addPlage(pid,idx){

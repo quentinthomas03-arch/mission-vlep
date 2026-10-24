@@ -473,6 +473,8 @@ function supportsParRef(m){
           if(typeof isAnalyseurAgent==='function'&&isAnalyseurAgent(a.name))return;
           var ad=sb.agentData&&sb.agentData[a.name];if(!ad)return;
           var grp=typeof getCoPrelGroupMembers==='function'?getCoPrelGroupMembers(s0,a.name):[];
+          // fractions de silice d'un même CIP10 ou cyclone : un seul échantillon, comme à l'export (onglet CIP10 silice)
+          if(grp.length<=1&&typeof fcGroupeSilice==='function'&&(fcEstSilice(a.name)||fcEstCycloneSilice(a.name)))grp=fcGroupeSilice(p).map(function(x){return x.name;});
           var qui=grp.length>1?grp.slice().sort():[a.name];
           noter(ad.refEchantillon,p.id+'|'+si+'|'+k+'|'+qui.join('+'),qui.join(' + ')+(sb.date?' · '+formatDateFR(sb.date):''));
         });

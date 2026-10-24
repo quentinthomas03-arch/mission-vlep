@@ -59,11 +59,6 @@
   }
 
   // Plages « A1:B2 C3 » : décalage de colonnes
-  function shiftSqref(sqref, dCol) {
-    return sqref.split(/\s+/).map(function (p) {
-      return p.split(':').map(function (ref) { var s = splitRef(ref.replace(/\$/g, '')); return s ? colStr(s.c + dCol) + s.r : ref; }).join(':');
-    }).join(' ');
-  }
   function rangeCols(p) {
     var parts = p.replace(/\$/g, '').split(':'), a = splitRef(parts[0]), b = splitRef(parts[1] || parts[0]);
     return a && b ? { c1: a.c, r1: a.r, c2: b.c, r2: b.r } : null;
@@ -122,6 +117,39 @@
     return dec(v[1]);
   };
 
+  // Onglet copié : ses formules qui citent l'onglet modèle par son nom (« =Cassette!C79 ») citent le nouvel onglet,
+  // comme le fait Excel en copiant un onglet (sinon elles visent le modèle, faux puis #REF! une fois le modèle supprimé)
+  Sheet.prototype.renommerReferences = function (ancien, nouveau) {
+    var esc = function (x) { return x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); };
+    var cite = "'" + nouveau.replace(/'/g, "''") + "'!";
+    var reQ = new RegExp("'" + esc(ancien.replace(/'/g, "''")) + "'!", 'g');
+    var reN = /^[A-Za-z_][A-Za-z0-9_.]*$/.test(ancien) ? new RegExp("(^|[^A-Za-z0-9_.'!])" + esc(ancien) + '!', 'g') : null;
+    var self = this;
+    Object.keys(this.rows).forEach(function (r) {
+      var cells = self.rows[r].cells;
+      Object.keys(cells).forEach(function (c) {
+        var cell = cells[c];
+        if (cell.inner.indexOf('<f') === -1) return;
+        cell.inner = cell.inner.replace(/(<f\b[^>]*>)([\s\S]*?)(<\/f>)/, function (all, a, f, b) {
+          var t = dec(f), u = t.replace(reQ, function () { return cite; });
+          if (reN) u = u.replace(reN, function (x, p) { return p + cite; });
+          return u === t ? all : a + enc(u) + b;
+        });
+      });
+    });
+  };
+
+  // Cellule masquée par une fusion (dans une plage fusionnée sans en être la première cellule) : rien n'y est saisi
+  Sheet.prototype.masqueeParFusion = function (ref) {
+    if (!this._fusions) {
+      this._fusions = [];
+      var re = /<mergeCell ref="([A-Z]+)(\d+):([A-Z]+)(\d+)"/g, m;
+      while ((m = re.exec(this.tail))) this._fusions.push({ c1: colIdx(m[1]), r1: +m[2], c2: colIdx(m[3]), r2: +m[4] });
+    }
+    var s = splitRef(ref);
+    return this._fusions.some(function (f) { return s.r >= f.r1 && s.r <= f.r2 && s.c >= f.c1 && s.c <= f.c2 && (s.r !== f.r1 || s.c !== f.c1); });
+  };
+
   // Ligne d'un libellé (colonne A ou B), à partir de la ligne « depuis »
   Sheet.prototype.findRow = function (label, col, depuis) {
     var want = normLabel(label), rs = Object.keys(this.rows).map(Number).sort(function (a, b) { return a - b; });
@@ -169,6 +197,7 @@
 
   // Recopie des colonnes [src, src+width-1] vers dest (comme Columns("C:H").Copy Columns(k))
   Sheet.prototype.copyColumns = function (src, width, dest) {
+    this._fusions = null; // fusions recopiées : liste à relire
     var d = dest - src, self = this;
     Object.keys(this.rows).forEach(function (r) {
       var row = self.rows[r];
@@ -297,6 +326,7 @@
 
   // Applique une transformation à toutes les plages (fusions, listes, mises en forme conditionnelles)
   Sheet.prototype._remapRanges = function (fn) {
+    this._fusions = null;
     var t = this.tail;
     t = t.replace(/(<dataValidation\b[^>]*?\ssqref=")([^"]*)(")/g, function (all, a, s, b) { return a + fn(s) + b; });
     t = t.replace(/(<conditionalFormatting\b[^>]*?\ssqref=")([^"]*)(")/g, function (all, a, s, b) { return a + fn(s) + b; });
@@ -478,6 +508,7 @@
     }).then(function (xml) {
       xml = xml.replace(/\stabSelected="1"/, '');
       var s = new Sheet(xml); s.sharedStrings = self.sharedStrings; self.sheets[nom] = s;
+      s.renommerReferences(modele, nom);
       return s;
     });
   };
@@ -497,6 +528,11 @@
     var self = this, path = this.paths[nom];
     var sm = new RegExp('<sheet\\b[^>]*?name="' + enc(nom).replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '"[^>]*?/>').exec(this.workbookXml);
     var rid = getAttr(sm[0], 'r:id');
+    // onglet actif avant suppression : activeTab est remis à 0 plus bas, mais l'onglet garde tabSelected ; retenu pour
+    // que activerOnglet le désélectionne (sinon deux onglets sélectionnés = mode groupe dans Excel : une saisie dans
+    // l'un s'écrit aussi dans l'autre, et la protection ne peut plus être levée)
+    var vue0 = /<workbookView\b([^>]*?)\/>/.exec(this.workbookXml), actif0 = ordre[+((vue0 && getAttr(vue0[1], 'activeTab')) || 0)];
+    if (actif0 && actif0 !== nom) { this._actifsPrecedents = this._actifsPrecedents || []; if (this._actifsPrecedents.indexOf(actif0) === -1) this._actifsPrecedents.push(actif0); }
     this.workbookXml = this.workbookXml.replace(sm[0], '');
     // noms définis propres à l'onglet supprimé ; indices suivants décalés
     this.workbookXml = this.workbookXml.replace(/<definedName\b([^>]*?)>([\s\S]*?)<\/definedName>/g, function (all, a, v) {
@@ -534,7 +570,8 @@
   Classeur.prototype.activerOnglet = function (nom) {
     var self = this, ordre = this._ordre(), idx = ordre.indexOf(nom);
     if (idx === -1) return Promise.resolve();
-    // seuls l'onglet actif d'origine (activeTab) et le nouveau portent tabSelected : inutile de décompresser les autres
+    // seuls l'onglet actif d'origine (activeTab, ou celui d'avant une suppression d'onglet) et le nouveau portent
+    // tabSelected : inutile de décompresser les autres
     var vue = /<workbookView\b([^>]*?)\/>/.exec(this.workbookXml), ancien = ordre[+((vue && getAttr(vue[1], 'activeTab')) || 0)];
     this.workbookXml = this.workbookXml.replace(/<workbookView\b([^>]*?)\/>/, function (all, a) {
       return '<workbookView' + setAttr(setAttr(a, 'firstSheet', null), 'activeTab', String(idx)) + '/>';
@@ -543,9 +580,10 @@
       x = x.replace(/(<sheetView\b[^>]*?)\stabSelected="1"/g, '$1');
       return actif ? x.replace(/<sheetView\b/, '<sheetView tabSelected="1"') : x;
     };
+    var aRevoir = [nom, ancien].concat(this._actifsPrecedents || []);
     return Promise.all(ordre.map(function (n) {
       if (self.sheets[n]) { self.sheets[n].head = fix(self.sheets[n].head, n === nom); return null; }
-      if (n !== nom && n !== ancien) return null;
+      if (aRevoir.indexOf(n) === -1) return null;
       var p = self.paths[n];
       if (!p || !self.zip.file(p)) return null;
       // réécrit seulement s'il change : un onglet réécrit est recompressé par generer (export bien plus lent)

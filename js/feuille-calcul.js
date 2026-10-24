@@ -30,11 +30,26 @@ function fcEstCip10(agentName) {
 function fcEstSilice(agentName) {
   return /silice cristalline/i.test(agentName || '') && fcEstCip10(agentName);
 }
+// Silice cristalline sur cyclone (fractions « (cyclone GK2.69) »…) : onglet « Cyclone silice Reg (séq) », le seul modèle
+// cyclone de la feuille ; un prélèvement à une cassette s'y saisit comme le support n°1
+function fcEstCycloneSilice(agentName) {
+  var ag = getAgentFromDB(agentName);
+  return /silice cristalline/i.test(agentName || '') && /cyclone/i.test((agentName || '') + ' ' + (ag ? ag['Principe du prélèvement'] || '' : ''));
+}
+// Agents du même prélèvement sur le même sélecteur que la silice (fractions, poussières alvéolaires) : une seule série
+function fcGroupeSilice(p) {
+  var cyclone = p.agents.some(function (a) { return fcEstCycloneSilice(a.name); });
+  return p.agents.filter(function (a) {
+    if (cyclone) return fcEstCycloneSilice(a.name) || (/alvéolaire/i.test(a.name) && /cyclone/i.test(a.name));
+    return fcEstSilice(a.name) || (fcEstCip10(a.name) && /alvéolaire/i.test(a.name));
+  });
+}
 
 // Famille de modèle d'après le support de la base : Tube, Cassette, Cassette+tube, CIP10 silice, CIP10 sf silice, Fibres
 function fcFamille(agentName) {
   if (typeof isAnalyseurAgent === 'function' && isAnalyseurAgent(agentName)) return 'Analyseurs';
   if (fcEstSilice(agentName)) return 'CIP10 silice';
+  if (fcEstCycloneSilice(agentName)) return 'Cyclone silice';
   if (fcEstCip10(agentName)) return 'CIP10 sf silice';
   if (/amiante|fibres? (céramiques?|minérales?|de verre)/i.test(agentName || '')) return 'Fibres';
   var sup = fcSupport(agentName);
@@ -50,10 +65,10 @@ function fcFamille(agentName) {
 function fcSeries(p) {
   var sb0 = p.subPrelevements[0] || {};
   var vus = {}, series = [];
-  // CIP10 silice : fractions de silice et poussières alvéolaires du prélèvement sur le même CIP10
-  var silice = p.agents.filter(function (a) { return fcEstSilice(a.name); });
+  // silice (CIP10 ou cyclone) : fractions de silice et poussières alvéolaires du prélèvement sur le même sélecteur
+  var silice = p.agents.filter(function (a) { return fcEstSilice(a.name) || fcEstCycloneSilice(a.name); });
   if (silice.length) {
-    var grp = p.agents.filter(function (a) { return fcEstSilice(a.name) || (fcEstCip10(a.name) && /alvéolaire/i.test(a.name)); });
+    var grp = fcGroupeSilice(p);
     series.push({ agents: grp.map(function (a) { return a.name; }) });
     grp.forEach(function (a) { vus[a.name] = true; });
   }
@@ -69,6 +84,7 @@ function fcSeries(p) {
 
 function fcModele(famille, isReg, multi, seq) {
   if (famille === 'Analyseurs') return 'Analyseurs'; // un seul modèle, un essai par colonne
+  if (famille === 'Cyclone silice') return 'Cyclone silice Reg (séq)'; // seul modèle cyclone de la feuille
   var nom = famille + (isReg ? ' Reg' : '');
   if (seq) return nom + ' (séq)';
   if (multi && isReg && (famille === 'Tube' || famille === 'Cassette')) return nom + ' (multi)';
@@ -85,11 +101,13 @@ function fcPlan(m) {
         var fam = fcFamille(s.agents[0]);
         if (!fam) { alertes.push('Support inconnu pour « ' + s.agents[0] + ' » (GEH ' + g.num + ') : non exporté.'); return; }
         var seq = p.subPrelevements.some(function (sb) { return getSupportsSupp(sb).length > 0; });
-        var multi = s.agents.length > 1 && fam !== 'CIP10 silice';
+        var multi = s.agents.length > 1 && fam !== 'CIP10 silice' && fam !== 'Cyclone silice';
         var modele = fcModele(fam, p.isReglementaire, multi, seq);
         if (multi && !/\(multi\)/.test(modele)) alertes.push('« ' + s.agents.join(' + ') + ' » (GEH ' + g.num + ') : pas de modèle multi-agents pour ' + modele + ', un agent par colonne.');
         var cle = g.id + '|' + modele;
-        if (!onglets[cle]) { onglets[cle] = { geh: g, modele: modele, reg: !!p.isReglementaire && fam !== 'Analyseurs', seq: seq && fam !== 'Analyseurs', series: [] }; ordre.push(cle); }
+        // disposition de l'onglet d'après le modèle : blocs de 6 colonnes pour un modèle « Reg », supports empilés pour un
+        // modèle « (séq) » (le modèle cyclone est les deux, même pour un prélèvement à une cassette)
+        if (!onglets[cle]) { onglets[cle] = { geh: g, modele: modele, reg: / Reg\b/.test(modele), seq: /\(séq\)/.test(modele), series: [] }; ordre.push(cle); }
         if (multi && !/\(multi\)/.test(modele)) s.agents.forEach(function (n) { onglets[cle].series.push({ p: p, agents: [n] }); });
         else onglets[cle].series.push({ p: p, agents: s.agents });
       });
@@ -186,15 +204,19 @@ function fcRemplirColonne(s, R, col, ctx) {
   var ad = (sb.agentData && sb.agentData[an]) || {};
   var tachy = isTachymetreAgent(an);
   var f = R.find, eg = R.eg, debut = R.debut;
-  function set(row, v) { if (row && v !== null && v !== undefined && v !== '') s.set(col + row, v); }
+  // jamais dans une cellule masquée par une fusion (agent, labo, type de VLEP… fusionnés sur le bloc d'un GEH) :
+  // le technicien ne saisit que la première cellule, les formules ne lisent qu'elle
+  function set(row, v) { if (row && v !== null && v !== undefined && v !== '' && !s.masqueeParFusion(col + row)) s.set(col + row, v); }
   var regionHaut = R.resultats || 9999;
 
   set(f(eg('opérateur'), { col: 'A' }), String(sb.operateur || '').trim());
   // onglets non réglementaires : « individuel » (opérateur, par défaut) ou « à poste fixe »
-  set(f(eg('type de prélèvement'), { col: 'A' }), sb.posteFixe ? 'à poste fixe' : 'individuel');
+  // (formule « ="individuel" » par défaut dans les onglets Fibres et CIP10 non réglementaires : remplacée, comme le
+  // choix du technicien dans la liste)
+  set(f(eg('type de prélèvement'), { col: 'A', formuleOk: true }), sb.posteFixe ? 'à poste fixe' : 'individuel');
   // onglet Véolia : agent et support viennent du protocole du site
-  if (!ctx.protocole && (agents.length === 1 || /CIP10 silice/.test(ctx.modele))) {
-    set(f(eg('agent chimique'), { col: 'A', avant: regionHaut }), /CIP10 silice/.test(ctx.modele) ? 'silice cristalline' : an);
+  if (!ctx.protocole && (agents.length === 1 || /CIP10 silice|Cyclone silice/.test(ctx.modele))) {
+    set(f(eg('agent chimique'), { col: 'A', avant: regionHaut }), /CIP10 silice|Cyclone silice/.test(ctx.modele) ? 'silice cristalline' : an);
   }
   // agents empilés (multi) : « agent chimique n°k_ »
   if (agents.length > 1 && /\(multi\)/.test(ctx.modele)) {
@@ -228,7 +250,13 @@ function fcRemplirColonne(s, R, col, ctx) {
     var rPort = ctx.seq ? f(function (t) { return t.indexOf("durée de port de l'epi") === 0 && t.indexOf('n°' + (k + 1) + '_') !== -1; }) : f(debut("durée de port de l'EPI"), { col: 'A' });
     set(rPort, (sb.epiType || 'sans objet') === 'sans objet' ? 0 : fcNombre(sb.epiDuree) || 0);
     // Débits / vitesses
-    if (tachy) {
+    if (tachy && ctx.seq) {
+      // CIP10 en séquentiel : vitesse d'étalonnage du CIP10 n°1, vitesses initiale et finale de chaque support
+      // (« … CIP10 n°1 » dans les onglets silice, « vitesse de rotation (tr/min) » sans silice)
+      if (k === 0) set(f(eg('vitesse de rotation (tr/min) CIP10 n°1'), { col: 'B' }) || f(eg('vitesse de rotation (tr/min)'), { col: 'B' }), fcNombre(sad.debitRef));
+      set(f(eg('initiale n°' + (k + 1) + '_'), { col: 'B' }), fcNombre(sad.debitInitial));
+      set(f(eg('finale n°' + (k + 1) + '_'), { col: 'B' }), fcNombre(sad.debitFinal));
+    } else if (tachy) {
       set(f(eg('vitesse de rotation (tr/min)'), { col: 'B' }), fcNombre(sad.debitRef));
       var rv = f(eg('vitesse de rotation (tr/min)'), { col: 'A' });
       set(rv, fcNombre(sad.debitInitial)); set(rv && rv + 1, fcNombre(sad.debitFinal));
@@ -308,7 +336,7 @@ function fcScola(s, R, col, ctx, supports, methodeImposee) {
   var depuis = f(eg("DESCRIPTION DE LA MESURE D'EXPOSITION"), { col: 'A', formuleOk: true });
   if (!depuis) return; // modèle sans bloc Scol@
   function ligne(lib) { return f(eg(lib), { col: 'A', depuis: depuis - 1, formuleOk: true }); }
-  function set(lib, v) { var r = ligne(lib); if (r && v !== null && v !== undefined && v !== '') s.set(col + r, v); }
+  function set(lib, v) { var r = ligne(lib); if (r && v !== null && v !== undefined && v !== '' && !s.masqueeParFusion(col + r)) s.set(col + r, v); }
   var sad = (supports[0].agentData && supports[0].agentData[an]) || {};
   set('N° de prélèvement *', sad.refEchantillon || '');
   set('Date de prélèvement *', formatDateFR(sb.date) || '');
@@ -360,7 +388,7 @@ function fcDateExcel(iso) {
 function fcRemplirAnalyseur(s, R, col, ctx) {
   var m = ctx.m, sb = ctx.sb, an = ctx.agents[0], f = R.find, eg = R.eg;
   var ad = (sb.agentData && sb.agentData[an]) || {};
-  function set(row, v) { if (row && v !== null && v !== undefined && v !== '') s.set(col + row, v); }
+  function set(row, v) { if (row && v !== null && v !== undefined && v !== '' && !s.masqueeParFusion(col + row)) s.set(col + row, v); }
   var rRes = f(eg('Résultats des mesures'), { col: 'A', formuleOk: true }) || 9999;
   // Matériel et contrôles (haut de l'onglet)
   set(f(eg('n° essai :'), { col: 'A', avant: rRes }), ad.refEchantillon || '');

@@ -6,10 +6,33 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.46';
+var APP_VERSION = '2.49';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.49', date: '24/10/2026', items: [
+    'Rechercher dans la mission : un champ au-dessus des GEH retrouve un prélèvement par réf. d’échantillon, opérateur, n° de pompe, agent ou n° de lot (sans accents). Un toucher ouvre le jour.',
+    'Stockage du téléphone : une jauge en bas de l’accueil ; au-delà de 70 %, elle cite les missions les plus lourdes. « Archiver la mission » (menu ⋯) enregistre le .json puis retire la mission du téléphone ; elle se réimporte depuis l’accueil.',
+    'Ouverture plus rapide : l’animation d’accueil complète une fois par jour, puis l’appli s’ouvre aussitôt (environ 0,5 s au lieu de 2,4 s).'
+  ] },
+  { version: '2.48', date: '24/10/2026', items: [
+    'Tournée du jour (écran de la mission) : tous les prélèvements 8 h du jour sur un écran. Cochez ceux que vous posez, « Démarrer » met l’heure de début à tous ; « Arrêter » à la pause ou le soir, « Démarrer » à nouveau à la reprise (nouvelle plage). N° de pompe et débits se tapent à la suite, sans ouvrir chaque prélèvement. L’heure est celle du clic, ou celle que vous saisissez (valable une fois). EPI, observations et validation restent dans le prélèvement ; les court-terme gardent leur chrono.',
+    'Tournée du jour : les conditions ambiantes du jour (température, pression, humidité, matin et soir) se saisissent en haut de l’écran ; ce sont les mêmes que dans « Conditions ambiantes ».',
+    'Tournée du jour, « Avant de partir » : en bas de l’écran, ce qui manque pour la journée (prélèvement encore en cours, pas commencé, débit final, réf., durée d’exposition, conditions du soir…). Un toucher ouvre le prélèvement concerné.',
+    'Rappel de sauvegarde : si des saisies ne sont que dans le téléphone depuis la veille (ou depuis le matin, après 16 h), l’écran de la mission propose d’enregistrer (.json) ou d’envoyer la mission par e-mail.',
+    'Mise à jour de l’appli : plus de rechargement brutal au milieu d’une saisie. Un bandeau « Nouvelle version prête » propose « Mettre à jour » ; sinon l’appli se met à jour seule à l’accueil ou quand vous y revenez, jamais pendant une dictée. Le champ en cours est enregistré avant.',
+    'Date posée en heure locale : un prélèvement saisi entre minuit et 2 h n’est plus daté de la veille.'
+  ] },
+  { version: '2.47', date: '23/10/2026', items: [
+    'Feuille de calcul, CIP10 en séquentiel : les vitesses de rotation (étalonnage, puis initiale et finale de chaque support) sont écrites ; avant, débit, volume et résultats restaient vides dans ces onglets.',
+    'Silice sur cyclone : les fractions de silice vont dans l’onglet « Cyclone silice Reg (séq) » de la feuille (une cassette par jour = support n°1), et non plus dans un onglet Cassette.',
+    'Onglets copiés : le rappel de l’agent dans la zone des incertitudes (lignes « Paramètre » des onglets Cassette et Fibres) pointe vers l’onglet du GEH et non plus vers le modèle.',
+    'Si l’enregistrement sur le téléphone échoue (mémoire pleine…), un message prévient aussitôt ; des données illisibles au démarrage sont mises de côté au lieu d’être écrasées.',
+    'Poste fixe : « à poste fixe » est maintenant écrit aussi dans les onglets Fibres, CIP10 silice et CIP10 sans silice non réglementaires (il restait « individuel »).',
+    'Sites Véolia : les onglets du protocole sans prélèvement restent tels que les laisse « Choix Site » (sans préleveur ni site), et l’agent du protocole n’est plus recopié dans les cases cachées sous la fusion de sa ligne.',
+    'Plus de fausse alerte « réf. en double » pour les fractions de silice d’un même CIP10 ou cyclone.',
+    'Vérification : la feuille produite par l’appli a été comparée cellule par cellule à la feuille de base remplie à la main dans Excel, sur tous les modèles d’onglets, les sites Véolia, Scol@ et Eurofins (dossier technique remis à la DT).'
+  ] },
   { version: '2.46', date: '23/10/2026', items: [
     'Scol@ dans la feuille de calcul : « Type de dispositif » et « Méthode de prélèvement » remplis d’après l’agent (tube charbon actif + pompe, filtre PVC taré + cassette fermée…) quand la correspondance est sûre ; les autres restent à choisir dans le formulaire Scol@ en attendant la validation de la DT.',
     'Protection respiratoire : avec un EPI, le type de protection (demi-masque FFP2…) est écrit d’après l’EPI saisi, et l’efficacité se choisit une fois par GEH dans « Scol@ par GEH ».',

@@ -19,6 +19,7 @@ function renderHome(){
   h+='</div>';
   h+='<input type="file" id="import-mission-input" accept=".json" style="display:none;" onchange="handleImportMission(event);">';
   if(state.showModal==='importChoice'){state.showModal=null;triggerImportMission();}
+  if(typeof renderJaugeStockage==='function')h+=renderJaugeStockage();
   h+='<div class="home-tabbar"><button class="home-tab-btn" onclick="state.view=\'tutoriel\';state.guidePhase=null;state.guideOuvert=null;state.guideQ=\'\';render();window.scrollTo(0,0);">'+ICONS.book+'<span>Guide</span></button></div>';
   h+='<div class="version-info">Version '+APP_VERSION+' © 2025 Quentin THOMAS</div>';
   return h;

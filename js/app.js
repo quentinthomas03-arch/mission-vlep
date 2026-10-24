@@ -23,6 +23,7 @@ function render(){
     case'fiche-supports':h=renderFicheSupports();break;
     case'regroupement':h=renderRegroupement();break;
     case'scola-geh':h=renderScolaGeh();break;
+    case'tournee':h=renderTournee();break;
     default:h=renderHome();
   }
   document.getElementById('app').innerHTML=h;
@@ -33,13 +34,19 @@ function render(){
 
 
 // === SPLASH SCREEN DISMISS ===
-setTimeout(function(){
+// Animation complète à la première ouverture de la journée ; ensuite (l'appli est rouverte souvent sur le terrain)
+// le splash ne fait que passer : l'appli est prête en quelques dixièmes de seconde.
+(function(){
+  var cle='vlep_splash_jour',auj=getTodayDate(),complet=true;
+  try{complet=localStorage.getItem(cle)!==auj;localStorage.setItem(cle,auj);}catch(e){}
   var splash=document.getElementById('splash');
-  if(splash){
+  if(splash&&!complet)splash.classList.add('splash-court');
+  setTimeout(function(){
+    if(!splash)return;
     splash.classList.add('fade-out');
-    setTimeout(function(){splash.remove();},600);
-  }
-},1800);
+    setTimeout(function(){splash.remove();},complet?600:250);
+  },complet?1800:300);
+})();
 
 // Stockage persistant : sans lui, Safari (iPhone) peut effacer les données d'un site peu ouvert, missions comprises
 if (navigator.storage && navigator.storage.persist) {
@@ -47,6 +54,37 @@ if (navigator.storage && navigator.storage.persist) {
     if (!deja) return navigator.storage.persist();
   }).then(function (ok) { if (ok !== undefined) console.log('[Stockage] persistant : ' + ok); }).catch(function () {});
 }
+
+// ═══════════════════════════════════════════════════════════
+// Mise à jour de l'appli : jamais sous les doigts du technicien
+// ═══════════════════════════════════════════════════════════
+// Le nouveau service worker prend la main tout de suite, mais le code déjà chargé continue de fonctionner : le
+// rechargement attend un moment sûr (accueil sans saisie en cours, ou retour dans l'appli après l'avoir quittée),
+// ou le bouton « Mettre à jour » du bandeau. Jamais pendant une dictée. La saisie en cours est validée avant.
+var _miseAJourEnAttente = false;
+function miseAJourSure() {
+  var a = document.activeElement, saisie = a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName);
+  return !saisie && !(typeof activeDictation !== 'undefined' && activeDictation) && !state.showModal;
+}
+function appliquerMiseAJour() {
+  var a = document.activeElement;
+  if (a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName)) a.blur(); // « change » : la saisie est enregistrée
+  setTimeout(function () { window.location.reload(); }, 50);
+}
+function miseAJourPrete() {
+  if (_miseAJourEnAttente) return;
+  _miseAJourEnAttente = true;
+  if (state.view === 'home' && miseAJourSure()) { appliquerMiseAJour(); return; }
+  var b = document.createElement('div');
+  b.id = 'bandeau-maj';
+  b.style.cssText = 'position:fixed;left:12px;right:12px;bottom:12px;display:flex;align-items:center;gap:10px;background:#0c1220;color:white;padding:10px 12px;border-radius:12px;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 10px 30px -6px rgba(0,0,0,0.4);';
+  b.innerHTML = '<span style="flex:1;">Nouvelle version prête. Vos saisies sont conservées.</span><button type="button" style="background:#00ACE8;color:white;border:none;border-radius:8px;padding:8px 12px;font:inherit;cursor:pointer;" onclick="appliquerMiseAJour();">Mettre à jour</button>';
+  document.body.appendChild(b);
+}
+// retour dans l'appli (après l'avoir quittée ou mis le téléphone en veille) : moment sûr pour recharger
+document.addEventListener('visibilitychange', function () {
+  if (document.visibilityState === 'visible' && _miseAJourEnAttente && miseAJourSure()) appliquerMiseAJour();
+});
 
 // ═══════════════════════════════════════════════════════════
 // PWA - Service Worker Registration & Update Management
@@ -73,19 +111,8 @@ if ('serviceWorker' in navigator) {
         
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            // Nouvelle version disponible et prête
-            console.log('[PWA] Nouvelle version prête, rechargement dans 2s...');
-            
-            // Notification discrète
-            var banner = document.createElement('div');
-            banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#0c1220;color:white;padding:12px;text-align:center;font-size:13px;font-weight:600;z-index:9999;box-shadow:0 10px 30px -6px rgba(0,0,0,0.4);';
-            banner.innerHTML = '\u21bb Mise à jour disponible... Rechargement automatique dans 2s';
-            document.body.appendChild(banner);
-            
-            // Rechargement automatique après 2 secondes
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
+            console.log('[PWA] Nouvelle version prête');
+            miseAJourPrete();
           }
         });
       });
@@ -136,7 +163,7 @@ window.addEventListener('popstate', function(event) {
     } else {
       state.view = 'terrain-mission';
     }
-  } else if (state.view === 'conditions' || state.view === 'scola-geh' || state.view === 'liste-echantillons' || state.view === 'rapport-donnees') {
+  } else if (state.view === 'conditions' || state.view === 'scola-geh' || state.view === 'tournee' || state.view === 'liste-echantillons' || state.view === 'rapport-donnees') {
     // Depuis conditions ou échantillons, retour à terrain-mission
     state.view = 'terrain-mission';
   } else if (state.view.startsWith('db-') || state.view === 'quick-entry') {

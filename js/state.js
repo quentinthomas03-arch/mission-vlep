@@ -89,11 +89,19 @@ function generateId(){
   return Date.now()*1000+Math.floor(Math.random()*1000);
 }
 
+// Enregistrement sur le téléphone. Un échec (mémoire pleine, navigation privée) n'est jamais silencieux : la saisie
+// ne serait pas gardée sans que le technicien le sache (alerte au plus une fois par minute)
+var _alerteEnregistrement=0;
 function saveData(k,d){
   if(k==='vlep_missions_v3'&&typeof daterSaisies==='function')daterSaisies(d); // fusion-missions.js
   try{
     localStorage.setItem(k,JSON.stringify(d));
-  }catch(e){}
+  }catch(e){
+    if(Date.now()-_alerteEnregistrement>60000&&typeof alert==='function'){
+      _alerteEnregistrement=Date.now();
+      alert('ATTENTION : la saisie n’a pas pu être enregistrée sur le téléphone (mémoire pleine ?).\n\nEnregistrez tout de suite la mission (menu ⋯ › Enregistrer la mission .json) ou envoyez-la par e-mail, puis supprimez d’anciennes missions déjà transmises.');
+    }
+  }
 }
 
 function lightenColor(h,p){
@@ -107,21 +115,27 @@ function lightenColor(h,p){
 // === CHARGEMENT DONNÉES ===
 
 function loadData(){
+  // base des agents : celle de l'appli, sauf base collée à la main (Importer) encore à jour. Une base collée est
+  // abandonnée dès que l'appli embarque une base plus récente, sinon le technicien ne recevrait jamais les mises à jour
+  state.agentsDB=JSON.parse(JSON.stringify(BUILTIN_DB));
   try{
-    var m=localStorage.getItem('vlep_missions_v3');
     var d=localStorage.getItem('vlep_database');
-    // Base collée à la main (Importer) : abandonnée dès que l'appli embarque une base plus récente
-    // que celle qu'elle avait au moment de l'import, sinon le technicien ne recevrait jamais les mises à jour
     var versionBase=(typeof BUILTIN_DB_VERSION!=='undefined')?BUILTIN_DB_VERSION:'';
-    if(d&&localStorage.getItem('vlep_database_base')!==versionBase){
-      localStorage.removeItem('vlep_database');
-      d=null;
-    }
-    if(m)state.missions=JSON.parse(m);
+    if(d&&localStorage.getItem('vlep_database_base')!==versionBase){localStorage.removeItem('vlep_database');d=null;}
     if(d)state.agentsDB=JSON.parse(d);
-    else state.agentsDB=JSON.parse(JSON.stringify(BUILTIN_DB));
-    repairMissions();
-  }catch(e){}
+  }catch(e){state.agentsDB=JSON.parse(JSON.stringify(BUILTIN_DB));}
+  // missions : chargées séparément de la base ; si elles sont illisibles, une copie est gardée avant que le prochain
+  // enregistrement ne les remplace, et le technicien est prévenu
+  var m=null;
+  try{m=localStorage.getItem('vlep_missions_v3');}catch(e){}
+  if(m){
+    try{state.missions=JSON.parse(m);}
+    catch(e){
+      try{localStorage.setItem('vlep_missions_illisibles_'+new Date().toISOString().slice(0,19),m);}catch(e2){}
+      if(typeof alert==='function')alert('Les missions enregistrées sur ce téléphone n’ont pas pu être relues. Une copie a été gardée : ne désinstallez pas l’appli et contactez le responsable de l’appli.');
+    }
+  }
+  try{repairMissions();}catch(e){}
 }
 
 function repairMissions(){

@@ -38,6 +38,14 @@ var GUIDE_PHASES = [
     points: [
       { t: 'Ouvrir la mission', ou: ['Accueil', 'Saisie terrain', 'Mission'],
         d: 'En tête de mission : Feuille de calcul, Rapport Word, Échantillons, et le menu ⋯ (envoi par e-mail, fichier .json, regroupement de prélèvements, fichier d’un collègue, ajout de GEH, retour en préparation).' },
+      { t: 'Rechercher dans la mission', ou: ['Mission', 'Rechercher'],
+        d: 'Le champ au-dessus des GEH retrouve un jour de prélèvement par réf. d’échantillon (supports suivants compris), opérateur, n° de pompe, agent ou n° de lot, sans tenir compte des accents. Toucher un résultat ouvre le jour.' },
+      { t: 'Tournée du jour', ou: ['Mission', 'Tournée du jour'],
+        d: 'Tous les prélèvements 8 h du jour sur un écran. Le matin : taper n° de pompe et débit initial à la suite, cocher les pompes posées (ou « Tout cocher ») puis « Démarrer ». À la pause : « Arrêter » ; à la reprise : « Démarrer » à nouveau (nouvelle plage). Le soir : « Arrêter » et débits finaux.',
+        n: 'L’heure posée est celle du clic, ou celle saisie dans « Heure » (valable une seule fois). En haut, les conditions ambiantes du jour (matin et soir). EPI, observations et validation restent dans chaque prélèvement ; les court-terme gardent leur chrono.' },
+      { t: 'Avant de partir', ou: ['Mission', 'Tournée du jour', 'Avant de partir'],
+        d: 'En bas de la Tournée, ce qui manque pour la journée : prélèvement encore en cours ou pas commencé, débit final, réf. échantillon, durée d’exposition, conditions du soir… Toucher une ligne ouvre le prélèvement.',
+        n: 'À regarder avant de remballer : c’est le dernier moment pour relever ce qui ne se rattrape pas au bureau.' },
       { t: 'Saisir un prélèvement', ou: ['Mission', 'Prélèvement', 'Onglet du jour'],
         d: 'Opérateur, date, n° de pompe, débits initial et final, plages horaires.',
         n: 'Virgule ou point acceptés. Le clavier numérique s’ouvre sur les champs chiffrés.' },
@@ -65,7 +73,8 @@ var GUIDE_PHASES = [
         d: 'Cocher les agents prélevés sur le même support et valider : le regroupement s’applique à tous les jours. « Délier » retire un agent.',
         n: 'Un badge signale les agents que la base place sur le même support.' },
       { t: 'Conditions ambiantes', ou: ['Mission', 'Conditions ambiantes'],
-        d: 'Température, pression et humidité, initiales et finales, une entrée par jour.' },
+        d: 'Température, pression et humidité, initiales et finales, une entrée par jour.',
+        n: 'Aussi en haut de la Tournée du jour, pour le jour affiché : ce sont les mêmes données.' },
       { t: 'N° de lot des supports', ou: ['Mission', 'Prélèvement', 'N° de lot'],
         d: 'Saisi sous la réf. de l’échantillon. Il est repris dans la feuille de calcul et dans la demande d’analyse Eurofins.',
         n: 'Pour ne pas le ressaisir : bouton J-1 (lot de la veille), lots déjà saisis proposés en liste, ou Échantillons › « N° de lot… » pour l’appliquer en une fois aux échantillons et blancs cochés (raccourcis : tout, sans lot, par agent).' },
@@ -124,12 +133,16 @@ var GUIDE_PHASES = [
       { t: 'Base de données', ou: ['Accueil', 'Base de données'],
         d: 'Tous les agents avec débit, support, conservation, VLEP et consignes.' },
       { t: 'Transférer une mission', ou: ['Mission', 'Menu ⋯', 'Envoyer par e-mail'],
-        d: 'Envoyer la mission par e-mail ou l’enregistrer en .json pour la reprendre sur un autre appareil (Accueil › Importer une mission).' },
+        d: 'Envoyer la mission par e-mail ou l’enregistrer en .json pour la reprendre sur un autre appareil (Accueil › Importer une mission).',
+        n: 'Les missions ne sont que dans le téléphone : si des saisies n’ont pas été sauvegardées depuis la veille (ou depuis le matin, après 16 h), un encadré de la mission propose d’enregistrer ou d’envoyer.' },
+      { t: 'Stockage et archivage', ou: ['Mission', 'Menu ⋯', 'Archiver la mission'],
+        d: 'En bas de l’accueil, la jauge indique la place prise par les missions dans le téléphone (environ 5 Mo). Au-delà de 70 %, elle cite les missions les plus lourdes. « Archiver la mission » enregistre le fichier .json puis, après confirmation, retire la mission du téléphone.',
+        n: 'Une mission archivée se réimporte depuis l’accueil (« Importer une mission »). Vérifier que le fichier est bien enregistré, ou l’envoyer par e-mail, avant de confirmer.' },
       { t: 'Installer l’appli',
         d: 'Android (Chrome) : menu › Ajouter à l’écran d’accueil. iPhone (Safari) : Partager › Sur l’écran d’accueil.',
         n: 'Installée sur l’écran d’accueil, l’appli protège mieux les missions de l’effacement automatique du navigateur.' },
       { t: 'Mises à jour',
-        d: 'Une nouvelle version s’installe au deuxième lancement. La carte « Quoi de neuf » de l’accueil la présente ; l’historique est en bas de ce guide.' }
+        d: 'Quand une nouvelle version est prête, un bandeau propose « Mettre à jour ». Sinon, elle s’installe seule à l’accueil ou au retour dans l’appli, jamais au milieu d’une saisie (le champ en cours est enregistré avant). La carte « Quoi de neuf » de l’accueil la présente ; l’historique est en bas de ce guide.' }
     ]
   }
 ];
@@ -146,7 +159,9 @@ var GUIDE_FAQ = [
   { t: 'Le rapport Word n’a pas les résultats',
     d: 'La feuille de calcul jointe doit avoir été enregistrée dans Excel après la saisie des résultats du laboratoire.' },
   { t: 'L’appli n’affiche pas la dernière version',
-    d: 'Fermer complètement l’appli puis la rouvrir : la nouvelle version s’installe au deuxième lancement.' },
+    d: 'Toucher « Mettre à jour » dans le bandeau du bas s’il est affiché. Sinon, fermer complètement l’appli puis la rouvrir.' },
+  { t: 'Poser ou arrêter plusieurs pompes d’un coup',
+    d: 'Mission › Tournée du jour : cocher les prélèvements puis « Démarrer » ou « Arrêter ». Pompes et débits se tapent à la suite sur le même écran.' },
   { t: 'Protéger les missions en cours',
     d: 'Installer l’appli sur l’écran d’accueil, ne pas utiliser la navigation privée ni vider les données du navigateur, et enregistrer le .json de la mission (menu ⋯) avant toute manipulation.' }
 ];

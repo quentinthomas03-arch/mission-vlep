@@ -155,15 +155,6 @@ function rapportDonnees(m) {
   return m.rapport;
 }
 
-// Agents des prélèvements réalisés (ou à réaliser), non réalisés exclus
-function rapportAgentsMission(m) {
-  var out = [];
-  (m.prelevements || []).forEach(function (p) {
-    if (!(p.subPrelevements || []).some(function (sb) { return !sb.nonRealise; })) return;
-    (p.agents || []).forEach(function (a) { if (out.indexOf(a.name) === -1) out.push(a.name); });
-  });
-  return out;
-}
 // Catégories de la carte « Agents contrôlés », d'après chaque prélèvement réalisé (ou à réaliser) : un prélèvement
 // réglementaire va dans la partie de l'arrêté (contraignantes / indicatives selon la base), un prélèvement non
 // réglementaire dans la partie hors arrêté (poussières, CMR, admises, ou « hors arrêté » pour un agent à VLEP

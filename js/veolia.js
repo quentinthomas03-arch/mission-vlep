@@ -164,7 +164,9 @@ function veoliaExporter(wb, m, plan, resume) {
             if (!slot) return;
             x.place = true;
             x.slotBloc = slot.bloc;
-            if (blocs[slot.bloc] === null) blocs[slot.bloc] = x; else restants.push(x);
+            // bloc prévu par le protocole et libre ; sinon bloc ajouté (2e GEH du même agent, ou agent placé par la
+            // table au-delà du nombre de blocs du site, ex. STO « Plomb » : 1 bloc, poussières PVC en bloc 2)
+            if (slot.bloc < e.nbBlocs && blocs[slot.bloc] === null) blocs[slot.bloc] = x; else restants.push(x);
           });
           restants.forEach(function (x) { s.copyColumns(3, largeur, 3 + blocs.length * largeur); blocs.push(x); });
           var finProtocole = 2 + e.nbBlocs * largeur;
@@ -174,16 +176,20 @@ function veoliaExporter(wb, m, plan, resume) {
             var r = R.find(function (t2) { return t2 === N(v.label); }, { formuleOk: true, depuis: v.memeQueDessus && trouve ? trouve : 0 });
             if (!r) return;
             trouve = N(v.label) === 'agent chimique' ? null : r;
-            for (var c = v.col; c <= finProtocole; c += 2) s.set(C(c) + r, v.valeur);
+            for (var c = v.col; c <= finProtocole; c += 2) if (!s.masqueeParFusion(C(c) + r)) s.set(C(c) + r, v.valeur);
             // blocs ajoutés pour d'autres GEH : mêmes valeurs que le bloc du protocole qu'ils prolongent
             blocs.forEach(function (x, bi) {
               if (bi < e.nbBlocs || !x || x.slotBloc !== v.bloc) return;
-              for (var c2 = 3 + bi * largeur; c2 < 3 + (bi + 1) * largeur; c2 += 2) s.set(C(c2) + r, v.valeur);
+              for (var c2 = 3 + bi * largeur; c2 < 3 + (bi + 1) * largeur; c2 += 2) if (!s.masqueeParFusion(C(c2) + r)) s.set(C(c2) + r, v.valeur);
             });
           });
-          if (R.preleveur) s.set('C' + R.preleveur, m.preleveur || '');
-          if (R.site) s.set('C' + R.site, m.clientSite || '');
-          fcDebitmetre(s, R, m);
+          // en-tête (préleveur, site, débitmètre) seulement dans les onglets où la mission a des prélèvements : les
+          // autres restent tels que les laisse « Choix Site »
+          if (blocs.some(Boolean)) {
+            if (R.preleveur) s.set('C' + R.preleveur, m.preleveur || '');
+            if (R.site) s.set('C' + R.site, m.clientSite || '');
+            fcDebitmetre(s, R, m);
+          }
           var n = 0;
           blocs.forEach(function (x, bi) {
             if (!x) return;
