@@ -23,7 +23,6 @@ function render(){
     case'fiche-supports':h=renderFicheSupports();break;
     case'regroupement':h=renderRegroupement();break;
     case'scola-geh':h=renderScolaGeh();break;
-    case'tournee':h=renderTournee();break;
     default:h=renderHome();
   }
   document.getElementById('app').innerHTML=h;
@@ -163,7 +162,7 @@ window.addEventListener('popstate', function(event) {
     } else {
       state.view = 'terrain-mission';
     }
-  } else if (state.view === 'conditions' || state.view === 'scola-geh' || state.view === 'tournee' || state.view === 'liste-echantillons' || state.view === 'rapport-donnees') {
+  } else if (state.view === 'conditions' || state.view === 'scola-geh' || state.view === 'liste-echantillons' || state.view === 'rapport-donnees') {
     // Depuis conditions ou échantillons, retour à terrain-mission
     state.view = 'terrain-mission';
   } else if (state.view.startsWith('db-') || state.view === 'quick-entry') {

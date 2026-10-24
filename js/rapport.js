@@ -257,9 +257,10 @@ function renderRapportDonnees() {
   var m = getCurrentMission();
   if (!m) { state.view = 'terrain-list'; return renderTerrainList(); }
   var h = '<button class="back-btn" onclick="state.view=\'terrain-mission\';render();">' + ICONS.arrowLeft + ' Mission</button>';
-  h += '<div class="card"><h1>' + ICONS.fileText + ' Rapport Word</h1><p class="subtitle">Données du rapport et du dossier Scol@, à part de la préparation de la mission.</p>';
+  h += '<div class="card"><h1>' + ICONS.fileText + ' Rapport Word</h1><p class="subtitle">Données du rapport, à part de la préparation de la mission.</p>';
   h += '<button class="btn btn-primary" style="margin-bottom:0;" onclick="exportRapportWord();">' + ICONS.fileText + ' Générer le rapport Word</button></div>';
-  if (typeof renderScolaDossierPrepa === 'function' && typeof FC_MODELE_DISPO !== 'undefined' && FC_MODELE_DISPO === true) h += renderScolaDossierPrepa(m);
+  // dossier Scol@ : saisi en préparation, rappelé ici (le rapport reprend établissement et n° de dossier)
+  if (typeof renderScolaDossierRappel === 'function' && typeof FC_MODELE_DISPO !== 'undefined' && FC_MODELE_DISPO === true) h += renderScolaDossierRappel(m);
   h += renderRapportPrepa(m);
   return h;
 }

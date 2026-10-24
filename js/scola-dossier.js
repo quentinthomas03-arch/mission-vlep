@@ -3,8 +3,10 @@
 //
 // Le fichier XML envoyé à Scol@ commence par le dossier : site géographique accrédité (SOCOTEC57A…), année,
 // n° de dossier, observations et établissement (SIRET, code postal, effectif, NAF en découlent dans la feuille).
-// L'appli les saisit dans l'écran Rapport Word et remplit l'onglet Scol@. Les listes (sites accrédités, établissements
-// connus de Scol@) sont lues dans le modèle au moment voulu : aucun nom de client dans le code de l'appli.
+// Saisis en préparation de la mission (connus dès le devis), rappelés dans l'écran Rapport Word (le rapport reprend
+// établissement et n° de dossier) ; l'appli remplit l'onglet Scol@ et signale un en-tête incomplet à la génération.
+// Les listes (sites accrédités, établissements connus de Scol@) sont lues dans le modèle au moment voulu : aucun nom
+// de client dans le code de l'appli.
 
 var SCOLA_SITE_KEY = 'vlep_scola_site';
 var _scolaDossierCache = null;
@@ -30,12 +32,18 @@ function scolaDossierListes() {
 
 function scolaSiteParDefaut() { try { return localStorage.getItem(SCOLA_SITE_KEY) || ''; } catch (e) { return ''; } }
 
+// Champs de l'en-tête encore vides (libellés de la carte)
+function scolaDossierManquants(m) {
+  return [['scolaDossier', 'n° de dossier'], ['scolaEtablissement', 'établissement'], ['scolaSite', 'site accrédité']]
+    .filter(function (x) { return !String(m[x[0]] || '').trim(); }).map(function (x) { return x[1]; });
+}
+
 // ---------- Préparation ----------
 
 function renderScolaDossierPrepa(m) {
   if (!m.scolaSite && scolaSiteParDefaut()) { m.scolaSite = scolaSiteParDefaut(); saveData('vlep_missions_v3', state.missions); }
-  var h = '<div class="card"><h2>Scol@ du dossier</h2>';
-  h += '<p class="subtitle">Repris dans l’onglet Scol@ de la feuille de calcul (en-tête du fichier XML).</p>';
+  var h = '<div class="card"><h2>Dossier Scol@</h2>';
+  h += '<p class="subtitle">En-tête de l’onglet Scol@ de la feuille de calcul ; établissement et n° de dossier sont aussi repris dans le rapport Word.</p>';
   h += '<div class="field"><label class="label">N° de dossier</label><input type="text" class="input" value="' + escapeHtml(m.scolaDossier || '') + '" placeholder="Ex. n° d’affaire" onchange="scolaDossierMaj(\'scolaDossier\',this.value);"></div>';
   h += '<div class="field"><label class="label">Établissement (liste Scol@)</label>';
   if (m.scolaEtablissement) {
@@ -46,6 +54,14 @@ function renderScolaDossierPrepa(m) {
   }
   h += '</div><div class="field"><label class="label">Site géographique accrédité</label><div id="scola-site-zone"><button class="btn btn-gray btn-small" style="width:auto;" onclick="scolaSitesAfficher();">' + (m.scolaSite ? escapeHtml(m.scolaSite) + ' (changer)' : 'Choisir le site') + '</button></div></div>';
   return h + '</div>';
+}
+
+// Écran Rapport Word : rappel sur une ligne, la carte complète sur demande (« Modifier »)
+function renderScolaDossierRappel(m) {
+  if (state.scolaDossierEdition) return renderScolaDossierPrepa(m).replace('<h2>Dossier Scol@</h2>', '<div style="display:flex;align-items:center;gap:8px;"><h2 style="flex:1;margin:0;">Dossier Scol@</h2><button class="btn btn-gray btn-small" style="width:auto;margin:0;" onclick="state.scolaDossierEdition=false;render();">Fermer</button></div>');
+  var manque = scolaDossierManquants(m), val = [m.scolaDossier ? 'Dossier ' + escapeHtml(m.scolaDossier) : '', m.scolaEtablissement ? escapeHtml(m.scolaEtablissement) : '', m.scolaSite ? escapeHtml(m.scolaSite) : ''].filter(Boolean).join(' · ');
+  var h = '<div class="row-card" style="cursor:default;">' + ICONS.clipboard + '<span class="row-card-label">Dossier Scol@<span class="menu-row-sub">' + (val || 'non renseigné') + '</span>' + (manque.length ? '<span class="menu-row-sub" style="color:var(--status-warn-fg);">Manque : ' + manque.join(', ') + '</span>' : '') + '</span>';
+  return h + '<button class="btn btn-gray btn-small" style="width:auto;margin:0;" onclick="state.scolaDossierEdition=true;render();">Modifier</button></div>';
 }
 
 function scolaDossierMaj(champ, v) {

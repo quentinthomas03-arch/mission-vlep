@@ -13,12 +13,10 @@ var NOUVEAUTES = [
   { version: '2.49', date: '24/10/2026', items: [
     'Rechercher dans la mission : un champ au-dessus des GEH retrouve un prélèvement par réf. d’échantillon, opérateur, n° de pompe, agent ou n° de lot (sans accents). Un toucher ouvre le jour.',
     'Stockage du téléphone : une jauge en bas de l’accueil ; au-delà de 70 %, elle cite les missions les plus lourdes. « Archiver la mission » (menu ⋯) enregistre le .json puis retire la mission du téléphone ; elle se réimporte depuis l’accueil.',
+    'Dossier Scol@ (n° de dossier, établissement, site accrédité) : se saisit maintenant en préparation de la mission, dès le devis, et non plus dans l’écran Rapport Word, qui le rappelle (« Modifier »). Il remplit l’en-tête Scol@ de la feuille de calcul : s’il est incomplet, la génération de la feuille le signale.',
     'Ouverture plus rapide : l’animation d’accueil complète une fois par jour, puis l’appli s’ouvre aussitôt (environ 0,5 s au lieu de 2,4 s).'
   ] },
   { version: '2.48', date: '24/10/2026', items: [
-    'Tournée du jour (écran de la mission) : tous les prélèvements 8 h du jour sur un écran. Cochez ceux que vous posez, « Démarrer » met l’heure de début à tous ; « Arrêter » à la pause ou le soir, « Démarrer » à nouveau à la reprise (nouvelle plage). N° de pompe et débits se tapent à la suite, sans ouvrir chaque prélèvement. L’heure est celle du clic, ou celle que vous saisissez (valable une fois). EPI, observations et validation restent dans le prélèvement ; les court-terme gardent leur chrono.',
-    'Tournée du jour : les conditions ambiantes du jour (température, pression, humidité, matin et soir) se saisissent en haut de l’écran ; ce sont les mêmes que dans « Conditions ambiantes ».',
-    'Tournée du jour, « Avant de partir » : en bas de l’écran, ce qui manque pour la journée (prélèvement encore en cours, pas commencé, débit final, réf., durée d’exposition, conditions du soir…). Un toucher ouvre le prélèvement concerné.',
     'Rappel de sauvegarde : si des saisies ne sont que dans le téléphone depuis la veille (ou depuis le matin, après 16 h), l’écran de la mission propose d’enregistrer (.json) ou d’envoyer la mission par e-mail.',
     'Mise à jour de l’appli : plus de rechargement brutal au milieu d’une saisie. Un bandeau « Nouvelle version prête » propose « Mettre à jour » ; sinon l’appli se met à jour seule à l’accueil ou quand vous y revenez, jamais pendant une dictée. Le champ en cours est enregistré avant.',
     'Date posée en heure locale : un prélèvement saisi entre minuit et 2 h n’est plus daté de la veille.'

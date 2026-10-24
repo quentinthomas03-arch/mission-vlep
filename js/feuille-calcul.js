@@ -765,6 +765,10 @@ function construireFeuilleCalcul(m, donneesModele) {
   var plan = fcPlan(m);
   if (vides) plan.alertes.push(vides + ' prélèvement' + (vides > 1 ? 's' : '') + ' prévu' + (vides > 1 ? 's' : '') + ' sans aucune saisie (ni heures, ni réf., ni débit) : laissé' + (vides > 1 ? 's' : '') + ' hors de la feuille. S’il n’a pas été fait, le marquer « Non réalisé ».');
   // type de débitmètre non choisi (Infos mission) : massique par défaut, comme avant, mais signalé
+  if (typeof scolaDossierManquants === 'function') {
+    var scolaManque = scolaDossierManquants(m);
+    if (scolaManque.length) plan.alertes.push('En-tête Scol@ incomplet (' + scolaManque.join(', ') + ') : à compléter en préparation de la mission, carte « Dossier Scol@ », puis regénérer.');
+  }
   if (!m.debitmetreType) plan.alertes.push('Type de débitmètre non choisi (Infos mission) : « massique » retenu. Si c’est un débitmètre à piston ou à lame de savon, le choisir et regénérer (débits et volumes en dépendent).');
   [fcAlertesConditions(m), fcAlertesRefDoublons(m), fcAlertesBlancs(m), fcAlertesBlancsGravi(m), fcAlertesDureeExpo(m)].forEach(function (l) { l.forEach(function (a) { plan.alertes.push(a); }); });
   if (!plan.onglets.length) return Promise.reject(new Error('Aucun prélèvement exportable dans cette mission.'));

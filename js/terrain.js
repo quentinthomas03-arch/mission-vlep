@@ -23,7 +23,6 @@ function renderTerrainMission(){
   h+=renderMissionHead(m);
   h+=renderAVerifier(m);
   if(typeof renderRappelSauvegarde==='function')h+=renderRappelSauvegarde(m);
-  if(typeof ouvrirTournee==='function')h+='<div class="row-card" onclick="ouvrirTournee();">'+ICONS.clock+'<span class="row-card-label">Tournée du jour</span><span class="row-card-state">poser / arrêter les pompes</span>'+ICONS.chevronRight+'</div>';
   h+='<div class="row-card" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+'<span class="row-card-label">Conditions ambiantes</span>'+ICONS.chevronRight+'</div>';
   if(typeof renderScolaGehLigne==='function')h+=renderScolaGehLigne(m);
   // recherche : réf. d'échantillon, opérateur, n° de pompe, agent, n° de lot (résultats mis à jour sans re-render)
