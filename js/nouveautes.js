@@ -6,10 +6,15 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.49';
+var APP_VERSION = '2.50';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.50', date: '24/10/2026', items: [
+    'Accueil en trois temps : 1. Préparation, 2. Saisie terrain, 3. Bureau. Le Bureau regroupe ce qui se fait après le terrain : dossier Scol@, Scol@ par GEH, feuille de calcul et rapport Word. Le terrain ne garde que la saisie sur site (bouton « Bureau » en tête de mission pour y passer).',
+    'Ventilation et captage : observés sur le site, ils se saisissent une fois par GEH, en tête du GEH sur le terrain, et sont recopiés dans ses prélèvements. Scol@ en tire le lieu, la ventilation et la protection collective : rien n’est à ressaisir au Bureau, où ils sont rappelés avec les EPI.',
+    'Le formulaire du prélèvement ne demande plus tâche, métier ni procédé : la codification Scol@ se fait au Bureau, dans Scol@ par GEH.'
+  ] },
   { version: '2.49', date: '24/10/2026', items: [
     'Rechercher dans la mission : un champ au-dessus des GEH retrouve un prélèvement par réf. d’échantillon, opérateur, n° de pompe, agent ou n° de lot (sans accents). Un toucher ouvre le jour.',
     'Stockage du téléphone : une jauge en bas de l’accueil ; au-delà de 70 %, elle cite les missions les plus lourdes. « Archiver la mission » (menu ⋯) enregistre le .json puis retire la mission du téléphone ; elle se réimporte depuis l’accueil.',
@@ -17,6 +22,7 @@ var NOUVEAUTES = [
     'Prélèvement : quand le jour suit son GEH (Scol@ par GEH), environnement, ventilation, captage, tâche, métier et procédé tiennent en une ligne « Comme le GEH » ; « Modifier pour ce jour » rouvre le formulaire. Environ un quart de défilement en moins par jour.',
     'Débitmètre affiché avec son type (« DM-24367 · massique ») en préparation et en tête de mission : il conditionne débits et volumes de la feuille.',
     'Rapport Word : « Rédigé par » prérempli avec le préleveur, « Validé par » retenu pour les missions suivantes (comme l’agence).',
+    'Scol@ par GEH : bouton « Parcourir » à côté de la tâche et du métier, pour choisir sans connaître le libellé exact. Tâches par lettre ; métiers par domaine professionnel (répertoire ROME : industrie, BTP, santé…), puis par groupe de métiers voisins.',
     'Ouverture plus rapide : l’animation d’accueil complète une fois par jour, puis l’appli s’ouvre aussitôt (environ 0,5 s au lieu de 2,4 s).'
   ] },
   { version: '2.48', date: '24/10/2026', items: [

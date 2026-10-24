@@ -40,7 +40,7 @@ var GUIDE_PHASES = [
     ouvrir: { label: 'Ouvrir la saisie terrain', vue: 'terrain-list' },
     points: [
       { t: 'Ouvrir la mission', ou: ['Accueil', 'Saisie terrain', 'Mission'],
-        d: 'En tête de mission : Feuille de calcul, Rapport Word, Échantillons, et le menu ⋯ (envoi par e-mail, fichier .json, regroupement de prélèvements, fichier d’un collègue, ajout de GEH, retour en préparation).' },
+        d: 'En tête de mission : Échantillons, Bureau (Scol@, feuille de calcul, rapport Word), et le menu ⋯ (envoi par e-mail, fichier .json, regroupement de prélèvements, fichier d’un collègue, ajout de GEH, archivage, retour en préparation).' },
       { t: 'Rechercher dans la mission', ou: ['Mission', 'Rechercher'],
         d: 'Le champ au-dessus des GEH retrouve un jour de prélèvement par réf. d’échantillon (supports suivants compris), opérateur, n° de pompe, agent ou n° de lot, sans tenir compte des accents. Toucher un résultat ouvre le jour.' },
       { t: 'Saisir un prélèvement', ou: ['Mission', 'Prélèvement', 'Onglet du jour'],
@@ -52,9 +52,9 @@ var GUIDE_PHASES = [
         d: 'À saisir sur les prélèvements 8 h. Elle est reprise dans la feuille de calcul et dans l’annexe des tâches du rapport.' },
       { t: 'Protection respiratoire', ou: ['Mission', 'Prélèvement'],
         d: 'Choisir l’EPI dans la liste (FFP3, demi-masque avec filtre, TH3…) et la durée de port en minutes. Le FPA est celui de la liste.' },
-      { t: 'Ventilation et Scol@', ou: ['Mission', 'Prélèvement'],
-        d: 'Environnement, ventilation générale, captage localisé, puis tâche, métier et type de procédé Scol@, repris dans la feuille de calcul.',
-        n: 'Saisis une fois dans « Scol@ par GEH », ils sont recopiés : le jour qui suit son GEH les résume en une ligne « Comme le GEH ». « Modifier pour ce jour » rouvre le formulaire pour un écart.' },
+      { t: 'Ventilation et captage', ou: ['Mission', 'GEH', 'Ventilation et captage du GEH'],
+        d: 'Environnement, ventilation générale et captage localisé, observés sur le site : une fois par GEH, en tête du GEH (« Modifier »), recopiés dans ses prélèvements. Scol@ en tire le lieu, la ventilation et la protection collective.',
+        n: 'Le jour qui suit son GEH les résume en une ligne « Comme le GEH » ; « Modifier pour ce jour » pour un écart. Tâche, métier et procédé (codification Scol@) se saisissent au Bureau.' },
       { t: 'Valider le prélèvement', ou: ['Mission', 'Prélèvement', 'Valider'],
         d: 'Bouton « Valider » en bas de l’écran ; l’onglet du jour est coché. Il reste grisé tant qu’il manque un champ requis (opérateur, date, plage, pompe, débits, réf. échantillon) : ⓘ en donne la liste.',
         n: 'La durée d’exposition n’est pas exigée pour valider : un rappel s’affiche, elle peut être complétée plus tard au bureau.' },
@@ -83,9 +83,12 @@ var GUIDE_PHASES = [
     ]
   },
   {
-    icon: 'sheet', court: 'Feuille', titre: 'Feuille de calcul', quand: 'Export Excel et résultats du laboratoire',
+    icon: 'sheet', court: 'Feuille', titre: 'Bureau : Scol@ et feuille de calcul', quand: 'Au bureau, après le terrain (Accueil › 3. Bureau)',
     points: [
-      { t: 'Générer la feuille', ou: ['Mission', 'Feuille de calcul'],
+      { t: 'Scol@ par GEH', ou: ['Bureau', 'Mission', 'Scol@ par GEH'],
+        d: 'Tâche, métier, type de procédé et efficacité de la protection respiratoire, une fois par GEH, recopiés dans ses prélèvements. Lieu, ventilation, captage et EPI viennent du terrain et sont rappelés en lecture seule.',
+        n: 'Sans connaître le libellé Scol@ exact : « Parcourir » montre les tâches par lettre et les métiers par domaine professionnel (répertoire ROME), puis par groupe de métiers voisins.' },
+      { t: 'Générer la feuille', ou: ['Bureau', 'Mission', 'Feuille de calcul'],
         d: 'Un bandeau « en cours » s’affiche quelques secondes. Le modèle est chargé d’avance à l’ouverture de l’appli.' },
       { t: 'Alertes à la génération',
         d: 'Après la génération, l’appli liste les points à vérifier : type de débitmètre non choisi, modèle absent, jours sans conditions ambiantes, réf. d’échantillon utilisée sur plusieurs supports (un seul partirait dans la commande Eurofins), échantillons sans blanc du même agent et du même lot, prélèvements 8 h sans durée d’exposition. La feuille est générée quand même.' },
@@ -102,7 +105,7 @@ var GUIDE_PHASES = [
   {
     icon: 'fileText', court: 'Rapport', titre: 'Rapport Word', quand: 'Au bureau, une fois la feuille complétée',
     points: [
-      { t: 'Ouvrir l’écran Rapport Word', ou: ['Mission', 'Rapport Word'],
+      { t: 'Ouvrir l’écran Rapport Word', ou: ['Bureau', 'Mission', 'Rapport Word'],
         d: 'L’écran regroupe la carte Rapport, à part de la préparation, et rappelle le dossier Scol@ saisi en préparation (« Modifier » pour le corriger sans quitter l’écran).' },
       { t: 'Renseigner la carte Rapport', ou: ['Rapport Word', 'Rapport'],
         d: 'Chrono, contrat, interlocuteur, rédacteur, valideur, agence ; type de rapport (campagne, contrôle périodique…) et agents contrôlés, comme dans le formulaire de la trame. Les agents contrôlés et « Mesures à poste fixe » sont cochés d’après la mission, modifiables ; les champs restés vides sont rappelés après la génération.',

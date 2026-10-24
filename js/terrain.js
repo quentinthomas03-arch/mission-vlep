@@ -24,7 +24,6 @@ function renderTerrainMission(){
   h+=renderAVerifier(m);
   if(typeof renderRappelSauvegarde==='function')h+=renderRappelSauvegarde(m);
   h+='<div class="row-card" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+'<span class="row-card-label">Conditions ambiantes</span>'+ICONS.chevronRight+'</div>';
-  if(typeof renderScolaGehLigne==='function')h+=renderScolaGehLigne(m);
   // recherche : réf. d'échantillon, opérateur, n° de pompe, agent, n° de lot (résultats mis à jour sans re-render)
   var q=state.rechercheMission||'';
   h+='<div class="recherche-mission"><input type="search" class="input" placeholder="Rechercher : réf., opérateur, pompe, agent, lot" value="'+escapeHtml(q)+'" oninput="state.rechercheMission=this.value;var r=document.getElementById(\'recherche-resultats\');if(r)r.innerHTML=renderRechercheResultats(getCurrentMission(),this.value);var g=document.getElementById(\'liste-geh\');if(g)g.style.display=this.value.trim()?\'none\':\'\';"></div>';
@@ -37,6 +36,8 @@ function renderTerrainMission(){
     ps.forEach(function(p){p.subPrelevements.forEach(function(s){if(s.nonRealise)return;tc++;if(s.completed)dc++;});});
     var isOpen=state.expandedGeh[g.id];
     h+='<div class="accordion"><div class="accordion-header '+(isOpen?'open':'')+'" onclick="toggleGehAccordion('+g.id+');"><span class="accordion-icon">'+ICONS.chevronRight+'</span><span class="accordion-title">'+g.num+'. '+escapeHtml(g.name)+'</span><span class="accordion-count">'+dc+'/'+tc+'</span><button class="btn btn-danger btn-icon" aria-label="Supprimer le GEH" onclick="event.stopPropagation();deleteGehTerrain('+g.id+');">'+ICONS.trash+'</button><div class="accordion-progress'+(tc&&dc===tc?' done':'')+'"><span style="width:'+(tc?Math.round(dc/tc*100):0)+'%;"></span></div></div><div class="accordion-body '+(isOpen?'open':'')+'">';
+    // ventilation et captage observés sur le site : une fois par GEH, recopiés dans ses jours (repris par Scol@)
+    if(ps.length&&typeof renderVentilationGeh==='function')h+=renderVentilationGeh(m,g);
     if(ps.length===0){
       h+='<div class="empty-state" style="padding:16px;color:#6b7280;"><p>Aucun prélèvement</p></div>';
     }else{
@@ -201,10 +202,9 @@ function renderMissionHead(m){
   h+='<h1>'+escapeHtml(m.clientSite||'Sans nom')+'</h1>';
   if(meta)h+='<div class="mission-hero-meta">'+meta+'</div>';
   h+='</div>'+(t?missionRingSvg(d,t):'')+'</div><div class="mission-head-body"><div class="mission-actions">';
-  var fc=typeof FC_MODELE_DISPO!=='undefined'&&FC_MODELE_DISPO===true;
-  if(fc)h+='<button class="btn btn-primary btn-small" onclick="state.missionMenuOpen=false;exportFeuilleCalcul();">'+ICONS.sheet+' Feuille de calcul</button>';
-  h+='<button class="btn btn-primary btn-small" onclick="state.missionMenuOpen=false;state.view=\'rapport-donnees\';render();window.scrollTo(0,0);">'+ICONS.fileText+' Rapport Word</button>';
-  h+='<button class="btn '+(fc?'btn-gray':'btn-primary')+' btn-small" onclick="state.missionMenuOpen=false;state.view=\'liste-echantillons\';render();">'+ICONS.list+' Échantillons</button>';
+  // terrain : saisie sur site ; feuille de calcul, Scol@ et rapport Word sont au Bureau (bureau.js)
+  h+='<button class="btn btn-gray btn-small" onclick="state.missionMenuOpen=false;state.view=\'liste-echantillons\';render();">'+ICONS.list+' Échantillons</button>';
+  h+='<button class="btn btn-primary btn-small" onclick="ouvrirBureau('+m.id+');">'+ICONS.fileText+' Bureau</button>';
   h+='<button class="btn btn-gray btn-small mission-more-btn'+(state.missionMenuOpen?' active':'')+'" aria-label="Plus d’actions" onclick="state.missionMenuOpen=!state.missionMenuOpen;render();">'+ICONS.more+'</button></div>';
   if(state.missionMenuOpen){
     var item=function(onclick,icon,label,cls){return '<button type="button" class="menu-row'+(cls?' '+cls:'')+'" onclick="state.missionMenuOpen=false;'+onclick+'">'+icon+'<span>'+label+'</span></button>';};
@@ -974,7 +974,7 @@ function renderSubPrelForm(p,sb,idx){
   // Jour qui suit son GEH (Scol@ par GEH) : environnement, ventilation, captage, tâche, métier, procédé en une ligne
   var cleGeh=p.id+'-'+idx,suit=typeof sbSuitGeh==='function'?sbSuitGeh(m,p,sb):null;
   if(suit&&!(state.sbGehOuvert&&state.sbGehOuvert[cleGeh])){
-    h+='<div class="field"><label class="label">Ventilation, captage et Scol@</label><div class="suit-geh"><span><strong>Comme le GEH '+escapeHtml(String(suit.g.num))+'</strong> : '+escapeHtml(suit.resume.join(' · '))+'</span>';
+    h+='<div class="field"><label class="label">Ventilation et captage</label><div class="suit-geh"><span><strong>Comme le GEH '+escapeHtml(String(suit.g.num))+'</strong> : '+escapeHtml(suit.resume.join(' · '))+'</span>';
     h+='<button type="button" class="btn btn-gray btn-small" style="width:auto;margin:0;" onclick="if(!state.sbGehOuvert)state.sbGehOuvert={};state.sbGehOuvert[\''+cleGeh+'\']=true;render();">Modifier pour ce jour</button></div></div>';
   }else{
   // Ventilation et captage (Point 2)
@@ -1024,7 +1024,7 @@ function renderSubPrelForm(p,sb,idx){
   h+='</div>';
 
   // Scol@ : tâche, métier, type de procédé (listes Scol@), repris dans le bloc Scol@ de la feuille de calcul
-  h+=renderScolaChamps(p,sb,idx);
+  // tâche, métier, procédé (codification Scol@) : au Bureau, Scol@ par GEH
   }
 
   // Prélèvement prévu mais pas fait (pas d'exposition ce jour-là…) : sorti des compteurs et des exports
@@ -1121,30 +1121,6 @@ var SCOLA_CHAMPS=[
 
 function scolaNorm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');}
 
-function renderScolaChamps(p,sb,idx){
-  // sans le modèle de feuille de calcul, ces descripteurs ne servent à rien : non affichés
-  if(typeof SCOLA_LISTES==='undefined'||typeof FC_MODELE_DISPO==='undefined'||FC_MODELE_DISPO!==true)return '';
-  var h='<div class="field"><label class="label">Scol@</label>';
-  SCOLA_CHAMPS.forEach(function(c){
-    h+='<div style="font-size:13px;color:var(--text-dark);margin:6px 0 4px;">'+c.label+'</div>';
-    if(sb[c.cle]){
-      h+='<div style="display:flex;align-items:center;gap:6px;background:var(--primary-pale);border-radius:8px;padding:6px 8px;font-size:12px;"><span style="flex:1;">'+escapeHtml(sb[c.cle])+'</span>';
-      h+='<button type="button" class="btn btn-gray btn-small" style="width:auto;margin:0;" onclick="updateSubFieldWithAutoDate('+p.id+','+idx+',\''+c.cle+'\',\'\');render();">Changer</button></div>';
-    }else{
-      h+='<input type="text" class="input" style="margin-bottom:4px;" placeholder="'+escapeHtml(c.placeholder)+'" oninput="scolaRechercher('+p.id+','+idx+',\''+c.cle+'\',this.value);">';
-      h+='<div id="scola-res-'+c.cle+'"></div>';
-    }
-  });
-  h+='<div style="font-size:13px;color:var(--text-dark);margin:6px 0 4px;">Type de procédé</div><div style="display:flex;gap:6px;flex-wrap:wrap;">';
-  SCOLA_LISTES.procede.forEach(function(o){
-    var sel=(sb.scolaProcede===o);
-    var court=o.replace(/\s*\(anciennement[^)]*\)/,'');
-    h+='<button type="button" class="btn btn-small '+(sel?'btn-primary':'btn-gray')+'" style="width:auto;" onclick="updateSubFieldWithAutoDate('+p.id+','+idx+',\'scolaProcede\','+(sel?'\'\'':'\''+escapeJs(o)+'\'')+');render();">'+escapeHtml(court)+'</button>';
-  });
-  h+='</div></div>';
-  return h;
-}
-
 // 8 premiers libellés de la liste Scol@ (tâche, métier) contenant tous les mots saisis ; null si rien de saisi
 function scolaResultats(cle,valeur){
   var c=SCOLA_CHAMPS.find(function(x){return x.cle===cle;});
@@ -1156,24 +1132,6 @@ function scolaResultats(cle,valeur){
     if(mots.every(function(w){return n.indexOf(w)!==-1;}))res.push(liste[i]);
   }
   return res;
-}
-
-// Recherche dans une liste Scol@ sans tout redessiner (garde le clavier ouvert)
-function scolaRechercher(pid,idx,cle,valeur){
-  var box=document.getElementById('scola-res-'+cle);
-  if(!box)return;
-  var res=scolaResultats(cle,valeur);
-  if(res===null){box.innerHTML='';return;}
-  var h='';
-  if(!res.length)h='<div style="font-size:12px;color:var(--text-muted);padding:4px;">Aucun résultat dans la liste Scol@</div>';
-  else{
-    h='<div class="search-results">';
-    res.forEach(function(r){
-      h+='<div class="search-result-item" onmousedown="event.preventDefault();" onclick="updateSubFieldWithAutoDate('+pid+','+idx+',\''+cle+'\',\''+escapeJs(r)+'\');render();">'+escapeHtml(r)+'</div>';
-    });
-    h+='</div>';
-  }
-  box.innerHTML=h;
 }
 
 function hasConditionsSaisies(sb){

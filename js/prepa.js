@@ -11,8 +11,9 @@ function renderHome(){
     return '<div class="nav-item" onclick="'+onclick+'"><div class="nav-icon">'+icon+'</div><div class="nav-label">'+label+'<div class="nav-sub">'+sub+'</div></div>'+(count?'<div class="nav-count">'+count+'</div>':'')+ICONS.chevronRight+'</div>';
   };
   h+='<div class="nav-menu">';
-  h+=row('state.view=\'terrain-list\';render();',ICONS.clipboard,'Saisie terrain','Missions prêtes, saisie rapide',mt);
-  h+=row('state.view=\'prepa-list\';render();',ICONS.building,'Préparation mission','GEH, agents, affectations',mp);
+  h+=row('state.view=\'prepa-list\';render();',ICONS.building,'1. Préparation mission','GEH, agents, affectations',mp);
+  h+=row('state.view=\'terrain-list\';render();',ICONS.clipboard,'2. Saisie terrain','Missions prêtes, saisie rapide',mt);
+  h+=row('state.view=\'bureau-list\';render();',ICONS.fileText,'3. Bureau','Scol@, feuille de calcul, rapport Word',typeof bureauMissions==='function'?bureauMissions().length:0);
   h+='</div><div class="nav-menu">';
   h+=row('state.showModal=\'importChoice\';render();',ICONS.upload,'Importer une mission','Fichier .json reçu par e-mail',0);
   h+=row('state.view=\'db-terrain\';render();',ICONS.search,'Base de données','Agents, méthodes, débits',state.agentsDB.length);
