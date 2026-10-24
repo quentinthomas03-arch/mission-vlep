@@ -11,8 +11,8 @@ var APP_VERSION = '2.52';
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
   { version: '2.52', date: '24/10/2026', items: [
-    'Nouvel accueil : la dernière mission en cours se reprend d’un toucher (« Reprendre », avec l’avancement du terrain), puis les trois temps Préparation, Terrain et Bureau avec leur nombre de missions.',
-    'La base de données est mise en avant sur l’accueil : touchez « Rechercher un agent, un n° CAS… » pour l’ouvrir, clavier prêt.',
+    'Nouvel accueil : la dernière mission en cours se reprend d’un toucher (« Reprendre », avec l’avancement du terrain), puis les trois temps 01 Préparation, 02 Terrain et 03 Bureau avec leur nombre de missions.',
+    'La base de données est toujours à portée de main : la pastille « Base de données » en haut à droite de l’accueil l’ouvre, clavier prêt pour la recherche.',
     'Les nouveautés tiennent sur une ligne (« Voir » pour les lire) ; la jauge de stockage n’apparaît plus que lorsque le téléphone approche de la limite.'
   ] },
   { version: '2.51', date: '24/10/2026', items: [

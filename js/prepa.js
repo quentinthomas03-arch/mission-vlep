@@ -24,8 +24,8 @@ function renderAccueilReprendre(){
   if(prepa)h+='<div class="accueil-reprendre-info">En préparation · '+(m.gehs||[]).filter(function(g){return g.name;}).length+' GEH · '+t+' prélèvements prévus</div>';
   else h+='<div class="progress-bar"><div class="progress-fill" style="width:'+pct+'%;"></div></div><div class="accueil-reprendre-info">'+d+' / '+t+' prélèvements terrain</div>';
   h+='<div class="accueil-reprendre-boutons">';
-  if(prepa)h+='<button class="btn btn-primary btn-small" onclick="openMission('+m.id+');">'+ICONS.building+' Préparation</button>';
-  else h+='<button class="btn btn-primary btn-small" onclick="goToTerrain('+m.id+');">'+ICONS.clipboard+' Terrain</button><button class="btn btn-gray btn-small" onclick="ouvrirBureau('+m.id+');">'+ICONS.fileText+' Bureau</button>';
+  if(prepa)h+='<button class="btn btn-primary btn-small" onclick="openMission('+m.id+');">Préparation</button>';
+  else h+='<button class="btn btn-primary btn-small" onclick="goToTerrain('+m.id+');">Terrain</button><button class="btn btn-gray btn-small" onclick="ouvrirBureau('+m.id+');">Bureau</button>';
   return h+'</div></div>';
 }
 // Champ de recherche de l'accueil : ouvre la base, clavier prêt (la recherche se fait dans l'écran de la base)
@@ -39,19 +39,17 @@ function renderHome(){
   var mb=typeof bureauMissions==='function'?bureauMissions().length:0;
   var enCours=state.missions.filter(function(m){return m.status!=='terminee';}).length;
   var h='<div class="card mission-head accueil-tete"><div class="mission-hero"><div class="mission-hero-text"><div class="mission-hero-kicker">Contrôle des VLEP</div><h1>Appli VLEP</h1>';
-  h+='<div class="mission-hero-meta"><span>'+(enCours?enCours+' mission'+(enCours>1?'s':'')+' en cours':'Aucune mission en cours')+'</span></div></div></div></div>';
+  h+='<div class="mission-hero-meta"><span>'+(enCours?enCours+' mission'+(enCours>1?'s':'')+' en cours':'Aucune mission en cours')+'</span></div></div>'+
+    '<button type="button" class="accueil-base-pastille" onclick="accueilOuvrirBase();" aria-label="Ouvrir la base de données"><strong>Base de<br>données</strong></button></div></div>';
   h+=renderAccueilReprendre();
-  var tuile=function(onclick,icon,label,n){return '<button type="button" class="accueil-etape" onclick="'+onclick+'">'+icon+'<span>'+label+'</span><strong>'+n+'</strong></button>';};
+  var tuile=function(onclick,num,label,n){return '<button type="button" class="accueil-etape" onclick="'+onclick+'"><em>'+num+'</em><span>'+label+'</span><small>'+n+' mission'+(n>1?'s':'')+'</small></button>';};
   h+='<div class="accueil-etapes">'+
-    tuile('state.view=\'prepa-list\';render();',ICONS.building,'Préparation',mp)+
-    tuile('state.view=\'terrain-list\';render();',ICONS.clipboard,'Terrain',mt)+
-    tuile('state.view=\'bureau-list\';render();',ICONS.fileText,'Bureau',mb)+'</div>';
-  // base de données : la bible du technicien sur site
-  h+='<div class="accueil-base"><div class="accueil-base-tete">'+ICONS.search+'<div><div class="accueil-base-titre">Base de données</div><div class="accueil-base-sous">'+state.agentsDB.length+' agents · VLEP, supports, débits, conservation, consignes</div></div></div>';
-  h+='<input type="search" class="input" placeholder="Rechercher un agent, un n° CAS…" readonly onfocus="this.blur();accueilOuvrirBase();" onclick="accueilOuvrirBase();"></div>';
+    tuile('state.view=\'prepa-list\';render();','01','Préparation',mp)+
+    tuile('state.view=\'terrain-list\';render();','02','Terrain',mt)+
+    tuile('state.view=\'bureau-list\';render();','03','Bureau',mb)+'</div>';
   h+=renderNouveautesCard(true);
-  h+='<div class="accueil-actions"><button type="button" onclick="state.showModal=\'importChoice\';render();">'+ICONS.upload+'<span>Importer</span></button>'+
-    '<button type="button" onclick="state.view=\'tutoriel\';state.guidePhase=null;state.guideOuvert=null;state.guideQ=\'\';render();window.scrollTo(0,0);">'+ICONS.book+'<span>Guide</span></button></div>';
+  h+='<div class="accueil-actions"><button type="button" onclick="state.showModal=\'importChoice\';render();">Importer une mission</button>'+
+    '<button type="button" onclick="state.view=\'tutoriel\';state.guidePhase=null;state.guideOuvert=null;state.guideQ=\'\';render();window.scrollTo(0,0);">Guide</button></div>';
   h+='<input type="file" id="import-mission-input" accept=".json" style="display:none;" onchange="handleImportMission(event);">';
   if(state.showModal==='importChoice'){state.showModal=null;triggerImportMission();}
   // jauge de stockage : seulement quand le téléphone commence à se remplir
