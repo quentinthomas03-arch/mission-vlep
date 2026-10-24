@@ -1,6 +1,6 @@
 {
-  "name": "VLEP Mission",
-  "short_name": "VLEP",
+  "name": "Appli VLEP",
+  "short_name": "Appli VLEP",
   "icons": [
     {
       "src": "web-app-manifest-192x192.png",
