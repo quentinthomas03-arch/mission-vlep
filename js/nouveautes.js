@@ -6,10 +6,13 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.52';
+var APP_VERSION = '2.53';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.53', date: '27/10/2026', items: [
+    'Rapport Word : les mesures à l’analyseur (CO, CO2) sont reprises. Un poste fixe va sous « Mesures à poste fixe (hors accréditation) » des commentaires, un prélèvement réglementaire dans les résultats réglementaires ; leur détail est aussi dans l’annexe des résultats détaillés (avant, l’onglet Analyseurs n’était repris nulle part).'
+  ] },
   { version: '2.52', date: '24/10/2026', items: [
     'Nouvel accueil : la dernière mission en cours se reprend d’un toucher (« Reprendre », avec l’avancement du terrain), puis les trois temps 01 Préparation, 02 Terrain et 03 Bureau avec leur nombre de missions.',
     'La base de données est toujours à portée de main : la pastille « Base de données » en haut à droite de l’accueil l’ouvre, clavier prêt pour la recherche.',

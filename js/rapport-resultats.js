@@ -235,10 +235,12 @@ function rrLots(sheet, rRes, rVal) {
 // Colonnes utiles d'un lot : prélèvements (2 colonnes) ayant une réf. d'échantillon dans le bloc RESULTATS. Le bloc
 // vierge « 2 - intitulé » d'un onglet Reg, les jours non faits d'un GEH (J3 vide…) ou les prélèvements non utilisés
 // d'un onglet non Reg ne sont donc pas repris dans le rapport. En Reg, la 1re paire d'un GEH gardé reste toujours :
-// elle porte le GEH et l'agent (cellules fusionnées sur le bloc). Sans ligne de réf. (Analyseurs), tout est gardé.
+// elle porte le GEH et l'agent (cellules fusionnées sur le bloc). Analyseurs : pas de réf. dans le bloc RESULTATS, la
+// réf. de l'échantillon est le « n° essai : » de l'en-tête de l'onglet ; sans réf. du tout, tout est gardé.
 function rrColonnesUtiles(sheet, cols, rRes, rVal, reg) {
   var rRef = [];
   for (var r = rRes; r < rVal; r++) if (/^(référence de l'échantillon|n° d'essai)/i.test(sheet.text('A' + r).trim())) rRef.push(r);
+  if (!rRef.length) { var rEssai = rrLigneEssai(sheet, rRes); if (rEssai) rRef.push(rEssai); }
   if (!rRef.length) return cols;
   var aRef = function (c) { return rRef.some(function (r) { var t = String(sheet.text(XlsmMoteur.colStr(c) + r)).trim(); return t && t !== '0'; }); };
   var pas = reg ? 6 : 2, out = [];
@@ -272,14 +274,40 @@ function rrLigneNumeroteeVide(sheet, r, cols, dernierAgent) {
   return !cols.some(function (c) { var v = rrValeur(sheet, XlsmMoteur.colStr(c) + r); return v.type === 'nombre' || (v.type === 'texte' && v.brut.trim()); });
 }
 
-// Type de prélèvement des colonnes d'un lot non Reg (ligne « type de prélèvement », 2 colonnes par prélèvement)
-function rrTypes(sheet, cols, rRes, rVal) {
+// Ligne « n° essai : » de l'en-tête (onglet Analyseurs : la réf. de l'échantillon de chaque essai), ou null
+function rrLigneEssai(sheet, rRes) {
+  for (var r = 1; r < rRes; r++) if (/^n° d?'?essai/i.test(sheet.text('A' + r).trim())) return r;
+  return null;
+}
+// Type de prélèvement des colonnes d'un lot non Reg (ligne « type de prélèvement », 2 colonnes par prélèvement).
+// L'onglet Analyseurs n'a pas cette ligne : le type est celui du prélèvement de la mission qui porte la réf. de l'essai
+// (« à poste fixe », « réglementaire » pour un prélèvement réglementaire à l'analyseur, sinon vide = hors arrêté).
+function rrTypes(sheet, cols, rRes, rVal, m) {
   var rT = null;
   for (var r = rRes; r < rVal; r++) if (/^type de prélèvement$/i.test(sheet.text('A' + r).trim())) { rT = r; break; }
+  var rEssai = !rT && m ? rrLigneEssai(sheet, rRes) : null;
   return cols.map(function (c, i) {
     var c0 = cols[i - i % 2];
-    return rT ? String(sheet.text(XlsmMoteur.colStr(c0) + rT)).trim() : '';
+    if (rT) return String(sheet.text(XlsmMoteur.colStr(c0) + rT)).trim();
+    if (rEssai) {
+      // essai vide d'un bloc gardé : type du 1er essai du bloc (même GEH, même agent)
+      var ref = String(sheet.text(XlsmMoteur.colStr(c0) + rEssai)).trim() || String(sheet.text(XlsmMoteur.colStr(3 + Math.floor((c0 - 3) / 6) * 6) + rEssai)).trim();
+      return rrTypeMission(m, ref);
+    }
+    return '';
   });
+}
+function rrTypeMission(m, ref) {
+  if (!ref) return '';
+  var t = '';
+  (m.prelevements || []).forEach(function (p) {
+    (p.subPrelevements || []).forEach(function (sb) {
+      if (t || sb.nonRealise) return;
+      var a = Object.keys(sb.agentData || {}).some(function (an) { return String((sb.agentData[an] || {}).refEchantillon || '').trim() === ref; });
+      if (a) t = sb.posteFixe ? 'à poste fixe' : (p.isReglementaire ? 'réglementaire' : 'individuel');
+    });
+  });
+  return t;
 }
 
 // ---------- Tableau Word ----------
@@ -449,7 +477,7 @@ function rrImage(sheet, S, info, rows, cols) {
 
 // ---------- Onglets de résultats de la feuille ----------
 // [{ nom, reg, sheet, info, rRes, rVal, rCalc, lots: [{ cols, types }] }]
-function rrOnglets(wb) {
+function rrOnglets(wb, m) {
   var etats = {}, out = [];
   (wb.workbookXml.match(/<sheet\b[^>]*\/>/g) || []).forEach(function (s) { etats[(rrAttr(s, 'name') || '').replace(/&amp;/g, '&')] = rrAttr(s, 'state') || 'visible'; });
   // onglets modèles d'origine (« Tube Reg »…, textes d'exemple « 1 - intitulé ») écartés s'ils n'ont aucune référence
@@ -463,11 +491,22 @@ function rrOnglets(wb) {
       var a1 = sh.text('A1').trim();
       if (RR_ONGLETS.indexOf(a1) === -1) return;
       var rRes = rrLigneDe(sh, 'RESULTATS'), rVal = rrLigneDe(sh, 'Validation des prélèvements'), rCalc = rrLigneDe(sh, 'Calcul d\'incertitudes');
+      // Analyseurs : pas de « Validation des prélèvements », le bloc RESULTATS s'arrête à sa première ligne vide, avant
+      // la note « * concentration corrigée… » (une phrase dans la colonne A, illisible une fois le tableau réduit)
+      if (rRes && !rVal && rCalc > rRes && a1 === 'Analyseurs') {
+        rVal = rRes + 1;
+        while (rVal < rCalc && sh.text('A' + rVal).trim()) rVal++;
+      }
       if (!rRes || !rVal) return;
       if (n !== 'Analyseurs' && RR_ONGLETS.indexOf(n) !== -1 && !rrAReference(sh, rRes, rVal)) return;
-      var lots = rrLots(sh, rRes, rVal).map(function (cols) { return rrColonnesUtiles(sh, cols, rRes, rVal, /Reg/.test(a1)); })
+      var lots = rrLots(sh, rRes, rVal).map(function (cols) {
+        var u = rrColonnesUtiles(sh, cols, rRes, rVal, /Reg/.test(a1));
+        // Analyseurs : GEH et agent fusionnés sur le bloc de 3 essais (6 colonnes) ; bloc entier gardé, comme la macro
+        if (a1 === 'Analyseurs') u = cols.filter(function (c) { return u.some(function (k) { return Math.floor((k - 3) / 6) === Math.floor((c - 3) / 6); }); });
+        return u;
+      })
         .filter(function (cols) { return cols.length; })
-        .map(function (cols) { return { cols: cols, types: /Reg/.test(a1) ? null : rrTypes(sh, cols, rRes, rVal) }; });
+        .map(function (cols) { return { cols: cols, types: /Reg/.test(a1) ? null : rrTypes(sh, cols, rRes, rVal, m) }; });
       if (lots.length) out.push({ nom: n, modele: a1, reg: /Reg/.test(a1), sheet: sh, info: rrInfosOnglet(sh), rRes: rRes, rVal: rVal, rCalc: rCalc || rVal, lots: lots });
     });
   });
@@ -568,7 +607,7 @@ function rrInserer(doc, S, ancre, descs, titre) {
 // m (facultatif) : mission, pour placer chaque GEH × agent dans sa partie (évaluation initiale ou contrôle périodique)
 function rapportInsererResultats(doc, wbFeuille, m) {
   var X = DocxMoteur, res = { reg: 0, horsArrete: 0, posteFixe: 0, annexe: 0, images: 0, alertes: [] }, S;
-  return Promise.all([rrStyles(wbFeuille.zip), rrOnglets(wbFeuille), doc.chargerRelations()]).then(function (x) {
+  return Promise.all([rrStyles(wbFeuille.zip), rrOnglets(wbFeuille, m), doc.chargerRelations()]).then(function (x) {
     S = x[0]; var onglets = x[1];
     if (!onglets.length) { res.alertes.push('Aucun résultat trouvé dans la feuille de calcul (onglets de résultats vides ou feuille non enregistrée par Excel).'); return res; }
     var corps = doc.corps(), paras = X.trouverTous(corps, 'w:p');
@@ -603,8 +642,12 @@ function rapportInsererResultats(doc, wbFeuille, m) {
           else gr.forEach(function (g) { dReg.push({ o: o, rows: lignesRes(g.cols), cols: [1, 2].concat(g.cols), etape: g.etape }); });
           return;
         }
-        var pf = lot.cols.filter(function (c, i) { return /poste fixe/i.test(lot.types[i]); }), ind = lot.cols.filter(function (c, i) { return !/poste fixe/i.test(lot.types[i]); });
+        var pf = lot.cols.filter(function (c, i) { return /poste fixe/i.test(lot.types[i]); });
+        // analyseur sur un prélèvement réglementaire (type tiré de la mission) : partie réglementaire
+        var rg = lot.cols.filter(function (c, i) { return lot.types[i] === 'réglementaire'; });
+        var ind = lot.cols.filter(function (c, i) { return !/poste fixe/i.test(lot.types[i]) && lot.types[i] !== 'réglementaire'; });
         if (pf.length && aDonnees(pf)) dPf.push({ o: o, rows: lignesRes(pf), cols: [1, 2].concat(pf) });
+        if (rg.length && aDonnees(rg)) dReg.push({ o: o, rows: lignesRes(rg), cols: [1, 2].concat(rg), etape: etapeGroupe(o, rg) });
         if (ind.length && aDonnees(ind)) dHors.push({ o: o, rows: lignesRes(ind), cols: [1, 2].concat(ind) });
       });
     });
