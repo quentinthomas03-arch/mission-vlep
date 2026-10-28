@@ -6,10 +6,13 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.53';
+var APP_VERSION = '2.54';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.54', date: '28/10/2026', items: [
+    'Correction : la saisie terrain d’un GEH pouvait aller dans un autre GEH ayant le même agent (deux prélèvements recevaient parfois le même identifiant à la validation). C’est corrigé, et les missions déjà sur le téléphone sont réparées à l’ouverture de l’appli, sans supprimer de GEH. Un message indique les GEH dont les saisies déjà faites sont à vérifier.'
+  ] },
   { version: '2.53', date: '27/10/2026', items: [
     'Rapport Word : les mesures à l’analyseur (CO, CO2) sont reprises. Un poste fixe va sous « Mesures à poste fixe (hors accréditation) » des commentaires, un prélèvement réglementaire dans les résultats réglementaires ; leur détail est aussi dans l’annexe des résultats détaillés (avant, l’onglet Analyseurs n’était repris nulle part).'
   ] },

@@ -85,8 +85,14 @@ function escapeJs(t){
   return s;
 }
 
+// Identifiant numérique unique. Avant : deux prélèvements créés dans la même milliseconde (validation de la
+// mission) pouvaient recevoir le même, et la saisie terrain de l'un partait dans l'autre GEH. Toujours croissant.
+var _dernierId=0;
 function generateId(){
-  return Date.now()*1000+Math.floor(Math.random()*1000);
+  var id=Date.now()*1000+Math.floor(Math.random()*1000);
+  if(id<=_dernierId)id=_dernierId+1;
+  _dernierId=id;
+  return id;
 }
 
 // Enregistrement sur le téléphone. Un échec (mémoire pleine, navigation privée) n'est jamais silencieux : la saisie
@@ -138,7 +144,41 @@ function loadData(){
   try{repairMissions();}catch(e){}
 }
 
+// Identifiants en double dans une mission (ancien generateId) : le GEH, le prélèvement ou le jour en double reçoit un
+// nouvel identifiant. Les saisies déjà mélangées ne peuvent pas être démêlées : renvoie les GEH à faire vérifier.
+function repairIdsDoubles(m){
+  var vus={},aVerifier=[];
+  (m.gehs||[]).forEach(function(g){
+    var k=String(g.id);
+    if(!vus[k]){vus[k]=g;return;}
+    var ancien=g.id;g.id=generateId();
+    (m.prelevements||[]).forEach(function(p){if(String(p.gehId)===k&&p.gehNum===g.num)p.gehId=g.id;});
+    for(var an in (m.affectations||{})){
+      var gs=m.affectations[an].gehs||{};
+      if(gs[ancien])gs[g.id]=JSON.parse(JSON.stringify(gs[ancien]));
+    }
+    aVerifier.push('GEH '+vus[k].num+' et GEH '+g.num);
+  });
+  vus={};
+  (m.prelevements||[]).forEach(function(p){
+    var k=String(p.id);
+    if(vus[k]){
+      p.id=generateId();
+      aVerifier.push('GEH '+vus[k].gehNum+' et GEH '+p.gehNum+' ('+(p.agents||[]).map(function(a){return a.name;}).join(' + ')+')');
+    }else vus[k]=p;
+    var vusSb={};
+    (p.subPrelevements||[]).forEach(function(sb){if(sb.id!==undefined&&vusSb[String(sb.id)])sb.id=generateId();vusSb[String(sb.id)]=true;});
+  });
+  return aVerifier;
+}
+
 function repairMissions(){
+  var alertes=[];
+  state.missions.forEach(function(m){
+    var v=repairIdsDoubles(m);
+    if(v.length){alertes.push('• '+(m.clientSite||'Mission sans nom')+' : '+v.join(' ; '));saveData('vlep_missions_v3',state.missions);}
+  });
+  if(alertes.length&&typeof alert==='function')alert('Correction faite : certains prélèvements partageaient un même identifiant, la saisie de l’un pouvait aller dans l’autre GEH. C’est réparé pour la suite.\n\nVérifiez les saisies déjà faites sur :\n'+alertes.join('\n'));
   state.missions.forEach(function(m){
     if(m.prelevements){
       m.prelevements.forEach(function(p){
