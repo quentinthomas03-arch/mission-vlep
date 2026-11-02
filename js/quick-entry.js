@@ -12,6 +12,7 @@ function openQuickEntry(){
     agents:[],
     prelevements:[]
   };
+  profilPreremplir(state.quickMission);
   state.quickAgentSearch='';
   state.view='quick-entry';
   render();
@@ -27,7 +28,7 @@ function renderQuickEntry(){
   h+='<div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="quick-client" value="'+escapeHtml(q.clientSite)+'" placeholder="Ex: Entreprise ABC" onchange="state.quickMission.clientSite=this.value;"></div>';
   h+='<div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="quick-preleveur" value="'+escapeHtml(q.preleveur)+'" placeholder="Votre nom" onchange="state.quickMission.preleveur=this.value;"></div>';
   h+='<div class="field"><label class="label">Type de débitmètre</label>'+renderDebitmetreTypeSelect('quick-debitmetre-type',q.debitmetreType||'','state.quickMission.debitmetreType=this.value;')+'</div>';
-  h+='<div class="field"><label class="label">Débitmètre</label><input type="text" class="input" id="quick-debitmetre" value="'+escapeHtml(q.debitmetre)+'" placeholder="N° débitmètre" onchange="state.quickMission.debitmetre=this.value;"></div>';
+  h+='<div class="field"><label class="label">Débitmètre</label><input type="text" class="input" id="quick-debitmetre" value="'+escapeHtml(q.debitmetre)+'" placeholder="N° débitmètre" onchange="state.quickMission.debitmetre=this.value;">'+renderProfilChoix('debitmetres','quick')+'</div>';
   h+='</div>';
   
   // GEH
@@ -57,7 +58,7 @@ function renderQuickEntry(){
     }else{state._quickSearchResults=[];}
   }else{state._quickSearchResults=[];}
   h+='</div>';
-  h+='<button class="btn btn-gray btn-small mt-8" onclick="state.showModal=\'quickAddManual\';render();">+ Agent manuel</button>';
+  h+='<button class="btn btn-gray btn-small mt-8" onclick="state.showModal=\'quickAddManual\';render();">+ Agent manuel</button><button class="btn btn-gray btn-small mt-8" onclick="agentPersoOuvrir();">+ Nouvel agent pour la base</button>';
   
   if(q.agents.length>0){
     h+='<div class="section-title" style="color:#374151;margin-top:16px;">Agents sélectionnés ('+q.agents.length+')</div>';

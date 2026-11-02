@@ -6,10 +6,19 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.54';
+var APP_VERSION = '2.56';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.56', date: '02/11/2026', items: [
+    'Mon profil (accueil) : votre nom, votre agence, votre valideur et tous les débitmètres et tachymètres de l’agence. Le nom est repris dans chaque nouvelle mission ; dans Infos mission, un toucher choisit l’appareil du jour.',
+    'Agent absent de la base : ajoutez-le à la préparation, en collant sa ligne de la base Excel ou champ par champ. Il reste sur le téléphone et suit la mission envoyée à un collègue. La VLEP reste à saisir dans la feuille de calcul, qui ne connaît pas cet agent.',
+    'Prélèvement fractionné, masque : choisissez le ou les supports concernés, avec la durée de port de chacun. La feuille de calcul ne met plus le masque sur tous les supports.',
+    'Feuille de calcul, prélèvement fractionné : les n° de tous les appareils et tous les n° de lot sont repris (« CIP-1 / CIP-2 »), et la vitesse de référence du second CIP10 en silice aussi.'
+  ] },
+  { version: '2.55', date: '02/11/2026', items: [
+    'Import d’une mission déjà sur le téléphone : si le fichier n’a aucun prélèvement en commun avec elle (mission refaite), la fusion n’est plus proposée, seul l’écrasement l’est ; « Réunir le fichier d’un collègue » la refuse aussi. Avant, GEH et prélèvements se retrouvaient en double.'
+  ] },
   { version: '2.54', date: '28/10/2026', items: [
     'Correction : la saisie terrain d’un GEH pouvait aller dans un autre GEH ayant le même agent (deux prélèvements recevaient parfois le même identifiant à la validation). C’est corrigé, et les missions déjà sur le téléphone sont réparées à l’ouverture de l’appli, sans supprimer de GEH. Un message indique les GEH dont les saisies déjà faites sont à vérifier.'
   ] },

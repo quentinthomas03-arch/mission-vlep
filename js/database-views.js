@@ -3,7 +3,7 @@
 // Recherche terrain et consultation complète
 
 function renderDbTerrain(){
-  return'<div class="sticky-header" style="padding-bottom:10px;"><button class="back-btn" onclick="state.view=\'home\';render();">'+ICONS.arrowLeft+' Accueil</button><h1 style="margin:4px 0 8px;">'+ICONS.search+' Base de données terrain</h1><div class="search-box"><span class="search-icon">'+ICONS.search+'</span><input type="text" class="search-input" id="db-search-input" placeholder="Rechercher par nom ou N° CAS..." oninput="updateDbResults();"></div></div><div id="results-count" style="color:var(--text-muted);font-size:12px;margin:10px 0;">Tapez pour rechercher</div><div id="agent-results"></div>';
+  return'<div class="sticky-header" style="padding-bottom:10px;"><button class="back-btn" onclick="state.view=\'home\';render();">'+ICONS.arrowLeft+' Accueil</button><h1 style="margin:4px 0 8px;">'+ICONS.search+' Base de données terrain</h1><div class="search-box"><span class="search-icon">'+ICONS.search+'</span><input type="text" class="search-input" id="db-search-input" placeholder="Rechercher par nom ou N° CAS..." oninput="updateDbResults();"></div></div><div id="results-count" style="color:var(--text-muted);font-size:12px;margin:10px 0;">Tapez pour rechercher</div><div id="agent-results"></div><button class="btn btn-gray mt-8" onclick="agentPersoOuvrir();">+ Agent absent de la base</button>';
 }
 
 function updateDbResults(){
@@ -25,7 +25,7 @@ function updateDbResults(){
   c.textContent=f.length+' agent(s) trouvé(s)';
   var h='';
   f.slice(0,30).forEach(function(a){
-    h+='<div class="agent-card"><div class="agent-card-name">'+escapeHtml(a['Agent chimique'])+'</div><div class="agent-card-cas">CAS : '+escapeHtml(a['N° CAS']||'-')+'</div><div class="agent-card-grid">';
+    h+='<div class="agent-card"><div class="agent-card-name">'+escapeHtml(a['Agent chimique'])+(a._perso?' <small>(ajouté par vous)</small>':'')+'</div><div class="agent-card-cas">CAS : '+escapeHtml(a['N° CAS']||'-')+'</div><div class="agent-card-grid">';
     var cmr=a['CMR (règlement CLP)']||'';
     if(cmr)h+='<div class="agent-card-field full"><div class="agent-card-field-label">CMR</div><div class="agent-card-field-value cmr">'+escapeHtml(cmr)+'</div></div>';
     h+='<div class="agent-card-field"><div class="agent-card-field-label">VLEP 8h</div><div class="agent-card-field-value highlight">'+escapeHtml(a['VLEP 8h (mg/m3)']||'-')+' mg/m³</div></div><div class="agent-card-field"><div class="agent-card-field-label">VLEP CT</div><div class="agent-card-field-value highlight">'+escapeHtml(a['VLEP CT (mg/m3)']||'-')+' mg/m³</div></div>';

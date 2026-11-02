@@ -25,8 +25,10 @@ function render(){
     case'scola-geh':h=renderScolaGeh();break;
     case'bureau-list':h=renderBureauList();break;
     case'bureau-mission':h=renderBureauMission();break;
+    case'profil':h=renderProfil();break;
     default:h=renderHome();
   }
+  if(state.showModal==='agentPerso')h+=renderAgentPersoModal();
   document.getElementById('app').innerHTML=h;
   if(state.view==='prepa-agents'){var src=document.getElementById('search-results-container');if(src)attachSearchResultListeners(src);}
   if(state.view==='quick-entry'){var qsrc=document.getElementById('quick-search-results');if(qsrc)attachQuickSearchListeners(qsrc);setTimeout(function(){var i=document.getElementById('quick-agent-search');if(i)i.focus();},50);}

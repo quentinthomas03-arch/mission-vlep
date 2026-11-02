@@ -45,6 +45,16 @@ function fmVide(sb){
 }
 function fmCopie(x){return JSON.parse(JSON.stringify(x));}
 
+// Deux fichiers d'une même mission partagée ont des prélèvements communs (mêmes identifiants). Même identifiant de
+// mission sans aucun prélèvement commun (mission refaite, fichier regénéré) : la fusion doublerait GEH et prélèvements.
+// Mission sans prélèvement d'un côté (encore en préparation) : rien à doubler, fusion possible.
+function missionsPartagees(a,b){
+  var ida={},pa=(a&&a.prelevements)||[],pb=(b&&b.prelevements)||[];
+  if(!pa.length||!pb.length)return true;
+  pa.forEach(function(p){ida[String(p.id)]=true;});
+  return pb.some(function(p){return ida[String(p.id)];});
+}
+
 // Fusionne `inc` dans `cible` (modifiée en place). Renvoie le bilan.
 function fusionnerMissionDans(cible,inc){
   var r={repris:0,ajoutes:0,identiques:0,conflits:[],signales:[]};
@@ -159,5 +169,6 @@ function fusionnerDepuisTexte(text){
   try{inc=missionDepuisDonnees(JSON.parse(text));}catch(e){inc=null;}
   if(!inc){alert('Format non reconnu.\n\nChoisissez un fichier de mission VLEP (.json).');return;}
   if(inc.id!==m.id){alert('Ce fichier est celui d’une autre mission (créée séparément).\n\nLa fusion ne réunit que les saisies d’une même mission partagée entre techniciens.');return;}
+  if(!missionsPartagees(m,inc)){alert('Ce fichier n’a aucun prélèvement en commun avec cette mission (mission refaite ?).\n\nLes réunir doublerait les GEH et les prélèvements : fusion annulée. Pour remplacer la mission, importez le fichier depuis l’accueil.');return;}
   appliquerFusionMission(inc);
 }

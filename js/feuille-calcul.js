@@ -222,19 +222,19 @@ function fcRemplirColonne(s, R, col, ctx) {
   if (agents.length > 1 && /\(multi\)/.test(ctx.modele)) {
     agents.forEach(function (n, k) { set(f(eg('agent chimique n°' + (k + 1) + '_'), { col: 'A', depuis: R.resultats || 0 }), n); });
   }
+  // Supports : 1 seul (onglet normal) ou empilés (séq, « C2-P1 »…)
+  var supports = ctx.seq ? expandSubSupports(sb) : [sb];
   if (R.numId) {
-    set(R.numId, ad.numPompe || '');
+    set(R.numId, fcValeursSupports(supports, an, 'numPompe'));
     set(R.numId + 1, tachy ? (m.tachymetre || '') : (m.debitmetre || ''));
   }
   if (!ctx.protocole) set(f(eg('nature et marque'), { col: 'B' }), ag ? (ag['Support de prélèvement'] || '') : '');
   // n° de lot : celui de l'échantillon (celui du blanc associé pour une ancienne saisie sans lot sur l'échantillon)
-  var lotEch = ctx.lot || (ctx.blanc && ctx.blanc.lot) || '';
+  var lotEch = fcValeursSupports(supports, an, 'lot') || ctx.lot || (ctx.blanc && ctx.blanc.lot) || '';
   if (lotEch) set(f(eg('n° de lot'), { col: 'B' }), lotEch);
   // vraie date Excel (format jj/mm/aa du modèle), pas un texte
   set(f(eg('date de prélèvement'), { col: 'A', avant: regionHaut }), fcDateExcel(sb.date));
 
-  // Supports : 1 seul (onglet normal) ou empilés (séq, « C2-P1 »…)
-  var supports = ctx.seq ? expandSubSupports(sb) : [sb];
   supports.forEach(function (sp, k) {
     var K = 'n°c' + (k + 1) + '-p';
     var sad = (sp.agentData && sp.agentData[an]) || {};
@@ -246,14 +246,17 @@ function fcRemplirColonne(s, R, col, ctx) {
     var suff = ctx.seq ? ' n°' + (k + 1) + '_' : '';
     // EPI (par support en séq)
     var rEpi = ctx.seq ? f(function (t) { return t.indexOf("type d'epi") === 0 && t.indexOf('n°' + (k + 1) + '_') !== -1; }) : f(debut("type d'EPI"), { col: 'A' });
-    set(rEpi, sb.epiType || 'sans objet');
+    var epi = epiDuSupport(sb, k + 1);
+    set(rEpi, epi.type);
     var rPort = ctx.seq ? f(function (t) { return t.indexOf("durée de port de l'epi") === 0 && t.indexOf('n°' + (k + 1) + '_') !== -1; }) : f(debut("durée de port de l'EPI"), { col: 'A' });
-    set(rPort, (sb.epiType || 'sans objet') === 'sans objet' ? 0 : fcNombre(sb.epiDuree) || 0);
+    set(rPort, epi.type === 'sans objet' ? 0 : fcNombre(epi.duree) || 0);
     // Débits / vitesses
     if (tachy && ctx.seq) {
-      // CIP10 en séquentiel : vitesse d'étalonnage du CIP10 n°1, vitesses initiale et finale de chaque support
-      // (« … CIP10 n°1 » dans les onglets silice, « vitesse de rotation (tr/min) » sans silice)
+      // CIP10 en séquentiel : vitesses d'étalonnage, vitesses initiale et finale de chaque support. Onglets silice : une
+      // ligne par CIP10 (n°1 pour les supports 1, 3, 5, n°2 pour les supports 2, 4, 6 : formules de validation de la
+      // feuille) ; sans silice : une seule ligne. Vitesse qui n'y tient pas : fcAlertesVitessesRef.
       if (k === 0) set(f(eg('vitesse de rotation (tr/min) CIP10 n°1'), { col: 'B' }) || f(eg('vitesse de rotation (tr/min)'), { col: 'B' }), fcNombre(sad.debitRef));
+      if (k === 1) set(f(eg('vitesse de rotation (tr/min) CIP10 n°2'), { col: 'B' }), fcNombre(sad.debitRef));
       set(f(eg('initiale n°' + (k + 1) + '_'), { col: 'B' }), fcNombre(sad.debitInitial));
       set(f(eg('finale n°' + (k + 1) + '_'), { col: 'B' }), fcNombre(sad.debitFinal));
     } else if (tachy) {
@@ -300,6 +303,16 @@ function fcRemplirColonne(s, R, col, ctx) {
   if (pc.isReglementaire && nbPrevus < 3 && pc.justifNb) set(f(eg('commentaire'), { col: 'A' }), pc.justifNb);
 
   fcScola(s, R, col, ctx, supports);
+}
+
+// Champ d'agent de tous les supports d'une colonne, sans doublon : « CIP-1 / CIP-2 » (une seule case dans la feuille)
+function fcValeursSupports(supports, an, champ) {
+  var vus = [];
+  supports.forEach(function (sp) {
+    var v = String((sp.agentData && sp.agentData[an] && sp.agentData[an][champ]) || '').trim();
+    if (v && vus.indexOf(v) === -1) vus.push(v);
+  });
+  return vus.join(' / ');
 }
 
 // ---------- Bloc Scol@ (bas de l'onglet, rempli d'habitude par le formulaire Scol@_Prélèvement) ----------
@@ -701,6 +714,48 @@ function fcAlertesRefDoublons(m) {
   });
 }
 
+// CIP10 en séquentiel : vitesses de référence absentes de la feuille (2 lignes avec silice, 1 sans)
+function fcAlertesVitessesRef(m) {
+  var alertes = [];
+  (m.prelevements || []).forEach(function (p) {
+    var g = (m.gehs || []).filter(function (x) { return x.id === p.gehId; })[0], geh = g ? 'GEH ' + g.num : 'GEH ?';
+    fcSeries(p).forEach(function (se) {
+      var an = se.agents[0];
+      if (!isTachymetreAgent(an)) return;
+      var nbLignes = fcEstSilice(an) ? 2 : 1;
+      p.subPrelevements.forEach(function (sb) {
+        var refs = expandSubSupports(sb).map(function (sp) { return fcNombre(((sp.agentData && sp.agentData[an]) || {}).debitRef); });
+        if (refs.length < 2) return;
+        refs.forEach(function (r, k) {
+          if (k < nbLignes) { if (r === null) alertes.push(geh + ' (' + formatDateFR(sb.date) + ') : vitesse de référence du support n°' + (k + 1) + ' non saisie.'); return; }
+          if (r !== null && r !== refs[k % nbLignes]) alertes.push(geh + ' (' + formatDateFR(sb.date) + ') : vitesse de référence du support n°' + (k + 1) + ' (' + r + ') absente de la feuille, qui n’a que ' + nbLignes + ' ligne' + (nbLignes > 1 ? 's' : '') + ' de vitesse de référence.');
+        });
+      });
+    });
+  });
+  return alertes;
+}
+
+// Prélèvements fractionnés avec EPI sans choix des supports : EPI et durée de port recopiés sur chaque support
+function fcAlertesEpiSupports(m) {
+  var gehs = [];
+  (m.prelevements || []).forEach(function (p) {
+    var g = (m.gehs || []).filter(function (x) { return x.id === p.gehId; })[0];
+    p.subPrelevements.forEach(function (sb) {
+      if (!getSupportsSupp(sb).length || (sb.epiType || 'sans objet') === 'sans objet' || sb.epiParSupport) return;
+      if (g && gehs.indexOf(g.num) === -1) gehs.push(g.num);
+    });
+  });
+  return gehs.length ? ['Prélèvement fractionné avec EPI, supports non précisés (GEH ' + gehs.join(', ') + ') : EPI et durée de port mis sur chaque support, à préciser dans l’appli.'] : [];
+}
+
+// Agents ajoutés par le technicien : la feuille cherche la VLEP dans sa propre liste, ils n'y sont pas
+function fcAlertesAgentsPerso(m) {
+  return (m.agents || []).filter(function (a) { var ag = getAgentFromDB(a.name); return ag && ag._perso; }).map(function (a) {
+    return '« ' + a.name + ' » : agent ajouté dans l’appli, absent de la liste de la feuille de calcul. La ligne « VLEP (mg/m3) » reste vide : à saisir dans Excel.';
+  });
+}
+
 // Prélèvements 8 h sans durée d'exposition (rappel, la saisie peut se faire au bureau)
 function fcAlertesDureeExpo(m) {
   var n = 0, gehs = [];
@@ -770,7 +825,7 @@ function construireFeuilleCalcul(m, donneesModele) {
     if (scolaManque.length) plan.alertes.push('En-tête Scol@ incomplet (' + scolaManque.join(', ') + ') : à compléter en préparation de la mission, carte « Dossier Scol@ », puis regénérer.');
   }
   if (!m.debitmetreType) plan.alertes.push('Type de débitmètre non choisi (Infos mission) : « massique » retenu. Si c’est un débitmètre à piston ou à lame de savon, le choisir et regénérer (débits et volumes en dépendent).');
-  [fcAlertesConditions(m), fcAlertesRefDoublons(m), fcAlertesBlancs(m), fcAlertesBlancsGravi(m), fcAlertesDureeExpo(m)].forEach(function (l) { l.forEach(function (a) { plan.alertes.push(a); }); });
+  [fcAlertesConditions(m), fcAlertesRefDoublons(m), fcAlertesBlancs(m), fcAlertesBlancsGravi(m), fcAlertesDureeExpo(m), fcAlertesVitessesRef(m), fcAlertesEpiSupports(m), fcAlertesAgentsPerso(m)].forEach(function (l) { l.forEach(function (a) { plan.alertes.push(a); }); });
   if (!plan.onglets.length) return Promise.reject(new Error('Aucun prélèvement exportable dans cette mission.'));
   return XlsmMoteur.Classeur.charger(donneesModele).then(function (wb) {
     var pris = {}; Object.keys(wb.paths).forEach(function (n) { pris[n] = true; });

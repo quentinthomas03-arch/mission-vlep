@@ -49,7 +49,7 @@ function renderHome(){
     tuile('state.view=\'bureau-list\';render();','03','Bureau',mb)+'</div>';
   h+=renderNouveautesCard(true);
   h+='<div class="accueil-actions"><button type="button" onclick="state.showModal=\'importChoice\';render();">Importer une mission</button>'+
-    '<button type="button" onclick="state.view=\'tutoriel\';state.guidePhase=null;state.guideOuvert=null;state.guideQ=\'\';render();window.scrollTo(0,0);">Guide</button></div>';
+    '<button type="button" onclick="state.view=\'tutoriel\';state.guidePhase=null;state.guideOuvert=null;state.guideQ=\'\';render();window.scrollTo(0,0);">Guide</button><button type="button" style="grid-column:1/-1;" onclick="state.view=\'profil\';render();window.scrollTo(0,0);">Mon profil</button></div>';
   h+='<input type="file" id="import-mission-input" accept=".json" style="display:none;" onchange="handleImportMission(event);">';
   if(state.showModal==='importChoice'){state.showModal=null;triggerImportMission();}
   // jauge de stockage : seulement quand le téléphone commence à se remplir
@@ -101,6 +101,7 @@ function countPrelevements(m){
 
 function createNewMission(){
   var m=createEmptyMission();
+  profilPreremplir(m);
   state.missions.push(m);
   saveData('vlep_missions_v3',state.missions);
   state.currentMissionId=m.id;
@@ -285,7 +286,7 @@ function renderPrepaMission(){
 }
 
 function renderEditInfoModal(m){
-  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Infos mission</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="edit-clientsite" value="'+escapeHtml(m.clientSite)+'" placeholder="Ex: Entreprise ABC - Usine Nord"></div><div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="edit-preleveur" value="'+escapeHtml(m.preleveur)+'"></div><div class="field"><label class="label">Type de débitmètre</label>'+renderDebitmetreTypeSelect('edit-debitmetre-type',m.debitmetreType||'')+'</div><div class="field"><label class="label">Débitmètre</label><input type="text" inputmode="numeric" class="input" id="edit-debitmetre" value="'+escapeHtml(m.debitmetre)+'"></div><div class="field"><label class="label">Tachymètre</label><input type="text" inputmode="numeric" class="input" id="edit-tachymetre" placeholder="N° tachymètre (si utilisé)" value="'+escapeHtml(m.tachymetre||'')+'"></div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="saveEditInfo();">Enregistrer</button></div></div></div>';
+  var h='<div class="modal show" onclick="if(event.target===this){state.showModal=null;render();}"><div class="modal-content"><div class="modal-header"><h2>Infos mission</h2><button class="close-btn" onclick="state.showModal=null;render();">×</button></div><div class="field"><label class="label">Client / Site *</label><input type="text" class="input" id="edit-clientsite" value="'+escapeHtml(m.clientSite)+'" placeholder="Ex: Entreprise ABC - Usine Nord"></div><div class="field"><label class="label">Préleveur</label><input type="text" class="input" id="edit-preleveur" value="'+escapeHtml(m.preleveur)+'"></div><div class="field"><label class="label">Type de débitmètre</label>'+renderDebitmetreTypeSelect('edit-debitmetre-type',m.debitmetreType||'')+'</div><div class="field"><label class="label">Débitmètre</label><input type="text" inputmode="numeric" class="input" id="edit-debitmetre" value="'+escapeHtml(m.debitmetre)+'">'+renderProfilChoix('debitmetres','edit')+'</div><div class="field"><label class="label">Tachymètre</label><input type="text" inputmode="numeric" class="input" id="edit-tachymetre" placeholder="N° tachymètre (si utilisé)" value="'+escapeHtml(m.tachymetre||'')+'">'+renderProfilChoix('tachymetres','edit')+'</div><div class="row"><button class="btn btn-gray" onclick="state.showModal=null;render();">Annuler</button><button class="btn btn-primary" onclick="saveEditInfo();">Enregistrer</button></div></div></div>';
   return h;
 }
 
@@ -888,7 +889,7 @@ function renderPrepaAgents(){
     }else{state._searchResults=[];}
   }else{state._searchResults=[];}
   h+='</div>';
-  h+='<button class="btn btn-gray" onclick="state.showModal=\'addManual\';render();">+ Ajouter manuellement</button><div class="section-title">Agents sélectionnés ('+m.agents.length+')</div>';
+  h+='<button class="btn btn-gray" onclick="state.showModal=\'addManual\';render();">+ Ajouter manuellement</button><button class="btn btn-gray mt-8" onclick="agentPersoOuvrir();">+ Nouvel agent pour la base (ligne Excel ou saisie)</button><div class="section-title">Agents sélectionnés ('+m.agents.length+')</div>';
   if(m.agents.length===0)h+='<div class="empty-state"><p>Aucun agent sélectionné</p></div>';
   else m.agents.forEach(function(a,i){
     var c=getAgentColor(m,a.name);

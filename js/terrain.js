@@ -648,6 +648,7 @@ function getMissingFields(p,sb){
       if(grp.length>1&&p.agents.filter(function(x){return grp.indexOf(x.name)!==-1;})[0].name!==a.name)return;
       var ad=(s.agentData&&s.agentData[a.name])||{};
       var nm=a.name.length>25?a.name.substring(0,25)+'…':a.name;
+      if(isTachymetreAgent(a.name)&&(!ad.debitRef||!(''+ad.debitRef).trim()))missing.push('Vitesse réf · '+num+' · '+nm);
       if(!ad.debitInitial||!(''+ad.debitInitial).trim())missing.push('Débit initial · '+num+' · '+nm);
       if(!ad.debitFinal||!(''+ad.debitFinal).trim())missing.push('Débit final · '+num+' · '+nm);
       if(!ad.refEchantillon||!(''+ad.refEchantillon).trim())missing.push('Réf. échantillon · '+num+' · '+nm);
@@ -966,7 +967,9 @@ function renderSubPrelForm(p,sb,idx){
     var choisi=EPI_FPA.find(function(e){return e.court===epiVal;});
     if(choisi)h+='<div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">'+escapeHtml(choisi.norme+' · '+choisi.long)+'</div>';
   }
-  if(epiVal!=='sans objet'){
+  if(epiVal!=='sans objet'&&getSupportsSupp(sb).length){
+    h+=renderEpiSupports(p,sb,idx);
+  }else if(epiVal!=='sans objet'){
     h+='<div style="display:flex;align-items:center;gap:8px;"><label style="white-space:nowrap;font-size:13px;">Durée de port (min)</label><input type="text" inputmode="numeric" class="input" style="width:100px;" value="'+escapeHtml(String(sb.epiDuree||'0'))+'" placeholder="0" onchange="updateSubFieldWithAutoDate('+p.id+','+idx+',\'epiDuree\',this.value);"></div>';
   }
   h+='</div>';
@@ -1303,10 +1306,46 @@ function selectEPI(pid,idx,opt){
     sb.epiType='';
   }else{
     sb.epiType=opt;
-    if(opt==='sans objet')sb.epiDuree='';
+    if(opt==='sans objet'){sb.epiDuree='';delete sb.epiParSupport;}
   }
   saveData('vlep_missions_v3',state.missions);
   render();
+}
+
+// Prélèvement fractionné : EPI porté support par support (le masque peut ne concerner qu'un support), durée propre à
+// chacun (la feuille la compare à la durée du support). sb.epiDuree garde le total pour le rapport et l'activité.
+function renderEpiSupports(p,sb,idx){
+  var par=sb.epiParSupport||{},nb=getSupportsSupp(sb).length+1;
+  var h='<div style="font-size:12px;font-weight:600;margin-bottom:4px;">Porté sur quel(s) support(s) ?</div>';
+  for(var n=1;n<=nb;n++){
+    var porte=par[n]!==undefined;
+    h+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;"><button type="button" class="btn btn-small '+(porte?'btn-primary':'btn-gray')+'" style="width:auto;margin:0;" onclick="toggleEpiSupport('+p.id+','+idx+','+n+');">Support n°'+n+'</button>';
+    if(porte)h+='<label style="white-space:nowrap;font-size:13px;">Durée de port (min)</label><input type="text" inputmode="numeric" class="input" style="width:80px;margin:0;" value="'+escapeHtml(String(par[n]))+'" placeholder="0" onchange="majEpiSupport('+p.id+','+idx+','+n+',this.value);">';
+    h+='</div>';
+  }
+  if(!sb.epiParSupport)h+='<div style="font-size:11px;color:var(--status-warn-fg);">Toucher le ou les supports concernés. Sans choix, l’EPI part sur tous les supports dans la feuille.</div>';
+  return h;
+}
+function totalEpiSupports(sb){
+  var t=0;
+  for(var n in sb.epiParSupport){var v=parseInt(sb.epiParSupport[n],10);if(v>0)t+=v;}
+  sb.epiDuree=t?String(t):'';
+}
+function toggleEpiSupport(pid,idx,n){
+  var r=getSubForSupport(pid,idx);if(!r)return;
+  var sb=r.sb;
+  if(!sb.epiParSupport)sb.epiParSupport={};
+  if(sb.epiParSupport[n]!==undefined)delete sb.epiParSupport[n];else sb.epiParSupport[n]='';
+  if(!Object.keys(sb.epiParSupport).length)delete sb.epiParSupport;
+  else totalEpiSupports(sb);
+  saveData('vlep_missions_v3',state.missions);
+  render();
+}
+function majEpiSupport(pid,idx,n,v){
+  var r=getSubForSupport(pid,idx);if(!r||!r.sb.epiParSupport)return;
+  r.sb.epiParSupport[n]=v;
+  totalEpiSupports(r.sb);
+  saveData('vlep_missions_v3',state.missions);
 }
 
 function toggleSubComplete(pid,idx){
@@ -1665,6 +1704,13 @@ function removeSupportSupp(pid,idx,k){
   if(!confirm('Supprimer le support n°'+(k+2)+' et ses saisies ?'))return;
   r.sb.supportsSupp.splice(k,1);
   if(!r.sb.supportsSupp.length)delete r.sb.supportsSupp;
+  // EPI par support : le support retiré disparaît, les suivants prennent leur nouveau numéro
+  if(r.sb.epiParSupport){
+    var epi={};
+    for(var n in r.sb.epiParSupport){var num=+n;if(num<k+2)epi[num]=r.sb.epiParSupport[n];else if(num>k+2)epi[num-1]=r.sb.epiParSupport[n];}
+    if(Object.keys(epi).length&&r.sb.supportsSupp){r.sb.epiParSupport=epi;totalEpiSupports(r.sb);}
+    else{delete r.sb.epiParSupport;if(Object.keys(epi).length)r.sb.epiDuree=String(epi[1]||'');}
+  }
   saveData('vlep_missions_v3',state.missions);
   render();
 }

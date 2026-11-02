@@ -142,6 +142,7 @@ function loadData(){
     }
   }
   try{repairMissions();}catch(e){}
+  if(typeof agentsPersoIntegrer==='function')agentsPersoIntegrer(); // agents-perso.js
 }
 
 // Identifiants en double dans une mission (ancien generateId) : le GEH, le prélèvement ou le jour en double reçoit un
@@ -346,6 +347,15 @@ function expandSubSupports(sb){
     out.push(Object.assign({},sb,{plages:s.plages||[],agentData:s.agentData||{},supportNum:k+2,nbSupports:ex.length+1}));
   });
   return out;
+}
+
+// EPI d'un support n° num. Prélèvement fractionné : sb.epiParSupport = {num:durée de port}, seuls les supports cités
+// ont l'EPI ; sans ce choix (anciennes saisies), l'EPI et sa durée valent pour chaque support.
+function epiDuSupport(sb,num){
+  var t=sb.epiType||'sans objet';
+  if(t==='sans objet')return {type:t,duree:0};
+  if(!sb.epiParSupport||!getSupportsSupp(sb).length)return {type:t,duree:sb.epiDuree};
+  return sb.epiParSupport[num]!==undefined?{type:t,duree:sb.epiParSupport[num]}:{type:'sans objet',duree:0};
 }
 
 // === DURÉES ===

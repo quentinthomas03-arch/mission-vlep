@@ -9,6 +9,9 @@ function buildMissionJSON(m){
   m._sauvegarde=Date.now();
   try{saveData('vlep_missions_v3',state.missions);}catch(e){}
   var exportData={_format:'VLEP_Mission_JSON',_version:'1.0',_exportDate:new Date().toISOString(),_author:'Quentin THOMAS',mission:JSON.parse(JSON.stringify(m))};
+  // agents ajoutés par le technicien : la fiche suit la mission
+  var persos=agentsPersoDeLaMission(m);
+  if(persos.length)exportData.mission.agentsPerso=persos;
   var json=JSON.stringify(exportData,null,2);
   var safeName=(m.clientSite||'mission').replace(/[^a-zA-Z0-9àâäéèêëïîôùûüçÀÂÄÉÈÊËÏÎÔÙÛÜÇ _-]/g,'').replace(/\s+/g,'_').substring(0,40);
   return {blob:new Blob([json],{type:'application/json'}),filename:'Appli_VLEP_'+safeName+'_'+String(m.id).slice(-6)+'.json'};
@@ -131,11 +134,16 @@ function importMissionFromText(text){
       alert('Format non reconnu.\n\nAssurez-vous d\'importer une mission de l\'Appli VLEP.');
       return;
     }
+    agentsPersoImporter(mission);
     // Mission déjà sur le téléphone (fichier d'un collègue) : fusion proposée avant l'écrasement
-    var exists=state.missions.some(function(m){return m.id===mission.id;});
-    if(exists){
-      if(confirm('Cette mission est déjà sur le téléphone.\n\nOK : fusionner (vos saisies et celles du fichier sont réunies)\nAnnuler : autre choix')){appliquerFusionMission(mission);return;}
-      if(!confirm('Écraser la mission du téléphone par celle du fichier ?\n\nVos saisies sur ce téléphone seront perdues.'))return;
+    var locale=state.missions.filter(function(m){return m.id===mission.id;})[0];
+    if(locale){
+      if(missionsPartagees(locale,mission)){
+        if(confirm('Cette mission est déjà sur le téléphone.\n\nOK : fusionner (vos saisies et celles du fichier sont réunies)\nAnnuler : autre choix')){appliquerFusionMission(mission);return;}
+        if(!confirm('Écraser la mission du téléphone par celle du fichier ?\n\nVos saisies sur ce téléphone seront perdues.'))return;
+      }
+      // fichier d'une mission refaite : pas de fusion possible, elle doublerait GEH et prélèvements
+      else if(!confirm('Cette mission est déjà sur le téléphone, mais le fichier n’a aucun prélèvement en commun avec elle (mission refaite ?) : elles ne peuvent pas être fusionnées.\n\nÉcraser la mission du téléphone par celle du fichier ?\n\nVos saisies sur ce téléphone seront perdues.'))return;
       state.missions=state.missions.filter(function(m){return m.id!==mission.id;});
     }
     state.missions.push(mission);
