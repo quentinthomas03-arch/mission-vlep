@@ -127,9 +127,9 @@ var GUIDE_PHASES = [
     points: [
       { t: 'Bouton J-1', ou: ['Mission', 'Prélèvement'],
         d: 'Reprend la valeur du prélèvement de la veille (opérateur, durée d’exposition) sur un prélèvement de plusieurs jours.' },
-      { t: 'Regrouper des prélèvements', ou: ['Mission', 'Menu ⋯', 'Regrouper des prélèvements'],
+      { t: 'Regrouper des prélèvements', ou: ['Mission', 'Encadré « Avant de commencer » ou menu ⋯', 'Regrouper des prélèvements'],
         d: 'Plusieurs agents d’un même GEH suivis sur le même opérateur, les mêmes jours et aux mêmes horaires deviennent un seul prélèvement. Les agents que la base place sur le même support partagent un seul support (« Même support » coché pour tous les jours). L’écran propose, par GEH, les agents d’un même support puis « tout le GEH » quand c’est sans risque ; « Tout regrouper » applique les propositions sûres après une liste à cocher ; « Choisir moi-même » reste possible.',
-        n: 'Rien n’est regroupé sans votre accord. Saisies en conflit, jours différents ou réf. différentes sont affichés avant de valider. « Séparer », dans la liste de la mission, défait un regroupement.' },
+        n: 'Rien n’est regroupé sans votre accord. Saisies en conflit, jours différents ou réf. différentes sont affichés avant de valider. « Séparer », dans la liste de la mission, défait un regroupement. L’encadré « Avant de commencer » disparaît au premier jour validé, sur « Rien à regrouper », ou une fois les agents d’un même support regroupés ; le menu ⋯ reste disponible.' },
       { t: 'Base de données', ou: ['Accueil', 'Base de données'],
         d: 'Tous les agents avec débit, support, conservation, VLEP et consignes.' },
       { t: 'Transférer une mission', ou: ['Mission', 'Menu ⋯', 'Envoyer par e-mail'],

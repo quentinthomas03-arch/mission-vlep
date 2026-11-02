@@ -193,6 +193,33 @@ function regActionsGlobales(m) {
   return out;
 }
 
+// « Avant de commencer » : encadré en tête de mission, le regroupement ne reste pas caché dans le menu ⋯.
+// Disparaît au premier jour validé, sur « Rien à regrouper », ou une fois regroupé s'il ne reste plus d'agents d'un même
+// support (« tout le GEH » est proposé dès que c'est sûr : seul le technicien sait s'il suit un même opérateur).
+function regRappelNb(m) {
+  if (m.regroupementVu || (m.prelevements || []).some(function (p) { return (p.subPrelevements || []).some(function (s) { return s.completed; }); })) return 0;
+  var blocs = regPropositions(m).filter(function (b) { return b.cartes.length; });
+  if (m.regroupementFait) blocs = blocs.filter(function (b) { return b.cartes.some(function (c) { return c.nature === 'support'; }); });
+  return blocs.length;
+}
+
+function renderRappelRegroupement(m) {
+  var n = regRappelNb(m);
+  if (!n) return '';
+  var h = '<div class="card reg-rappel"><div class="reg-rappel-titre">Avant de commencer</div>';
+  h += '<p>Des agents peuvent être prélevés ensemble (' + n + ' GEH concerné' + (n > 1 ? 's' : '') + ') : les regrouper évite de saisir et de prévoir des supports en double.</p>';
+  h += '<button class="btn btn-primary mt-8" onclick="ouvrirRegroupement();">' + ICONS.merge + ' Regrouper des prélèvements</button>';
+  h += '<div class="row mt-8"><button class="btn btn-gray btn-small" onclick="ouvrirFicheSupports(\'terrain-mission\');">' + ICONS.clipboard + ' Fiche supports</button><button class="btn btn-gray btn-small" onclick="regRienARegrouper();">Rien à regrouper</button></div></div>';
+  return h;
+}
+
+function regRienARegrouper() {
+  var m = getCurrentMission(); if (!m) return;
+  m.regroupementVu = true;
+  saveData('vlep_missions_v3', state.missions);
+  render();
+}
+
 // ---------- Écran ----------
 function ouvrirRegroupement() {
   state.reg = { exclus: {}, choix: {}, global: null };
@@ -279,6 +306,7 @@ function regValider(ids) {
   var a = regAnalyse(ps);
   if (!a.sur && !confirm('À vérifier avant de regrouper :\n\n- ' + a.raisons.concat(a.pertes).join('\n- ') + '\n\nRegrouper quand même ?')) return;
   regrouperPrelevements(m, ps);
+  m.regroupementFait = true;
   saveData('vlep_missions_v3', state.missions);
   state.reg.exclus = {}; state.reg.choix = {};
   render();
@@ -292,6 +320,7 @@ function regValiderGlobal() {
     var ps = regPrels(m, a.ids);
     if (ps.length > 1 && regAnalyse(ps).sur) { regrouperPrelevements(m, ps); n++; }
   });
+  if (n) m.regroupementFait = true;
   saveData('vlep_missions_v3', state.missions);
   state.reg.global = null;
   render();

@@ -21,6 +21,7 @@ function renderTerrainMission(){
   if(!m){state.view='terrain-list';render();return'';}
   var h='<button class="back-btn" onclick="state.view=\'terrain-list\';state.currentMissionId=null;state.missionMenuOpen=false;render();">'+ICONS.arrowLeft+' Missions</button>';
   h+=renderMissionHead(m);
+  if(typeof renderRappelRegroupement==='function')h+=renderRappelRegroupement(m);
   h+=renderAVerifier(m);
   if(typeof renderRappelSauvegarde==='function')h+=renderRappelSauvegarde(m);
   h+='<div class="row-card" onclick="state.view=\'conditions\';render();">'+ICONS.thermometer+'<span class="row-card-label">Conditions ambiantes</span>'+ICONS.chevronRight+'</div>';

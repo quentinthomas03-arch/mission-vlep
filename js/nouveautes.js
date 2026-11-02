@@ -6,10 +6,13 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.58';
+var APP_VERSION = '2.59';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.59', date: '02/11/2026', items: [
+    'Regrouper des prélèvements ne reste plus caché dans le menu ⋯ : un encadré « Avant de commencer » s’affiche en tête de mission, avec la fiche supports. Il disparaît une fois le regroupement fait, sur « Rien à regrouper », ou au premier jour validé. Rien n’est regroupé sans votre accord.'
+  ] },
   { version: '2.58', date: '02/11/2026', items: [
     'Mon profil (accueil) : votre nom, votre agence, votre valideur et tous les débitmètres et tachymètres de l’agence. Le nom est repris dans chaque nouvelle mission ; dans Infos mission, un toucher choisit l’appareil du jour.',
     'Agent absent de la base : ajoutez-le à la préparation de la mission (Agents chimiques) ou depuis la Base de données, en collant sa ligne de la base Excel ou champ par champ. Il reste sur le téléphone et suit la mission envoyée à un collègue. La VLEP reste à saisir dans la feuille de calcul, qui ne connaît pas cet agent.',
