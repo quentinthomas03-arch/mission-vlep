@@ -26,8 +26,8 @@ var RR_PALETTE = ['000000', 'FFFFFF', 'FF0000', '00FF00', '0000FF', 'FFFF00', 'F
 function rrAttr(s, nom) { var m = new RegExp('\\b' + nom + '="([^"]*)"').exec(s || ''); return m ? m[1] : null; }
 function rrStyles(zip) {
   var lire = function (p) { return zip.file(p) ? zip.file(p).async('string') : Promise.resolve(''); };
-  return Promise.all([lire('xl/styles.xml'), lire('xl/theme/theme1.xml')]).then(function (x) {
-    var st = x[0], th = x[1], S = { numFmts: {}, fonts: [], fills: [], borders: [], xfs: [], palette: RR_PALETTE.slice(), theme: [] };
+  return Promise.all([lire('xl/styles.xml'), lire('xl/theme/theme1.xml'), lire('xl/sharedStrings.xml')]).then(function (x) {
+    var st = x[0], th = x[1], S = { numFmts: {}, fonts: [], fills: [], borders: [], xfs: [], palette: RR_PALETTE.slice(), theme: [], dxfs: [], riches: {}, noms: {} };
     (st.match(/<numFmt\b[^>]*\/>/g) || []).forEach(function (n) { S.numFmts[rrAttr(n, 'numFmtId')] = rrAttr(n, 'formatCode').replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>'); });
     var ic = /<indexedColors>([\s\S]*?)<\/indexedColors>/.exec(st);
     if (ic) (ic[1].match(/<rgbColor\b[^>]*\/>/g) || []).forEach(function (c, i) { S.palette[i] = (rrAttr(c, 'rgb') || '').slice(-6); });
@@ -42,9 +42,26 @@ function rrStyles(zip) {
       var m = new RegExp('<a:' + (n === 'lt1' ? 'lt1' : n === 'dk1' ? 'dk1' : n) + '>([\\s\\S]*?)</a:').exec(cs[0]);
       S.theme[i] = m ? (rrAttr(m[1], 'lastClr') || rrAttr(m[1], 'val') || '000000') : '000000';
     });
+    // formats des mises en forme conditionnelles (fond, couleur du texte, gras)
+    S.dxfs = bloc('dxfs', 'dxf').map(function (d) {
+      var f = /<font>[\s\S]*?<\/font>/.exec(d), ff = f ? f[0] : '';
+      return { fond: rrCouleur((/<bgColor\b[^>]*\/>/.exec(d) || [''])[0], S), couleur: rrCouleur((/<color\b[^>]*\/>/.exec(ff) || [''])[0], S), gras: /<b\/>/.test(ff) };
+    });
+    // textes à plusieurs mises en forme (exposants de mg/m3, repères « n°1_ » écrits en couleur de fond…)
+    (x[2].match(/<si\b[^>]*>[\s\S]*?<\/si>|<si\/>/g) || []).forEach(function (si, i) {
+      if (si.indexOf('<r>') === -1) return;
+      S.riches[i] = si.match(/<r>[\s\S]*?<\/r>/g).map(function (r) {
+        var pr = /<rPr>([\s\S]*?)<\/rPr>/.exec(r), p = pr ? pr[1] : null, t = /<t\b[^>]*>([\s\S]*?)<\/t>/.exec(r);
+        return { t: t ? rrDecoder(t[1]) : '', pr: p === null ? null : {
+          gras: /<b\s*\/>/.test(p), italique: /<i\s*\/>/.test(p), taille: parseFloat(rrAttr((/<sz\b[^>]*\/>/.exec(p) || [''])[0], 'val') || '0'),
+          police: rrAttr((/<rFont\b[^>]*\/>/.exec(p) || [''])[0], 'val'), couleur: rrCouleur((/<color\b[^>]*\/>/.exec(p) || [''])[0], S),
+          position: rrAttr((/<vertAlign\b[^>]*\/>/.exec(p) || [''])[0], 'val') } };
+      });
+    });
     return S;
   });
 }
+function rrDecoder(s) { return s.replace(/&#10;|&#xA;/gi, '\n').replace(/&quot;/g, '"').replace(/&apos;/g, '\'').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); }
 function rrTeinte(hex, tint) {
   if (!tint) return hex;
   var r = parseInt(hex.slice(0, 2), 16) / 255, g = parseInt(hex.slice(2, 4), 16) / 255, b = parseInt(hex.slice(4, 6), 16) / 255;
@@ -85,6 +102,8 @@ function rrCalculerStyle(S, s) {
     fond: pat ? rrCouleur((/<fgColor\b[^>]*\/>/.exec(pat[0]) || [''])[0], S) : null,
     h: al ? rrAttr(al[0], 'horizontal') : null, v: al ? rrAttr(al[0], 'vertical') : null,
     renvoi: al ? rrAttr(al[0], 'wrapText') === '1' : false,
+    reduire: al ? rrAttr(al[0], 'shrinkToFit') === '1' : false,
+    rotation: al ? +(rrAttr(al[0], 'textRotation') || 0) : 0, retrait: al ? +(rrAttr(al[0], 'indent') || 0) : 0,
     bord: bord
   };
 }
@@ -207,8 +226,186 @@ function rrInfosOnglet(sheet) {
     var r = /([A-Z]+)(\d+):([A-Z]+)(\d+)/.exec(rrAttr(mc, 'ref') || '');
     if (r) fusions.push({ c1: XlsmMoteur.colIdx(r[1]), r1: +r[2], c2: XlsmMoteur.colIdx(r[3]), r2: +r[4] });
   });
-  return { cols: cols, def: def, fusions: fusions };
+  return { cols: cols, def: def, fusions: fusions, cf: rrCfLire(sheet), cfCache: {} };
 }
+
+// ---------- Mises en forme conditionnelles ----------
+// Excel n'enregistre pas le résultat d'une règle : les couleurs (exposition / VLEP, écart de débit…) sont retrouvées en
+// évaluant la formule de la règle sur les valeurs enregistrées. Fonction inconnue : règle ignorée (couleur de base).
+function rrCfLire(sheet) {
+  var parLigne = {};
+  (sheet.tail.match(/<conditionalFormatting\b[\s\S]*?<\/conditionalFormatting>/g) || []).forEach(function (bloc) {
+    var zones = (rrAttr(bloc, 'sqref') || '').split(/\s+/).map(function (z) {
+      var m = /([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?/.exec(z);
+      return m ? { c1: XlsmMoteur.colIdx(m[1]), r1: +m[2], c2: XlsmMoteur.colIdx(m[3] || m[1]), r2: +(m[4] || m[2]) } : null;
+    }).filter(Boolean);
+    if (!zones.length) return;
+    (bloc.match(/<cfRule\b[^>]*?(?:\/>|>[\s\S]*?<\/cfRule>)/g) || []).forEach(function (x) {
+      var tete = /<cfRule\b[^>]*>/.exec(x)[0], fs = (x.match(/<formula>[\s\S]*?<\/formula>/g) || []).map(function (f) { return rrDecoder(f.replace(/<\/?formula>/g, '')); });
+      if (!fs.length || rrAttr(tete, 'dxfId') === null) return;
+      var regle = { priorite: +(rrAttr(tete, 'priority') || 0), stop: rrAttr(tete, 'stopIfTrue') === '1', dxf: +rrAttr(tete, 'dxfId'), type: rrAttr(tete, 'type'), op: rrAttr(tete, 'operator'), formules: fs, zones: zones };
+      zones.forEach(function (z) { for (var r = z.r1; r <= z.r2; r++) (parLigne[r] = parLigne[r] || []).push(regle); });
+    });
+  });
+  Object.keys(parLigne).forEach(function (r) { parLigne[r].sort(function (a, b) { return a.priorite - b.priorite; }); });
+  return parLigne;
+}
+function rrErreur() { return { xl: true }; }
+function rrNombreDe(v) {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'boolean') return v ? 1 : 0;
+  var n = String(v).trim() === '' ? NaN : Number(v);
+  if (isNaN(n)) throw rrErreur();
+  return n;
+}
+function rrVrai(v) { if (typeof v === 'string') throw rrErreur(); return !!v; }
+// Comparaison à la façon d'Excel : nombre < texte < booléen, cellule vide = 0 ou « », texte sans casse
+function rrComparer(a, b) {
+  var vide = function (x, autre) { return x !== null && x !== undefined ? x : (typeof autre === 'string' ? '' : (typeof autre === 'boolean' ? false : 0)); };
+  a = vide(a, b); b = vide(b, a);
+  var rang = function (x) { return typeof x === 'number' ? 0 : (typeof x === 'string' ? 1 : 2); };
+  if (rang(a) !== rang(b)) return rang(a) - rang(b);
+  if (typeof a === 'string') { a = a.toLowerCase(); b = b.toLowerCase(); return a < b ? -1 : (a > b ? 1 : 0); }
+  return a < b ? -1 : (a > b ? 1 : 0);
+}
+function rrCellule(ctx, c, r) {
+  var v = rrValeur(ctx.sheet, XlsmMoteur.colStr(c) + r);
+  if (v.type === 'erreur') throw rrErreur();
+  if (v.type === 'vide') return null;
+  if (v.brut === 'VRAI' || v.brut === 'FAUX') return v.brut === 'VRAI';
+  return v.brut;
+}
+var RR_FN = {
+  AND: function (a, x) { var ok = true; a.forEach(function (f) { if (!rrVrai(f(x))) ok = false; }); return ok; },
+  OR: function (a, x) { var ok = false; a.forEach(function (f) { if (rrVrai(f(x))) ok = true; }); return ok; },
+  NOT: function (a, x) { return !rrVrai(a[0](x)); },
+  IF: function (a, x) { return rrVrai(a[0](x)) ? a[1](x) : (a[2] ? a[2](x) : false); },
+  IFERROR: function (a, x) { try { return a[0](x); } catch (e) { if (e && e.xl) return a[1](x); throw e; } },
+  ISERROR: function (a, x) { try { a[0](x); return false; } catch (e) { if (e && e.xl) return true; throw e; } },
+  ISNUMBER: function (a, x) { try { return typeof a[0](x) === 'number'; } catch (e) { if (e && e.xl) return false; throw e; } },
+  ISTEXT: function (a, x) { try { return typeof a[0](x) === 'string'; } catch (e) { if (e && e.xl) return false; throw e; } },
+  ISBLANK: function (a, x) { return a[0](x) === null; },
+  ISEVEN: function (a, x) { return Math.trunc(rrNombreDe(a[0](x))) % 2 === 0; },
+  ISODD: function (a, x) { return Math.trunc(rrNombreDe(a[0](x))) % 2 !== 0; },
+  COLUMN: function (a, x) { return a[0] && a[0].ref ? a[0].ref(x).c : x.c; },
+  ROW: function (a, x) { return a[0] && a[0].ref ? a[0].ref(x).r : x.r; },
+  INT: function (a, x) { return Math.floor(rrNombreDe(a[0](x))); },
+  ABS: function (a, x) { return Math.abs(rrNombreDe(a[0](x))); },
+  LEN: function (a, x) { var v = a[0](x); return v === null ? 0 : String(v).length; },
+  SEARCH: function (a, x) { var i = String(a[1](x) === null ? '' : a[1](x)).toLowerCase().indexOf(String(a[0](x)).toLowerCase()); if (i < 0) throw rrErreur(); return i + 1; },
+  FIND: function (a, x) { var i = String(a[1](x) === null ? '' : a[1](x)).indexOf(String(a[0](x))); if (i < 0) throw rrErreur(); return i + 1; },
+  ADDRESS: function (a, x) { return XlsmMoteur.colStr(rrNombreDe(a[1](x))) + rrNombreDe(a[0](x)); },
+  INDIRECT: function (a, x) { var m = /^\$?([A-Z]{1,3})\$?(\d+)$/.exec(String(a[0](x))); if (!m) throw rrErreur(); return rrCellule(x, XlsmMoteur.colIdx(m[1]), +m[2]); },
+  SINGLE: function (a, x) { return a[0](x); }
+};
+// Compile une formule en fonction(ctx) ; ctx : { sheet, S, r, c, dr, dc } (décalage de la cellule dans la zone de la règle)
+function rrCompiler(src) {
+  var re = /\s*(?:("(?:[^"]|"")*")|(\d+\.?\d*(?:E[+-]?\d+)?)|(\$?[A-Z]{1,3}\$?\d+)(?![A-Za-z0-9_(.!])|([A-Za-z_][A-Za-z0-9_.]*)|(<>|<=|>=|[-+*\/&=<>(),%^]))/y, toks = [], m;
+  src = src.trim();
+  while (re.lastIndex < src.length) {
+    m = re.exec(src);
+    if (!m) throw new Error('formule');
+    toks.push(m[1] !== undefined ? { s: m[1].slice(1, -1).replace(/""/g, '"') } : m[2] !== undefined ? { n: +m[2] } : m[3] !== undefined ? { ref: m[3] } : m[4] !== undefined ? { id: m[4] } : { op: m[5] });
+  }
+  var i = 0, op = function (o) { return toks[i] && toks[i].op === o; };
+  var binaire = function (suite, ops, fn) {
+    return function () {
+      var g = suite();
+      while (toks[i] && ops.indexOf(toks[i].op) !== -1) { (function (gg, o, d) { g = function (x) { return fn(o, gg(x), d(x)); }; })(g, toks[i++].op, suite()); }
+      return g;
+    };
+  };
+  var primaire = function () {
+    var t = toks[i++];
+    if (!t) throw new Error('formule');
+    if (t.n !== undefined) return function () { return t.n; };
+    if (t.s !== undefined) return function () { return t.s; };
+    if (t.ref) {
+      var m2 = /^(\$?)([A-Z]+)(\$?)(\d+)$/.exec(t.ref), col = XlsmMoteur.colIdx(m2[2]), lig = +m2[4];
+      var ref = function (x) { return { c: m2[1] ? col : col + x.dc, r: m2[3] ? lig : lig + x.dr }; };
+      var f = function (x) { var p = ref(x); return rrCellule(x, p.c, p.r); };
+      f.ref = ref;
+      return f;
+    }
+    if (t.id) {
+      if (op('(')) {
+        i++;
+        var nomF = t.id.replace(/^_xlfn\./, ''), fn = RR_FN[nomF.toUpperCase()], args = [];
+        if (!fn) throw new Error('fonction ' + t.id);
+        while (!op(')')) { args.push(comp()); if (op(',')) i++; else if (!op(')')) throw new Error('formule'); }
+        i++;
+        return function (x) { return fn(args, x); };
+      }
+      if (/^(TRUE|VRAI)$/i.test(t.id)) return function () { return true; };
+      if (/^(FALSE|FAUX)$/i.test(t.id)) return function () { return false; };
+      return function (x) { if (!(t.id in x.S.noms)) throw new Error('nom ' + t.id); return x.S.noms[t.id]; };
+    }
+    if (t.op === '(') { var e = comp(); if (!op(')')) throw new Error('formule'); i++; return e; }
+    if (t.op === '-') { var u = primaire(); return function (x) { return -rrNombreDe(u(x)); }; }
+    if (t.op === '+') return primaire();
+    throw new Error('formule');
+  };
+  var pourcent = function () { var p = primaire(); while (op('%')) { i++; (function (q) { p = function (x) { return rrNombreDe(q(x)) / 100; }; })(p); } return p; };
+  var puissance = binaire(pourcent, ['^'], function (o, a, b) { return Math.pow(rrNombreDe(a), rrNombreDe(b)); });
+  var produit = binaire(puissance, ['*', '/'], function (o, a, b) { var d = rrNombreDe(b); if (o === '/' && d === 0) { rrNombreDe(a); throw rrErreur(); } return o === '*' ? rrNombreDe(a) * d : rrNombreDe(a) / d; });
+  var somme = binaire(produit, ['+', '-'], function (o, a, b) { return o === '+' ? rrNombreDe(a) + rrNombreDe(b) : rrNombreDe(a) - rrNombreDe(b); });
+  var concat = binaire(somme, ['&'], function (o, a, b) { return String(a === null ? '' : a) + String(b === null ? '' : b); });
+  var comp = binaire(concat, ['=', '<>', '<', '>', '<=', '>='], function (o, a, b) {
+    var c = rrComparer(a, b);
+    return o === '=' ? c === 0 : o === '<>' ? c !== 0 : o === '<' ? c < 0 : o === '>' ? c > 0 : o === '<=' ? c <= 0 : c >= 0;
+  });
+  var racine = comp();
+  if (i < toks.length) throw new Error('formule');
+  return racine;
+}
+var RR_CF_OPERATEURS = { lessThan: function (c) { return c < 0; }, lessThanOrEqual: function (c) { return c <= 0; }, equal: function (c) { return c === 0; }, notEqual: function (c) { return c !== 0; }, greaterThanOrEqual: function (c) { return c >= 0; }, greaterThan: function (c) { return c > 0; } };
+function rrRegleVraie(regle, ctx) {
+  if (!regle.fn) regle.fn = regle.formules.map(rrCompiler);
+  if (regle.type !== 'cellIs') return rrVrai(regle.fn[0](ctx));
+  var v = rrCellule(ctx, ctx.c, ctx.r), a = regle.fn[0](ctx);
+  if (regle.op === 'between') return rrComparer(v, a) >= 0 && rrComparer(v, regle.fn[1](ctx)) <= 0;
+  if (regle.op === 'notBetween') return rrComparer(v, a) < 0 || rrComparer(v, regle.fn[1](ctx)) > 0;
+  return !!RR_CF_OPERATEURS[regle.op] && RR_CF_OPERATEURS[regle.op](rrComparer(v, a));
+}
+// Format conditionnel d'une cellule : { fond, couleur, gras } ou null (règles par priorité, la première fixe chaque propriété)
+function rrCf(sheet, S, info, r, c) {
+  var l = info.cf && info.cf[r];
+  if (!l) return null;
+  var cle = r + ':' + c;
+  if (cle in info.cfCache) return info.cfCache[cle];
+  var out = null;
+  for (var i = 0; i < l.length; i++) {
+    var regle = l[i], z = regle.zones.filter(function (y) { return r >= y.r1 && r <= y.r2 && c >= y.c1 && c <= y.c2; })[0], ok = false;
+    if (!z || regle.ignoree) continue;
+    var z0 = regle.zones[0];
+    try { ok = rrRegleVraie(regle, { sheet: sheet, S: S, r: r, c: c, dr: r - z0.r1, dc: c - z0.c1 }); }
+    catch (e) { if (!e || !e.xl) { regle.ignoree = true; S.cfIgnorees = (S.cfIgnorees || 0) + 1; } }
+    if (!ok) continue;
+    var d = S.dxfs[regle.dxf] || {};
+    out = out || {};
+    if (d.fond && !out.fond) out.fond = d.fond;
+    if (d.couleur && !out.couleur) out.couleur = d.couleur;
+    if (d.gras) out.gras = true;
+    if (regle.stop) break;
+  }
+  return (info.cfCache[cle] = out);
+}
+// Noms définis du classeur utilisés par les règles (_8H = Reference!$G$5…), lus une fois dans leur onglet
+function rrChargerNoms(wb, S, onglets) {
+  var texte = onglets.map(function (o) { return Object.keys(o.info.cf).map(function (r) { return o.info.cf[r].map(function (x) { return x.formules.join(' '); }).join(' '); }).join(' '); }).join(' ');
+  var chain = Promise.resolve(), re = /<definedName\b([^>]*)>([^<]*)<\/definedName>/g, m;
+  while ((m = re.exec(wb.workbookXml))) (function (attrs, val) {
+    var nom = rrAttr(attrs, 'name');
+    if (!nom || rrAttr(attrs, 'localSheetId') !== null || texte.indexOf(nom) === -1) return;
+    var v = rrDecoder(val), r = /^'?([^'!]+)'?!\$([A-Z]+)\$(\d+)$/.exec(v);
+    if (/^".*"$/.test(v)) { S.noms[nom] = v.slice(1, -1); return; }
+    if (!r || !wb.paths[r[1]]) return;
+    chain = chain.then(function () { return wb.onglet(r[1]); }).then(function (sh) { var c = rrValeur(sh, r[2] + r[3]); S.noms[nom] = c.type === 'vide' ? null : c.brut; });
+  })(m[1], m[2]);
+  return chain;
+}
+
 function rrLigneCachee(sheet, r) { var row = sheet.rows[r]; return !!(row && rrAttr(row.attrs, 'hidden') === '1'); }
 function rrLibelle(sheet, r) { return (sheet.text('A' + r) + ' ' + sheet.text('B' + r)).replace(/\s+/g, ' ').trim(); }
 function rrLigneDe(sheet, libelle) {
@@ -310,6 +507,19 @@ function rrTypeMission(m, ref) {
   return t;
 }
 
+// Largeurs en pixels (largeur enregistrée par Excel = pixels / 7, marges de la cellule comprises). Onglets Reg : un jour non
+// fait est retiré d'un bloc de 6 colonnes, les colonnes restantes reprennent la largeur du bloc entier : les cellules
+// fusionnées sur le bloc (agent, laboratoire, titre) gardent la place qu'elles ont dans Excel et le texte tient comme dans Excel.
+function rrLargeurs(info, cols) {
+  var n = {};
+  if (info.blocs) cols.forEach(function (c) { if (c >= 3) { var b = Math.floor((c - 3) / 6); n[b] = (n[b] || 0) + 1; } });
+  return cols.map(function (c) {
+    var w = info.cols[c] ? info.cols[c].w : info.def;
+    if (info.blocs && c >= 3) w *= 6 / n[Math.floor((c - 3) / 6)];
+    return Math.max(4, Math.round(w * 7));
+  });
+}
+
 // ---------- Tableau Word ----------
 function rrBordure(b) {
   if (!b) return null;
@@ -321,7 +531,7 @@ function rrBordure(b) {
 function rrTableau(sheet, S, info, rows, cols, largeurMax) {
   var X = DocxMoteur, E = X.encXml;
   cols = cols.filter(function (c) { return !(info.cols[c] && info.cols[c].cache) && !(info.cols[c] && info.cols[c].w === 0); });
-  var px = cols.map(function (c) { var w = info.cols[c] ? info.cols[c].w : info.def; return Math.max(4, Math.round(w * 7 + 5)); });
+  var px = rrLargeurs(info, cols);
   var total = px.reduce(function (a, b) { return a + b; }, 0) * 15, f = Math.min(1, (largeurMax || RR_LARGEUR_PAGE) / total);
   var tw = px.map(function (p) { return Math.max(60, Math.round(p * 15 * f)); });
   var colPos = {}; cols.forEach(function (c, i) { colPos[c] = i; });
@@ -392,7 +602,7 @@ function rrPng(canvas) {
 function rrImage(sheet, S, info, rows, cols) {
   cols = cols.filter(function (c) { return !(info.cols[c] && info.cols[c].cache) && !(info.cols[c] && info.cols[c].w === 0); });
   var k = 1.5, fp = /<sheetFormatPr\b[^>]*>/.exec(sheet.head), defH = fp && rrAttr(fp[0], 'defaultRowHeight') ? parseFloat(rrAttr(fp[0], 'defaultRowHeight')) : 15;
-  var ws = cols.map(function (c) { var w = info.cols[c] ? info.cols[c].w : info.def; return Math.max(4, Math.round(w * 7 + 5)); });
+  var ws = rrLargeurs(info, cols);
   var hs = rows.map(function (r) { var row = sheet.rows[r], ht = row ? rrAttr(row.attrs, 'ht') : null; return Math.max(4, Math.round((ht ? parseFloat(ht) : defH) * 96 / 72)); });
   var xs = [0], ys = [0];
   ws.forEach(function (w, i) { xs.push(xs[i] + w); }); hs.forEach(function (h, i) { ys.push(ys[i] + h); });
@@ -411,29 +621,63 @@ function rrImage(sheet, S, info, rows, cols) {
     var reg = { r0: ri[rs[0]], r1: ri[rs[rs.length - 1]], c0: ci[cs[0]], c1: ci[cs[cs.length - 1]], depart: rs[0] + ':' + cs[0] };
     rs.forEach(function (r) { cs.forEach(function (c) { region[r + ':' + c] = reg; }); });
   });
-  var lignesTexte = function (txt, police, larg, renvoi) {
-    g.font = police;
-    var out = [];
-    String(txt).split('\n').forEach(function (para) {
-      if (!renvoi) { out.push(para); return; }
-      var mots = para.split(' '), cur = '';
-      mots.forEach(function (m) { var t = cur ? cur + ' ' + m : m; if (cur && g.measureText(t).width > larg) { out.push(cur); cur = m; } else cur = t; });
-      out.push(cur);
+  // morceaux de texte d'une cellule : un seul, ou un par mise en forme d'un texte enrichi ; e = réduction « Ajuster »
+  var policeDe = function (s, e) { return (s.italique ? 'italic ' : '') + (s.gras ? 'bold ' : '') + (s.taille * e).toFixed(1) + 'px "' + s.police + '", Arial, sans-serif'; };
+  var largeurDe = function (morceaux, e) { return morceaux.reduce(function (t, s) { g.font = policeDe(s, e); return t + g.measureText(s.t).width; }, 0); };
+  var morceauxDe = function (ref, txt, base) {
+    var c0 = sheet.cell(ref), idx = c0 && rrAttr(c0.attrs, 't') === 's' ? (/<v>(\d+)<\/v>/.exec(c0.inner) || [])[1] : null, runs = idx !== null && idx !== undefined ? S.riches[+idx] : null;
+    if (!runs) return [Object.assign({}, base, { t: txt })];
+    return runs.map(function (u) {
+      var p = u.pr || {}, s = Object.assign({}, base, { t: u.t });
+      if (u.pr) { s.gras = !!p.gras || !!base.forceGras; s.italique = !!p.italique; if (p.taille) s.taille = p.taille * 96 / 72; if (p.police) s.police = p.police; if (p.couleur) s.couleur = p.couleur; }
+      if (p.position === 'superscript' || p.position === 'subscript') { s.dy = (p.position === 'superscript' ? -0.33 : 0.15) * s.taille; s.taille *= 0.7; }
+      return s;
     });
+  };
+  // lignes de morceaux, coupées aux espaces si la cellule renvoie à la ligne
+  var couper = function (morceaux, larg, renvoi) {
+    var out = [], cur = [], lg = 0;
+    var fin = function () { while (cur.length && cur[cur.length - 1].t === ' ') cur.pop(); out.push(cur); cur = []; lg = 0; };
+    morceaux.forEach(function (s) {
+      s.t.split(/(\n| )/).forEach(function (bout) {
+        if (bout === '') return;
+        if (bout === '\n') { fin(); return; }
+        var m = Object.assign({}, s, { t: bout }), l = largeurDe([m], 1);
+        if (renvoi && cur.length && bout !== ' ' && lg + l > larg) fin();
+        if (!cur.length && bout === ' ' && renvoi) return;
+        cur.push(m); lg += l;
+      });
+    });
+    fin();
     return out;
   };
-  // fonds et textes
+  // fonds d'abord (un texte qui déborde sur les cellules voisines reste visible), calés sur les pixels de l'image
+  var cale = function (v) { return Math.round(v * k) / k; };
   rows.forEach(function (r, i) {
     cols.forEach(function (c, j) {
       var cle = r + ':' + c, reg = region[cle];
       if (reg && reg.depart !== cle) return;
+      var x = xs[reg ? reg.c0 : j], y = ys[reg ? reg.r0 : i], x2 = xs[(reg ? reg.c1 : j) + 1], y2 = ys[(reg ? reg.r1 : i) + 1];
+      var st = rrStyleCellule(S, rrValeur(sheet, XlsmMoteur.colStr(c) + r).s), cf = rrCf(sheet, S, info, r, c), fond = (cf && cf.fond) || st.fond;
+      if (fond && fond !== 'FFFFFF') { g.fillStyle = '#' + fond; g.fillRect(cale(x), cale(y), cale(x2) - cale(x), cale(y2) - cale(y)); }
+    });
+  });
+  // textes (après les bordures : un texte qui déborde passe par-dessus le trait entre deux cellules)
+  var dessinerTextes = function () { rows.forEach(function (r, i) {
+    cols.forEach(function (c, j) {
+      var cle = r + ':' + c, reg = region[cle];
+      if (reg && reg.depart !== cle) return;
       var x = xs[reg ? reg.c0 : j], y = ys[reg ? reg.r0 : i], w = xs[(reg ? reg.c1 : j) + 1] - x, h = ys[(reg ? reg.r1 : i) + 1] - y;
-      var val = rrValeur(sheet, XlsmMoteur.colStr(c) + r), st = rrStyleCellule(S, val.s);
-      if (st.fond && st.fond !== 'FFFFFF') { g.fillStyle = '#' + st.fond; g.fillRect(x, y, w, h); }
+      var val = rrValeur(sheet, XlsmMoteur.colStr(c) + r), st = rrStyleCellule(S, val.s), cf = rrCf(sheet, S, info, r, c);
       var txt = val.type === 'nombre' ? rrFormater(val.brut, st.fmt) : String(val.brut || '');
       if (!txt) return;
-      var taille = st.taille * 96 / 72, police = (st.italique ? 'italic ' : '') + (st.gras ? 'bold ' : '') + taille.toFixed(1) + 'px "' + st.police + '", Arial, sans-serif';
-      var lignes = lignesTexte(txt, police, w - 4, st.renvoi), hl = taille * 1.2;
+      var taille = st.taille * 96 / 72, retrait = st.retrait * 9;
+      var base = { taille: taille, police: st.police, gras: st.gras || !!(cf && cf.gras), forceGras: !!(cf && cf.gras), italique: st.italique, couleur: (cf && cf.couleur) || st.couleur || '000000', dy: 0 };
+      var pivot = st.rotation && st.rotation !== 255 ? (st.rotation <= 90 ? st.rotation : 90 - st.rotation) : 0;
+      var lignes = couper(morceauxDe(XlsmMoteur.colStr(c) + r, txt, base), (pivot ? h : w) - 4 - retrait, st.renvoi);
+      var e = 1, plusLarge = Math.max.apply(null, lignes.map(function (l) { return largeurDe(l, 1); }));
+      if (st.reduire && !st.renvoi && plusLarge > w - 4 - retrait && plusLarge > 0) e = (w - 4 - retrait) / plusLarge;
+      var hl = taille * e * 1.2;
       var jc = st.h === 'center' || st.h === 'centerContinuous' ? 'center' : st.h === 'right' ? 'right' : st.h === 'left' ? 'left' : (val.type === 'nombre' ? 'right' : 'left');
       // comme Excel : un texte non renvoyé à la ligne, aligné à gauche, déborde sur les cellules vides à sa droite
       var wClip = w;
@@ -442,18 +686,26 @@ function rrImage(sheet, S, info, rows, cols) {
           var cv = cols[jj], vv = rrValeur(sheet, XlsmMoteur.colStr(cv) + r);
           if (region[r + ':' + cv] || (vv.type !== 'vide' && String(vv.brut) !== '')) break;
           wClip = xs[jj + 1] - x;
-          g.font = police;
-          if (g.measureText(lignes[0] || '').width + 4 <= wClip) break;
+          if (largeurDe(lignes[0] || [], 1) + 4 <= wClip) break;
         }
       }
       var y0 = st.v === 'top' ? y + 2 : st.v === 'center' || st.v === 'justify' || st.v === 'distributed' ? y + (h - lignes.length * hl) / 2 : y + h - lignes.length * hl - 1;
       g.save(); g.beginPath(); g.rect(x, y, wClip, h); g.clip();
-      g.font = police; g.fillStyle = '#' + (st.couleur || '000000'); g.textBaseline = 'top'; g.textAlign = jc;
-      var xt = jc === 'center' ? x + w / 2 : jc === 'right' ? x + w - 2 : x + 2;
-      lignes.forEach(function (l, n) { g.fillText(l, xt, y0 + n * hl + 1); });
+      g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+      var dessiner = function (ligne, xd, yd) {
+        ligne.forEach(function (s) { g.font = policeDe(s, e); g.fillStyle = '#' + s.couleur; g.fillText(s.t, xd, yd + s.dy * e); xd += g.measureText(s.t).width; });
+      };
+      if (pivot) {
+        // texte orienté : centré sur la cellule, tourné autour de son centre
+        g.translate(x + w / 2, y + h / 2); g.rotate(-pivot * Math.PI / 180);
+        lignes.forEach(function (l, n) { dessiner(l, -largeurDe(l, e) / 2, (n - (lignes.length - 1) / 2) * hl + taille * e * 0.35); });
+      } else lignes.forEach(function (l, n) {
+        var ll = largeurDe(l, e), xt = jc === 'center' ? x + (w - ll) / 2 : jc === 'right' ? x + w - 2 - retrait - ll : x + 2 + retrait;
+        dessiner(l, xt, y0 + n * hl + 1 + taille * e * 0.93);
+      });
       g.restore();
     });
-  });
+  }); };
   // bordures : chaque cellule trace les siennes, sauf à l'intérieur d'une fusion
   var largeur = { thin: 1, hair: 0.5, medium: 2, thick: 3, double: 3, dashed: 1, dotted: 1, mediumDashed: 2, dashDot: 1, mediumDashDot: 2, dashDotDot: 1, slantDashDot: 2 };
   rows.forEach(function (r, i) {
@@ -472,6 +724,7 @@ function rrImage(sheet, S, info, rows, cols) {
     });
   });
   g.setLineDash([]);
+  dessinerTextes();
   return rrPng(canvas).then(function (octets) { return { octets: octets, l: W, h: H }; });
 }
 
@@ -507,7 +760,9 @@ function rrOnglets(wb, m) {
       })
         .filter(function (cols) { return cols.length; })
         .map(function (cols) { return { cols: cols, types: /Reg/.test(a1) ? null : rrTypes(sh, cols, rRes, rVal, m) }; });
-      if (lots.length) out.push({ nom: n, modele: a1, reg: /Reg/.test(a1), sheet: sh, info: rrInfosOnglet(sh), rRes: rRes, rVal: rVal, rCalc: rCalc || rVal, lots: lots });
+      var inf = rrInfosOnglet(sh);
+      inf.blocs = /Reg/.test(a1);
+      if (lots.length) out.push({ nom: n, modele: a1, reg: /Reg/.test(a1), sheet: sh, info: inf, rRes: rRes, rVal: rVal, rCalc: rCalc || rVal, lots: lots });
     });
   });
   return chain.then(function () { return out; });
@@ -610,6 +865,12 @@ function rapportInsererResultats(doc, wbFeuille, m) {
   return Promise.all([rrStyles(wbFeuille.zip), rrOnglets(wbFeuille, m), doc.chargerRelations()]).then(function (x) {
     S = x[0]; var onglets = x[1];
     if (!onglets.length) { res.alertes.push('Aucun résultat trouvé dans la feuille de calcul (onglets de résultats vides ou feuille non enregistrée par Excel).'); return res; }
+    return rrChargerNoms(wbFeuille, S, onglets).then(function () { return rrPlacerResultats(doc, onglets, S, m, res); });
+  });
+}
+function rrPlacerResultats(doc, onglets, S, m, res) {
+  var X = DocxMoteur;
+  return Promise.resolve().then(function () {
     var corps = doc.corps(), paras = X.trouverTous(corps, 'w:p');
     // tableaux d'exemple « RESULTATS » de la trame, par section
     var exemples = X.trouverTous(corps, 'w:tbl').filter(function (t) { return /^RESULTATS/.test(X.texte(t).trim()); }).map(function (t) {
@@ -706,6 +967,7 @@ function rapportInsererResultats(doc, wbFeuille, m) {
       return chain.then(function () { res.annexe = morceaux.length; });
     }).then(function () {
       res.images = doc._nImages || 0;
+      if (S.cfIgnorees) res.alertes.push(S.cfIgnorees + ' règle(s) de couleur conditionnelle de la feuille non reconnue(s) : vérifier les couleurs des tableaux de résultats.');
       return res;
     });
   });

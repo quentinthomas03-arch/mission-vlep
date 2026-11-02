@@ -6,10 +6,13 @@
 // À CHAQUE NOUVELLE FONCTION : ajouter une entrée en tête de NOUVEAUTES, monter APP_VERSION,
 // et monter VERSION / CACHE_NAME dans sw.js à la même valeur.
 
-var APP_VERSION = '2.59';
+var APP_VERSION = '2.60';
 
 // Du plus récent au plus ancien. Une entrée par version publiée aux techniciens.
 var NOUVEAUTES = [
+  { version: '2.60', date: '02/11/2026', items: [
+    'Rapport Word, tableaux de résultats : la mise en page est de nouveau celle d’Excel. Quand un jour n’est pas fait, le texte ne déborde plus (agent chimique, laboratoire, titre). Les couleurs de la feuille reviennent (exposition / VLEP en vert, gris ou orange), ainsi que les exposants de mg/m³ et les titres de section en entier ; les repères « n°1_ » restent cachés.'
+  ] },
   { version: '2.59', date: '02/11/2026', items: [
     'Regrouper des prélèvements ne reste plus caché dans le menu ⋯ : un encadré « Avant de commencer » s’affiche en tête de mission, avec la fiche supports. Il disparaît une fois le regroupement fait, sur « Rien à regrouper », ou au premier jour validé. Rien n’est regroupé sans votre accord.'
   ] },
