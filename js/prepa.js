@@ -897,6 +897,7 @@ function renderPrepaAgents(){
     var hc=hasVLEPCT(a.name)||a.isManual;
     h+='<div class="agent-item"><div class="agent-color" style="background:'+c+';"></div><div class="agent-name">'+escapeHtml(a.name)+(a.isManual?' <small>(manuel)</small>':'')+(typeof consigneSansLabo==='function'&&consigneSansLabo(a.name)?' <small style="color:#dc2626;font-weight:600;">aucun laboratoire ne l’analyse</small>':'')+'</div><div class="agent-badges"><span class="agent-badge agent-badge-8h '+(a.is8h?'active':'')+'" onclick="toggleAgent8h('+i+');">8h</span><span class="agent-badge agent-badge-ct '+(a.isCT?'active':'')+'" onclick="toggleAgentCT('+i+');">CT</span></div><button class="agent-delete" onclick="removeAgent('+i+');">'+ICONS.trash+'</button></div>';
   });
+  h+=renderMesAgents();
   if(state.showModal==='addManual')h+=renderAddManualModal();
   return h;
 }

@@ -200,15 +200,15 @@ function agentPersoSupprimer(nom){
 
 function renderMesAgents(){
   var l=agentsPersoLire();
-  var h='<div class="card"><h2>'+ICONS.beaker+' Agents ajoutés à la base</h2>';
-  if(!l.length)h+='<p class="subtitle">Aucun. Un agent absent de la base peut s’ajouter ici ou à la préparation.</p>';
+  if(!l.length)return '';
+  var h='<div class="section-title">Agents ajoutés à la base ('+l.length+')</div>';
   l.forEach(function(a){
     var n=a['Agent chimique'],doublon=!getAgentFromDB(n)||!getAgentFromDB(n)._perso;
     h+='<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;"><div style="flex:1;font-size:14px;">'+escapeHtml(n)+(doublon?' <small style="color:var(--text-muted);">maintenant dans la base de l’appli</small>':'')+'</div>'+
       '<button class="btn btn-gray btn-small" aria-label="Modifier" style="width:44px;flex:none;margin:0;" onclick="agentPersoOuvrir(\''+escapeJs(n)+'\');">'+ICONS.edit+'</button>'+
       '<button class="btn btn-danger btn-icon" aria-label="Retirer" style="margin:0;width:44px;flex:none;" onclick="agentPersoSupprimer(\''+escapeJs(n)+'\');">'+ICONS.trash+'</button></div>';
   });
-  return h+'<button class="btn btn-gray btn-small" onclick="agentPersoOuvrir();">+ Ajouter un agent</button></div>';
+  return h;
 }
 
 // ----- Voyage avec la mission -----

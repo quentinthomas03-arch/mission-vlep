@@ -72,7 +72,6 @@ function renderProfil(){
   });
   h+='<button class="btn btn-gray btn-small" onclick="profilAjouter(\'tachymetres\');">+ Tachymètre</button></div>';
 
-  h+=renderMesAgents();
   return h;
 }
 
